@@ -1,7 +1,7 @@
 aiogram==3.5.0
 aiosmtplib==3.0.1
 aiosqlite==0.20.0
-pydantic==2.6.4
+pydantic==2.7.4
 python-dotenv==1.0.1
 qrcode==7.4.2
 yookassa==2.4.0

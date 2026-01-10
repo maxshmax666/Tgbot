@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from .menu import MENU_ITEMS
+from .menu import MENU
 
 
 def menu_keyboard() -> InlineKeyboardMarkup:
-    buttons = [
-        [InlineKeyboardButton(text=f"{item.name} — {item.price}₽", callback_data=f"add:{item.code}")]
-        for item in MENU_ITEMS
-    ]
+    buttons = []
+    for code, item in MENU.items():
+        title = item["title"]
+        price = item["price"]
+        buttons.append(
+            [InlineKeyboardButton(text=f"{title} — {price}₽", callback_data=f"add:{code}")]
+        )
     buttons.append([InlineKeyboardButton(text="Корзина", callback_data="cart:view")])
+    buttons.append([InlineKeyboardButton(text="Галерея", callback_data="gallery")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -24,21 +28,21 @@ def cart_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def delivery_keyboard() -> InlineKeyboardMarkup:
+def payment_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Доставка", callback_data="delivery:delivery")],
-            [InlineKeyboardButton(text="Самовывоз", callback_data="delivery:pickup")],
+            [InlineKeyboardButton(text="Карта", callback_data="pay:card")],
+            [InlineKeyboardButton(text="СБП QR", callback_data="pay:sbp")],
+            [InlineKeyboardButton(text="Назад в меню", callback_data="menu")],
         ]
     )
 
 
-def payment_keyboard() -> InlineKeyboardMarkup:
+def payment_check_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Оплата в чате (ЮKassa)", callback_data="pay:chat")],
-            [InlineKeyboardButton(text="Перевод по QR", callback_data="pay:qr")],
-            [InlineKeyboardButton(text="Наличные", callback_data="pay:cash")],
+            [InlineKeyboardButton(text="Проверить оплату", callback_data="payment:check")],
+            [InlineKeyboardButton(text="Назад в меню", callback_data="menu")],
         ]
     )
 
