@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from pathlib import Path
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
@@ -25,8 +26,13 @@ async def main() -> None:
     bot = Bot(token=config.bot_token, parse_mode=ParseMode.HTML)
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
-    db_path = os.getenv("DB_PATH", "bot.db")
-    db = Database(db_path)
+    env_db_path = os.getenv("DB_PATH")
+    default_db_path = Path(__file__).resolve().parent.parent / "bot.db"
+    db_path = Path(env_db_path) if env_db_path else default_db_path
+    db_path_str = str(db_path)
+    if db_path_str != ":memory:" and not db_path_str.startswith("file:"):
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+    db = Database(str(db_path))
 
     await db.connect()
     await db.init()
