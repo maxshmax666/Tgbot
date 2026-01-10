@@ -11,7 +11,7 @@ def menu_keyboard() -> InlineKeyboardMarkup:
         title = item["title"]
         price = item["price"]
         buttons.append(
-            [InlineKeyboardButton(text=f"{title} — {price}₽", callback_data=f"add:{code}")]
+            [InlineKeyboardButton(text=f"{title} — {price}₽", callback_data=f"pizza:{code}")]
         )
     buttons.append([InlineKeyboardButton(text="Корзина", callback_data="cart:view")])
     buttons.append([InlineKeyboardButton(text="Галерея", callback_data="gallery")])
@@ -51,3 +51,11 @@ def back_to_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="Назад в меню", callback_data="menu")]]
     )
+
+
+def pizza_keyboard(code: str, show_gallery: bool = True) -> InlineKeyboardMarkup:
+    buttons = [[InlineKeyboardButton(text="Добавить в корзину", callback_data=f"add:{code}")]]
+    if show_gallery:
+        buttons.append([InlineKeyboardButton(text="Галерея", callback_data=f"gallery:{code}")])
+    buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="menu")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

@@ -27,6 +27,7 @@ from .keyboards import (
     menu_keyboard,
     payment_check_keyboard,
     payment_keyboard,
+    pizza_keyboard,
 )
 from .menu import MENU
 from .payments import (
@@ -39,6 +40,9 @@ from .payments import (
 logger = logging.getLogger(__name__)
 
 router = Router()
+
+PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
+GALLERY_DIRS = ("margarita", "4chees", "kolbasa", "myasnaya", "beacon")
 
 
 def _format_cart(items: list[CartItem]) -> str:
@@ -66,6 +70,44 @@ def _format_admin_order(tg_id: int, items: list[CartItem], total: int, method: s
     return "\n".join(lines)
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[1]
+
+
+def _collect_photos(directory: Path) -> list[Path]:
+    if not directory.exists():
+        return []
+    return sorted(
+        [
+            path
+            for path in directory.iterdir()
+            if path.is_file() and path.suffix.lower() in PHOTO_EXTENSIONS
+        ]
+    )
+
+
+def _get_pizza_photos(code: str) -> list[Path]:
+    item = MENU.get(code, {})
+    photo_dir = item.get("photo_dir")
+    if not photo_dir:
+        return []
+    return _collect_photos(_repo_root() / str(photo_dir))
+
+
+def _format_pizza(item: dict[str, str | int]) -> str:
+    title = item["title"]
+    description = item["description"]
+    price = item["price"]
+    return f"<b>{title}</b>\n{description}\nЦена: {price} ₽"
+
+
+async def _send_photo_gallery(bot: Bot, chat_id: int, files: list[Path]) -> None:
+    for index in range(0, len(files), 10):
+        chunk = files[index : index + 10]
+        media = [InputMediaPhoto(media=FSInputFile(path)) for path in chunk]
+        await bot.send_media_group(chat_id, media)
+
+
 @router.message(Command("start"))
 async def start(message: Message, config: Config) -> None:
     await ensure_user(config.db_path, message.from_user.id)
@@ -83,6 +125,29 @@ async def menu(message: Message) -> None:
 @router.callback_query(F.data == "menu")
 async def menu_callback(query: CallbackQuery) -> None:
     await query.message.edit_text("Меню:", reply_markup=menu_keyboard())
+    await query.answer()
+
+
+@router.callback_query(F.data.startswith("pizza:"))
+async def pizza_details_handler(query: CallbackQuery) -> None:
+    code = query.data.split(":", 1)[1]
+    item = MENU.get(code)
+    if not item:
+        await query.answer("Позиция не найдена.", show_alert=True)
+        return
+    photos = _get_pizza_photos(code)
+    caption = _format_pizza(item)
+    if photos:
+        await query.message.answer_photo(
+            FSInputFile(photos[0]),
+            caption=caption,
+            reply_markup=pizza_keyboard(code, show_gallery=len(photos) > 1),
+        )
+    else:
+        await query.message.answer(
+            caption,
+            reply_markup=pizza_keyboard(code, show_gallery=False),
+        )
     await query.answer()
 
 
@@ -217,26 +282,36 @@ async def payment_check_handler(query: CallbackQuery, bot: Bot, config: Config) 
 
 @router.callback_query(F.data == "gallery")
 async def gallery_handler(query: CallbackQuery, bot: Bot) -> None:
-    gallery_dir = Path(__file__).resolve().parent / "assets" / "gallery"
-    if not gallery_dir.exists():
-        await query.message.answer("Галерея пуста.", reply_markup=back_to_menu_keyboard())
-        await query.answer()
-        return
-
-    files = sorted(
-        [
-            path
-            for path in gallery_dir.iterdir()
-            if path.suffix.lower() in {".jpg", ".jpeg", ".png"}
-        ]
-    )
+    files: list[Path] = []
+    base_dir = _repo_root()
+    for directory in GALLERY_DIRS:
+        files.extend(_collect_photos(base_dir / directory))
 
     if not files:
         await query.message.answer("Галерея пуста.", reply_markup=back_to_menu_keyboard())
         await query.answer()
         return
 
-    media = [InputMediaPhoto(media=FSInputFile(path)) for path in files]
-    await bot.send_media_group(query.message.chat.id, media)
+    await _send_photo_gallery(bot, query.message.chat.id, files)
     await query.message.answer("Меню:", reply_markup=menu_keyboard())
+    await query.answer()
+
+
+@router.callback_query(F.data.startswith("gallery:"))
+async def pizza_gallery_handler(query: CallbackQuery, bot: Bot) -> None:
+    code = query.data.split(":", 1)[1]
+    item = MENU.get(code)
+    if not item:
+        await query.answer("Позиция не найдена.", show_alert=True)
+        return
+    files = _get_pizza_photos(code)
+    if not files:
+        await query.message.answer("Фотографии для этой позиции пока не добавлены.")
+        await query.answer()
+        return
+    await _send_photo_gallery(bot, query.message.chat.id, files)
+    await query.message.answer(
+        "Что дальше?",
+        reply_markup=pizza_keyboard(code, show_gallery=len(files) > 1),
+    )
     await query.answer()
