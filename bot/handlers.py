@@ -24,7 +24,8 @@ from .db import (
 from .keyboards import (
     back_to_menu_keyboard,
     cart_keyboard,
-    menu_keyboard,
+    menu_actions_keyboard,
+    menu_item_keyboard,
     payment_check_keyboard,
     payment_keyboard,
     pizza_keyboard,
@@ -42,7 +43,6 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
-GALLERY_DIRS = ("margarita", "4chees", "kolbasa", "myasnaya", "beacon")
 
 
 def _format_cart(items: list[CartItem]) -> str:
@@ -108,23 +108,58 @@ async def _send_photo_gallery(bot: Bot, chat_id: int, files: list[Path]) -> None
         await bot.send_media_group(chat_id, media)
 
 
+def _collect_repo_photos() -> list[Path]:
+    root = _repo_root()
+    return sorted(
+        [
+            path
+            for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() in PHOTO_EXTENSIONS
+        ]
+    )
+
+
+def _format_menu_item(item: dict[str, str | int]) -> str:
+    title = item["title"]
+    price = item["price"]
+    return f"<b>{title}</b>\nЦена: {price} ₽"
+
+
+async def _send_menu(message: Message) -> None:
+    for code, item in MENU.items():
+        photos = _get_pizza_photos(code)
+        caption = _format_menu_item(item)
+        if photos:
+            await message.answer_photo(
+                FSInputFile(photos[0]),
+                caption=caption,
+                reply_markup=menu_item_keyboard(code),
+            )
+        else:
+            await message.answer(
+                caption,
+                reply_markup=menu_item_keyboard(code),
+            )
+    await message.answer("Дополнительно:", reply_markup=menu_actions_keyboard())
+
+
 @router.message(Command("start"))
 async def start(message: Message, config: Config) -> None:
     await ensure_user(config.db_path, message.from_user.id)
-    await message.answer(
-        "Добро пожаловать! Выберите пиццу из меню ниже.",
-        reply_markup=menu_keyboard(),
-    )
+    await message.answer("Добро пожаловать! Выберите пиццу из меню ниже.")
+    await _send_menu(message)
 
 
 @router.message(Command("menu"))
 async def menu(message: Message) -> None:
-    await message.answer("Меню:", reply_markup=menu_keyboard())
+    await message.answer("Меню:")
+    await _send_menu(message)
 
 
 @router.callback_query(F.data == "menu")
 async def menu_callback(query: CallbackQuery) -> None:
-    await query.message.edit_text("Меню:", reply_markup=menu_keyboard())
+    await query.message.answer("Меню:")
+    await _send_menu(query.message)
     await query.answer()
 
 
@@ -282,10 +317,7 @@ async def payment_check_handler(query: CallbackQuery, bot: Bot, config: Config) 
 
 @router.callback_query(F.data == "gallery")
 async def gallery_handler(query: CallbackQuery, bot: Bot) -> None:
-    files: list[Path] = []
-    base_dir = _repo_root()
-    for directory in GALLERY_DIRS:
-        files.extend(_collect_photos(base_dir / directory))
+    files = _collect_repo_photos()
 
     if not files:
         await query.message.answer("Галерея пуста.", reply_markup=back_to_menu_keyboard())
@@ -293,7 +325,8 @@ async def gallery_handler(query: CallbackQuery, bot: Bot) -> None:
         return
 
     await _send_photo_gallery(bot, query.message.chat.id, files)
-    await query.message.answer("Меню:", reply_markup=menu_keyboard())
+    await query.message.answer("Меню:")
+    await _send_menu(query.message)
     await query.answer()
 
 

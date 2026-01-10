@@ -2,20 +2,15 @@ from __future__ import annotations
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from .menu import MENU
-
-
-def menu_keyboard() -> InlineKeyboardMarkup:
-    buttons = []
-    for code, item in MENU.items():
-        title = item["title"]
-        price = item["price"]
-        buttons.append(
-            [InlineKeyboardButton(text=f"{title} — {price}₽", callback_data=f"pizza:{code}")]
-        )
-    buttons.append([InlineKeyboardButton(text="Корзина", callback_data="cart:view")])
-    buttons.append([InlineKeyboardButton(text="Галерея", callback_data="gallery")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+def menu_actions_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Корзина", callback_data="cart:view"),
+                InlineKeyboardButton(text="Галерея", callback_data="gallery"),
+            ]
+        ]
+    )
 
 
 def cart_keyboard() -> InlineKeyboardMarkup:
@@ -53,9 +48,24 @@ def back_to_menu_keyboard() -> InlineKeyboardMarkup:
     )
 
 
+def menu_item_keyboard(code: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="Подробнее", callback_data=f"pizza:{code}"),
+                InlineKeyboardButton(text="В корзину", callback_data=f"add:{code}"),
+            ]
+        ]
+    )
+
+
 def pizza_keyboard(code: str, show_gallery: bool = True) -> InlineKeyboardMarkup:
-    buttons = [[InlineKeyboardButton(text="Добавить в корзину", callback_data=f"add:{code}")]]
+    buttons = [
+        [
+            InlineKeyboardButton(text="Добавить в корзину", callback_data=f"add:{code}"),
+            InlineKeyboardButton(text="В меню", callback_data="menu"),
+        ]
+    ]
     if show_gallery:
         buttons.append([InlineKeyboardButton(text="Галерея", callback_data=f"gallery:{code}")])
-    buttons.append([InlineKeyboardButton(text="Назад в меню", callback_data="menu")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
