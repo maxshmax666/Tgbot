@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">Pizza preview</title>
+  <desc id="desc">Placeholder image for pizza preview</desc>
+  <rect width="640" height="480" fill="#1f2430" />
+  <circle cx="320" cy="240" r="160" fill="#2d313a" />
+  <circle cx="320" cy="240" r="140" fill="#3a3f4a" />
+  <text x="320" y="250" text-anchor="middle" fill="#9aa3b2" font-family="Inter, system-ui, sans-serif" font-size="28">Фото скоро</text>
+</svg>
