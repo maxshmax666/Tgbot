@@ -35,6 +35,14 @@
         font-size: 24px;
         font-weight: 700;
       }
+      .warning {
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: #2c1a0f;
+        color: #ffb47a;
+        border: 1px solid #523019;
+        margin-bottom: 16px;
+      }
       .tabs {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -61,10 +69,6 @@
       .tab-panel.active {
         display: block;
       }
-      .menu-grid {
-        display: grid;
-        gap: 14px;
-      }
       .card {
         background: var(--panel);
         border: 1px solid var(--border);
@@ -79,138 +83,35 @@
         gap: 12px;
         align-items: center;
       }
-      .card img {
+      .placeholder {
         width: 96px;
         height: 96px;
         border-radius: 14px;
-        object-fit: cover;
         border: 1px solid var(--border);
-        cursor: pointer;
-      }
-      .card-title {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .card-title h3 {
-        margin: 0;
-        font-size: 18px;
-      }
-      .price {
-        font-weight: 600;
-        color: var(--accent);
-      }
-      .qty-controls {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .qty-controls button {
-        width: 32px;
-        height: 32px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: var(--panel-soft);
-        color: var(--text);
-        font-weight: 700;
-        cursor: pointer;
-      }
-      .qty-controls span {
-        min-width: 24px;
-        text-align: center;
-        font-weight: 600;
+        background: linear-gradient(135deg, #2a2f3a, #1b1f2a);
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
       }
       .helper {
         color: var(--muted);
         font-size: 13px;
       }
-      .cart-list {
-        display: grid;
-        gap: 12px;
-        margin-bottom: 16px;
-      }
-      .cart-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        padding: 12px;
-        border-radius: 12px;
-        background: var(--panel);
-        border: 1px solid var(--border);
-      }
-      .cart-item strong {
-        display: block;
-      }
-      .cart-total {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 14px 12px;
-        border-radius: 12px;
-        background: var(--panel-soft);
-        border: 1px dashed var(--border);
-        font-weight: 600;
-      }
-      .checkout-form {
-        display: grid;
-        gap: 10px;
-        margin-top: 16px;
-        padding: 12px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: var(--panel);
-      }
-      .checkout-form label {
-        display: grid;
-        gap: 6px;
-        font-size: 13px;
-        color: var(--muted);
-      }
-      .checkout-form input,
-      .checkout-form textarea {
-        padding: 10px 12px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: var(--panel-soft);
-        color: var(--text);
-        font-size: 14px;
-        font-family: inherit;
-        resize: vertical;
-      }
-      .cta {
-        margin-top: 16px;
-        width: 100%;
-        padding: 12px 14px;
-        border-radius: 12px;
-        border: none;
-        background: var(--accent);
-        color: #0b0b0b;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .cta.secondary {
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text);
-      }
-      .account-panel {
+      .panel {
         padding: 16px;
         background: var(--panel);
         border-radius: 16px;
         border: 1px solid var(--border);
-      }
-      .empty {
-        padding: 16px;
-        border: 1px dashed var(--border);
-        border-radius: 12px;
-        color: var(--muted);
       }
     </style>
   </head>
   <body>
     <main>
       <h1>Pizza Tagil Mini App</h1>
+      <div id="webappWarning" class="warning" hidden>Открой внутри Telegram</div>
       <div class="tabs" role="tablist">
         <button class="tab-button active" type="button" data-tab="menu" role="tab" aria-selected="true">
           Меню
@@ -219,224 +120,40 @@
           Корзина
         </button>
         <button class="tab-button" type="button" data-tab="account" role="tab" aria-selected="false">
-          Аккаунт
+          Кабинет
         </button>
       </div>
 
       <section id="tab-menu" class="tab-panel active" role="tabpanel">
-        <div class="menu-grid" id="menuGrid"></div>
+        <div class="card">
+          <div class="card-header">
+            <div class="placeholder">image</div>
+            <div>
+              <h3>Пицца дня</h3>
+              <p class="helper">Заглушка для меню без бизнес-логики.</p>
+            </div>
+          </div>
+          <p class="helper">Каталог будет загружаться из backend позже.</p>
+        </div>
       </section>
 
       <section id="tab-cart" class="tab-panel" role="tabpanel">
-        <div class="cart-list" id="cartList"></div>
-        <div class="cart-total" id="cartTotal">
-          <span>Итого</span>
-          <span>0 ₽</span>
+        <div class="panel">
+          <p class="helper">Корзина появится после подключения данных.</p>
         </div>
-        <div class="checkout-form">
-          <label>
-            Имя (необязательно)
-            <input type="text" id="checkoutName" placeholder="Например, Анна" autocomplete="name" />
-          </label>
-          <label>
-            Телефон (необязательно)
-            <input type="tel" id="checkoutPhone" placeholder="+7 999 123-45-67" autocomplete="tel" />
-          </label>
-          <label>
-            Адрес доставки (необязательно)
-            <textarea id="checkoutAddress" rows="2" placeholder="Улица, дом, квартира"></textarea>
-          </label>
-        </div>
-        <button class="cta" type="button" id="checkoutButton">Оформить</button>
-        <button class="cta secondary" type="button" id="clearCart">Очистить корзину</button>
       </section>
 
       <section id="tab-account" class="tab-panel" role="tabpanel">
-        <div class="account-panel">
-          <h3>Аккаунт</h3>
-          <p class="helper">Раздел в разработке. Здесь будут адреса, история заказов и избранное.</p>
+        <div class="panel">
+          <p class="helper">Профиль пользователя и история заказов будут здесь.</p>
         </div>
       </section>
     </main>
 
     <script>
-      const pizzas = [
-        {
-          id: "margarita",
-          title: "Маргарита",
-          price: 520,
-          images: [
-            "../margarita/margarita_01.jpg",
-            "../margarita/margarita_07.jpg",
-            "../margarita/margarita_13.jpg",
-          ],
-        },
-        {
-          id: "four-cheese",
-          title: "4 сыра",
-          price: 640,
-          images: [
-            "../4chees/4cheese_01.jpg",
-            "../4chees/4cheese_08.jpg",
-            "../4chees/4cheese_13.jpg",
-          ],
-        },
-        {
-          id: "meat",
-          title: "Мясная",
-          price: 690,
-          images: [
-            "../myasnaya/myasnaya_01.jpg",
-            "../myasnaya/myasnaya_08.jpg",
-            "../myasnaya/myasnaya_15.jpg",
-          ],
-        },
-        {
-          id: "kolbasa",
-          title: "Колбасная",
-          price: 610,
-          images: [
-            "../kolbasa/IMG_20251219_230306432.jpg",
-            "../kolbasa/IMG_20251223_210236925.jpg",
-            "../kolbasa/IMG_20260110_183311633.jpg",
-          ],
-        },
-      ];
+      const warning = document.getElementById("webappWarning");
 
-      const storageKey = "pizza_cart_v1";
-      const cart = loadCart();
-
-      const menuGrid = document.getElementById("menuGrid");
-      const cartList = document.getElementById("cartList");
-      const cartTotal = document.getElementById("cartTotal");
-      const clearCartButton = document.getElementById("clearCart");
-      const checkoutButton = document.getElementById("checkoutButton");
-      const checkoutNameInput = document.getElementById("checkoutName");
-      const checkoutPhoneInput = document.getElementById("checkoutPhone");
-      const checkoutAddressInput = document.getElementById("checkoutAddress");
-
-      function loadCart() {
-        try {
-          const raw = window.localStorage.getItem(storageKey);
-          if (!raw) return {};
-          const data = JSON.parse(raw);
-          return typeof data === "object" && data ? data : {};
-        } catch (error) {
-          console.warn("Не удалось прочитать корзину", error);
-          return {};
-        }
-      }
-
-      function saveCart() {
-        try {
-          window.localStorage.setItem(storageKey, JSON.stringify(cart));
-        } catch (error) {
-          console.warn("Не удалось сохранить корзину", error);
-        }
-      }
-
-      function setQty(id, value) {
-        if (value <= 0) {
-          delete cart[id];
-        } else {
-          cart[id] = value;
-        }
-        saveCart();
-        renderMenu();
-        renderCart();
-      }
-
-      function getQty(id) {
-        return cart[id] || 0;
-      }
-
-      function renderMenu() {
-        menuGrid.innerHTML = "";
-        pizzas.forEach((pizza) => {
-          const card = document.createElement("div");
-          card.className = "card";
-
-          const header = document.createElement("div");
-          header.className = "card-header";
-
-          const img = document.createElement("img");
-          img.src = pizza.images[0];
-          img.alt = pizza.title;
-          img.dataset.index = "0";
-          img.addEventListener("click", () => {
-            const current = Number(img.dataset.index || 0);
-            const nextIndex = (current + 1) % pizza.images.length;
-            img.dataset.index = String(nextIndex);
-            img.src = pizza.images[nextIndex];
-          });
-
-          const title = document.createElement("div");
-          title.className = "card-title";
-          title.innerHTML = `<h3>${pizza.title}</h3><span class="price">${pizza.price} ₽</span>`;
-
-          header.append(img, title);
-
-          const controls = document.createElement("div");
-          controls.className = "qty-controls";
-
-          const minus = document.createElement("button");
-          minus.type = "button";
-          minus.textContent = "-";
-          minus.setAttribute("aria-label", `Уменьшить ${pizza.title}`);
-          minus.addEventListener("click", () => setQty(pizza.id, getQty(pizza.id) - 1));
-
-          const qty = document.createElement("span");
-          qty.textContent = getQty(pizza.id);
-
-          const plus = document.createElement("button");
-          plus.type = "button";
-          plus.textContent = "+";
-          plus.setAttribute("aria-label", `Увеличить ${pizza.title}`);
-          plus.addEventListener("click", () => setQty(pizza.id, getQty(pizza.id) + 1));
-
-          controls.append(minus, qty, plus);
-
-          const helper = document.createElement("div");
-          helper.className = "helper";
-          helper.textContent = "Нажмите на фото, чтобы пролистать галерею";
-
-          card.append(header, controls, helper);
-          menuGrid.append(card);
-        });
-      }
-
-      function renderCart() {
-        cartList.innerHTML = "";
-        const items = pizzas.filter((pizza) => getQty(pizza.id) > 0);
-
-        if (items.length === 0) {
-          const empty = document.createElement("div");
-          empty.className = "empty";
-          empty.textContent = "Корзина пуста. Выберите пиццу в меню.";
-          cartList.append(empty);
-        } else {
-          items.forEach((pizza) => {
-            const row = document.createElement("div");
-            row.className = "cart-item";
-
-            const info = document.createElement("div");
-            info.innerHTML = `<strong>${pizza.title}</strong><span class="helper">${getQty(
-              pizza.id,
-            )} × ${pizza.price} ₽</span>`;
-
-            const total = document.createElement("div");
-            total.textContent = `${getQty(pizza.id) * pizza.price} ₽`;
-
-            row.append(info, total);
-            cartList.append(row);
-          });
-        }
-
-        const totalValue = items.reduce((sum, pizza) => sum + getQty(pizza.id) * pizza.price, 0);
-        cartTotal.innerHTML = `<span>Итого</span><span>${totalValue} ₽</span>`;
-      }
-
-      function setupTabs() {
+      function setTabs() {
         const buttons = document.querySelectorAll(".tab-button");
         buttons.forEach((button) => {
           button.addEventListener("click", () => {
@@ -455,64 +172,15 @@
         });
       }
 
-      clearCartButton.addEventListener("click", () => {
-        Object.keys(cart).forEach((key) => delete cart[key]);
-        saveCart();
-        renderMenu();
-        renderCart();
-      });
-
-      checkoutButton.addEventListener("click", () => {
-        const items = pizzas
-          .filter((pizza) => getQty(pizza.id) > 0)
-          .map((pizza) => {
-            const qty = getQty(pizza.id);
-            const subtotal = qty * pizza.price;
-            return {
-              id: pizza.id,
-              title: pizza.title,
-              price: pizza.price,
-              qty,
-              subtotal,
-            };
-          });
-
-        if (items.length === 0) {
-          if (window.Telegram?.WebApp?.showAlert) {
-            window.Telegram.WebApp.showAlert("Корзина пуста.");
-          } else {
-            alert("Корзина пуста.");
-          }
-          return;
-        }
-
-        const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-        const name = checkoutNameInput.value.trim();
-        const phone = checkoutPhoneInput.value.trim();
-        const address = checkoutAddressInput.value.trim();
-        const payload = {
-          items,
-          total,
-          ...(name ? { name } : {}),
-          ...(phone ? { phone } : {}),
-          ...(address ? { address } : {}),
-        };
-
-        if (window.Telegram?.WebApp?.sendData) {
-          window.Telegram.WebApp.sendData(JSON.stringify(payload));
-        } else {
-          console.warn("Telegram WebApp API недоступен");
-        }
-      });
-
-      renderMenu();
-      renderCart();
-      setupTabs();
-
       if (window.Telegram?.WebApp) {
         window.Telegram.WebApp.ready();
         window.Telegram.WebApp.expand();
+        warning.hidden = true;
+      } else {
+        warning.hidden = false;
       }
+
+      setTabs();
     </script>
   </body>
 </html>
