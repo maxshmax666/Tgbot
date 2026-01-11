@@ -152,6 +152,32 @@
         border: 1px dashed var(--border);
         font-weight: 600;
       }
+      .checkout-form {
+        display: grid;
+        gap: 10px;
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+      }
+      .checkout-form label {
+        display: grid;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .checkout-form input,
+      .checkout-form textarea {
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--panel-soft);
+        color: var(--text);
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+      }
       .cta {
         margin-top: 16px;
         width: 100%;
@@ -207,6 +233,21 @@
           <span>Итого</span>
           <span>0 ₽</span>
         </div>
+        <div class="checkout-form">
+          <label>
+            Имя (необязательно)
+            <input type="text" id="checkoutName" placeholder="Например, Анна" autocomplete="name" />
+          </label>
+          <label>
+            Телефон (необязательно)
+            <input type="tel" id="checkoutPhone" placeholder="+7 999 123-45-67" autocomplete="tel" />
+          </label>
+          <label>
+            Адрес доставки (необязательно)
+            <textarea id="checkoutAddress" rows="2" placeholder="Улица, дом, квартира"></textarea>
+          </label>
+        </div>
+        <button class="cta" type="button" id="checkoutButton">Оформить</button>
         <button class="cta secondary" type="button" id="clearCart">Очистить корзину</button>
       </section>
 
@@ -269,6 +310,10 @@
       const cartList = document.getElementById("cartList");
       const cartTotal = document.getElementById("cartTotal");
       const clearCartButton = document.getElementById("clearCart");
+      const checkoutButton = document.getElementById("checkoutButton");
+      const checkoutNameInput = document.getElementById("checkoutName");
+      const checkoutPhoneInput = document.getElementById("checkoutPhone");
+      const checkoutAddressInput = document.getElementById("checkoutAddress");
 
       function loadCart() {
         try {
@@ -415,6 +460,49 @@
         saveCart();
         renderMenu();
         renderCart();
+      });
+
+      checkoutButton.addEventListener("click", () => {
+        const items = pizzas
+          .filter((pizza) => getQty(pizza.id) > 0)
+          .map((pizza) => {
+            const qty = getQty(pizza.id);
+            const subtotal = qty * pizza.price;
+            return {
+              id: pizza.id,
+              title: pizza.title,
+              price: pizza.price,
+              qty,
+              subtotal,
+            };
+          });
+
+        if (items.length === 0) {
+          if (window.Telegram?.WebApp?.showAlert) {
+            window.Telegram.WebApp.showAlert("Корзина пуста.");
+          } else {
+            alert("Корзина пуста.");
+          }
+          return;
+        }
+
+        const total = items.reduce((sum, item) => sum + item.subtotal, 0);
+        const name = checkoutNameInput.value.trim();
+        const phone = checkoutPhoneInput.value.trim();
+        const address = checkoutAddressInput.value.trim();
+        const payload = {
+          items,
+          total,
+          ...(name ? { name } : {}),
+          ...(phone ? { phone } : {}),
+          ...(address ? { address } : {}),
+        };
+
+        if (window.Telegram?.WebApp?.sendData) {
+          window.Telegram.WebApp.sendData(JSON.stringify(payload));
+        } else {
+          console.warn("Telegram WebApp API недоступен");
+        }
       });
 
       renderMenu();
