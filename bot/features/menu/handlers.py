@@ -68,6 +68,7 @@ async def render_menu(
             show_reset=bool(state.category or state.search_query),
             can_decrement=False,
             product_id=0,
+            webapp_url=config.webapp_url,
         )
         await _edit_or_send_media(
             bot,
@@ -101,6 +102,7 @@ async def render_menu(
         show_reset=bool(state.category or state.search_query),
         can_decrement=qty > 0,
         product_id=product.id,
+        webapp_url=config.webapp_url,
     )
 
     media = build_media(photos[state.photo_index], caption)
