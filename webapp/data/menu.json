@@ -1,0 +1,25 @@
+[
+  {
+    "id": "margarita",
+    "title": "Маргарита",
+    "price": 420,
+    "description": "Классика с томатным соусом, моцареллой и базиликом.",
+    "images": ["assets/pizzas/margarita/1.jpg"],
+    "tags": ["classic", "vegetarian"]
+  },
+  {
+    "id": "4chees",
+    "title": "4 сыра",
+    "price": 560,
+    "description": "Сливочный соус и микс сыров: моцарелла, пармезан, дорблю, чеддер.",
+    "images": ["assets/pizzas/4chees/1.jpg"],
+    "tags": ["bestseller"]
+  },
+  {
+    "id": "kolbasa",
+    "title": "Колбасная",
+    "price": 510,
+    "description": "Пикантная пицца с охотничьими колбасками, моцареллой и луком.",
+    "images": ["assets/pizzas/kolbasa/1.jpg"]
+  }
+]
