@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
+from html import escape
+from typing import Any
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramBadRequest, TelegramNotFound
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 
 from bot.config import Config
 from bot.features.cart.keyboards import cart_keyboard, payment_check_keyboard, payment_keyboard
@@ -29,6 +32,64 @@ from bot.utils.media import build_media, get_placeholder_photo
 logger = logging.getLogger(__name__)
 
 router = Router()
+
+
+def _coerce_amount(value: Any, field_name: str) -> int:
+    if isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a number")
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        cleaned = value.strip()
+        if cleaned.isdigit():
+            return int(cleaned)
+    raise ValueError(f"{field_name} must be a number")
+
+
+def _format_webapp_order(payload: dict[str, Any]) -> str:
+    items_raw = payload.get("items")
+    if not isinstance(items_raw, list) or not items_raw:
+        raise ValueError("items must be a non-empty list")
+
+    total = _coerce_amount(payload.get("total"), "total")
+    lines = ["✅ Заказ из Mini App получен.", "", "Состав заказа:"]
+    valid_items = 0
+    for item in items_raw:
+        if not isinstance(item, dict):
+            continue
+        title = escape(str(item.get("title", "")).strip())
+        if not title:
+            continue
+        qty = _coerce_amount(item.get("qty"), "qty")
+        price = _coerce_amount(item.get("price"), "price")
+        subtotal = item.get("subtotal")
+        if subtotal is None:
+            subtotal_value = qty * price
+        else:
+            subtotal_value = _coerce_amount(subtotal, "subtotal")
+        lines.append(f"• {title} — {qty} × {price} ₽ = {subtotal_value} ₽")
+        valid_items += 1
+
+    if valid_items == 0:
+        raise ValueError("no valid items")
+
+    lines.append("")
+    lines.append(f"Итого: {total} ₽")
+
+    name = str(payload.get("name", "")).strip()
+    phone = str(payload.get("phone", "")).strip()
+    address = str(payload.get("address", "")).strip()
+    if name or phone or address:
+        lines.append("")
+        lines.append("Контакты:")
+        if name:
+            lines.append(f"Имя: {escape(name)}")
+        if phone:
+            lines.append(f"Телефон: {escape(phone)}")
+        if address:
+            lines.append(f"Адрес: {escape(address)}")
+
+    return "\n".join(lines)
 
 
 async def _edit_or_send_cart(
@@ -222,4 +283,21 @@ async def payment_check_handler(query: CallbackQuery, bot: Bot, config: Config) 
         await query.answer()
         return
 
-    await query.answer("Ожидаем оплату.")
+
+@router.message(F.web_app_data)
+async def webapp_order_handler(message: Message) -> None:
+    raw = message.web_app_data.data if message.web_app_data else ""
+    if not raw:
+        await message.answer("Пустые данные заказа. Попробуйте снова.")
+        return
+    try:
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            raise ValueError("payload is not a dict")
+        confirmation = _format_webapp_order(payload)
+    except (json.JSONDecodeError, ValueError, TypeError) as error:
+        logger.warning("Invalid web app payload: %s", error)
+        await message.answer("Некорректные данные заказа. Проверьте корзину и повторите.")
+        return
+
+    await message.answer(confirmation)
