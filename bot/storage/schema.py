@@ -17,7 +17,7 @@ class TableDef:
     indexes: tuple[IndexDef, ...] = ()
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA: dict[str, TableDef] = {
     "users": TableDef(
@@ -73,6 +73,7 @@ SCHEMA: dict[str, TableDef] = {
         columns={
             "id": "INTEGER PRIMARY KEY",
             "tg_id": "INTEGER",
+            "user_id": "INTEGER REFERENCES users(id) ON DELETE SET NULL",
             "status": "TEXT",
             "total": "INTEGER",
             "payment_method": "TEXT",
@@ -82,6 +83,21 @@ SCHEMA: dict[str, TableDef] = {
         indexes=(
             IndexDef(name="idx_orders_tg_id", columns=("tg_id",)),
             IndexDef(name="idx_orders_status", columns=("status",)),
+            IndexDef(name="idx_orders_user_id", columns=("user_id",)),
+        ),
+    ),
+    "order_items": TableDef(
+        columns={
+            "id": "INTEGER PRIMARY KEY",
+            "order_id": "INTEGER REFERENCES orders(id) ON DELETE CASCADE",
+            "title": "TEXT",
+            "qty": "INTEGER",
+            "price": "INTEGER",
+            "subtotal": "INTEGER",
+            "created_at": "TEXT",
+        },
+        indexes=(
+            IndexDef(name="idx_order_items_order_id", columns=("order_id",)),
         ),
     ),
 }

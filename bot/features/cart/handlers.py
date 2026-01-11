@@ -21,10 +21,12 @@ from bot.storage.repos import (
     cart_get_items,
     cart_snapshot,
     cart_total_price,
+    order_create_with_items,
     order_create,
     order_get_latest,
     order_set_payment,
     order_set_status,
+    OrderItemInput,
 )
 from bot.utils.formatting import format_admin_order, format_cart
 from bot.utils.media import build_media, get_placeholder_photo
@@ -46,18 +48,17 @@ def _coerce_amount(value: Any, field_name: str) -> int:
     raise ValueError(f"{field_name} must be a number")
 
 
-def _format_webapp_order(payload: dict[str, Any]) -> str:
+def _parse_webapp_order(payload: dict[str, Any]) -> tuple[list[OrderItemInput], int, str, str, str]:
     items_raw = payload.get("items")
     if not isinstance(items_raw, list) or not items_raw:
         raise ValueError("items must be a non-empty list")
 
     total = _coerce_amount(payload.get("total"), "total")
-    lines = ["✅ Заказ из Mini App получен.", "", "Состав заказа:"]
-    valid_items = 0
+    items: list[OrderItemInput] = []
     for item in items_raw:
         if not isinstance(item, dict):
             continue
-        title = escape(str(item.get("title", "")).strip())
+        title = str(item.get("title", "")).strip()
         if not title:
             continue
         qty = _coerce_amount(item.get("qty"), "qty")
@@ -67,18 +68,35 @@ def _format_webapp_order(payload: dict[str, Any]) -> str:
             subtotal_value = qty * price
         else:
             subtotal_value = _coerce_amount(subtotal, "subtotal")
-        lines.append(f"• {title} — {qty} × {price} ₽ = {subtotal_value} ₽")
-        valid_items += 1
+        items.append(
+            OrderItemInput(title=title, qty=qty, price=price, subtotal=subtotal_value)
+        )
 
-    if valid_items == 0:
+    if not items:
         raise ValueError("no valid items")
-
-    lines.append("")
-    lines.append(f"Итого: {total} ₽")
 
     name = str(payload.get("name", "")).strip()
     phone = str(payload.get("phone", "")).strip()
     address = str(payload.get("address", "")).strip()
+    return items, total, name, phone, address
+
+
+def _format_webapp_order(
+    items: list[OrderItemInput],
+    total: int,
+    name: str,
+    phone: str,
+    address: str,
+) -> str:
+    lines = ["✅ Заказ из Mini App получен.", "", "Состав заказа:"]
+    for item in items:
+        title = escape(item.title)
+        lines.append(
+            f"• {title} — {item.qty} × {item.price} ₽ = {item.subtotal} ₽"
+        )
+    lines.append("")
+    lines.append(f"Итого: {total} ₽")
+
     if name or phone or address:
         lines.append("")
         lines.append("Контакты:")
@@ -285,7 +303,7 @@ async def payment_check_handler(query: CallbackQuery, bot: Bot, config: Config) 
 
 
 @router.message(F.web_app_data)
-async def webapp_order_handler(message: Message) -> None:
+async def webapp_order_handler(message: Message, config: Config) -> None:
     raw = message.web_app_data.data if message.web_app_data else ""
     if not raw:
         await message.answer("Пустые данные заказа. Попробуйте снова.")
@@ -294,10 +312,25 @@ async def webapp_order_handler(message: Message) -> None:
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             raise ValueError("payload is not a dict")
-        confirmation = _format_webapp_order(payload)
+        items, total, name, phone, address = _parse_webapp_order(payload)
+        confirmation = _format_webapp_order(items, total, name, phone, address)
     except (json.JSONDecodeError, ValueError, TypeError) as error:
         logger.warning("Invalid web app payload: %s", error)
         await message.answer("Некорректные данные заказа. Проверьте корзину и повторите.")
+        return
+
+    try:
+        await order_create_with_items(
+            db_path=str(config.db_path),
+            tg_id=message.from_user.id,
+            total=total,
+            status="received",
+            payment_method="webapp",
+            items=items,
+        )
+    except Exception:
+        logger.exception("Failed to persist webapp order")
+        await message.answer("Не удалось сохранить заказ. Попробуйте снова позже.")
         return
 
     await message.answer(confirmation)
