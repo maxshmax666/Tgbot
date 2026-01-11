@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 from bot.storage.repos import Category
 
@@ -11,6 +11,7 @@ def menu_keyboard(
     show_reset: bool,
     can_decrement: bool,
     product_id: int,
+    webapp_url: str,
 ) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = [
         [
@@ -40,6 +41,15 @@ def menu_keyboard(
     rows.append(
         [
             InlineKeyboardButton(text=f"🧾 Корзина ({cart_qty})", callback_data="c:open"),
+        ]
+    )
+
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text="🍕 Открыть магазин",
+                web_app=WebAppInfo(url=webapp_url),
+            )
         ]
     )
 
