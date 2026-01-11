@@ -34,7 +34,10 @@ def load_config() -> Config:
         bot_token=bot_token,
         admin_chat_id=int(admin_chat_id),
         db_path=db_path,
-        webapp_url=os.getenv("WEBAPP_URL", "https://example.com"),
+        webapp_url=os.getenv(
+            "WEBAPP_URL",
+            "https://janet-paris-bowl-introducing.trycloudflare.com/",
+        ),
         yookassa_shop_id=os.getenv("YOOKASSA_SHOP_ID"),
         yookassa_secret_key=os.getenv("YOOKASSA_SECRET_KEY"),
         yookassa_return_url=os.getenv("YOOKASSA_RETURN_URL"),
