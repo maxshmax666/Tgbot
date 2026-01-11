@@ -1,0 +1,42 @@
+[
+  {
+    "id": "margarita",
+    "title": "Маргарита",
+    "price": 520,
+    "description": "Классика с томатным соусом, моцареллой и свежим базиликом.",
+    "images": [
+      "assets/pizzas/margarita/1.svg",
+      "assets/pizzas/margarita/2.svg"
+    ]
+  },
+  {
+    "id": "four-cheese",
+    "title": "4 сыра",
+    "price": 640,
+    "description": "Сливочный соус, моцарелла, дорблю, пармезан и гауда.",
+    "images": [
+      "assets/pizzas/four-cheese/1.svg",
+      "assets/pizzas/four-cheese/2.svg"
+    ]
+  },
+  {
+    "id": "meat",
+    "title": "Мясная",
+    "price": 690,
+    "description": "Бекон, ветчина и пикантная пепперони на томатной основе.",
+    "images": [
+      "assets/pizzas/meat/1.svg",
+      "assets/pizzas/meat/2.svg"
+    ]
+  },
+  {
+    "id": "kolbasa",
+    "title": "Колбасная",
+    "price": 610,
+    "description": "Микс охотничьих колбасок, томаты и фирменный соус.",
+    "images": [
+      "assets/pizzas/kolbasa/1.svg",
+      "assets/pizzas/kolbasa/2.svg"
+    ]
+  }
+]
