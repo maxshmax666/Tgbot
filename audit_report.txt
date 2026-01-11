@@ -1,0 +1,24 @@
+Schema audit report
+
+Tables and columns:
+- cart_items: added_at, ci, id, p, price, product_id, qty, title, user_id
+- orders: created_at, id, payment_id, payment_method, status, tg_id, total
+- products: category, category_title, ci, code, created_at, description, details, id, is_new, is_popular, p, photo_dir, price, product_id, qty, title, user_id
+- sqlite_master: name
+- users: id
+
+Suspicious SQL snippets:
+- /workspace/Tgbot/bot/storage/migrations.py: ALTER TABLE
+- /workspace/Tgbot/bot/storage/migrations.py: ALTER TABLE {expr} ADD COLUMN {expr} {expr}
+- /workspace/Tgbot/bot/storage/migrations.py: CREATE TABLE IF NOT EXISTS
+- /workspace/Tgbot/bot/storage/migrations.py: CREATE TABLE IF NOT EXISTS {expr} (
+    {expr}{expr}
+);
+- /workspace/Tgbot/bot/storage/schema.py: INTEGER REFERENCES products(id) ON DELETE CASCADE
+- /workspace/Tgbot/bot/storage/schema.py: INTEGER REFERENCES users(id) ON DELETE CASCADE
+- /workspace/Tgbot/bot/storage/schema_audit.py: \b(SELECT|INSERT|UPDATE|DELETE)\b|\bCREATE\s+TABLE\b|\bALTER\s+TABLE\b
+- /workspace/Tgbot/bot/storage/schema_audit.py: insert
+- /workspace/Tgbot/bot/storage/schema_audit.py: select
+- /workspace/Tgbot/bot/storage/schema_audit.py: update
+
+Total SQL strings: 33
