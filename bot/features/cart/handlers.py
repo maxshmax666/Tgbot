@@ -48,7 +48,9 @@ def _coerce_amount(value: Any, field_name: str) -> int:
     raise ValueError(f"{field_name} must be a number")
 
 
-def _parse_webapp_order(payload: dict[str, Any]) -> tuple[list[OrderItemInput], int, str, str, str]:
+def _parse_webapp_order(
+    payload: dict[str, Any],
+) -> tuple[list[OrderItemInput], int, str, str, str, str]:
     items_raw = payload.get("items")
     if not isinstance(items_raw, list) or not items_raw:
         raise ValueError("items must be a non-empty list")
@@ -78,7 +80,8 @@ def _parse_webapp_order(payload: dict[str, Any]) -> tuple[list[OrderItemInput], 
     name = str(payload.get("name", "")).strip()
     phone = str(payload.get("phone", "")).strip()
     address = str(payload.get("address", "")).strip()
-    return items, total, name, phone, address
+    comment = str(payload.get("comment", "")).strip()
+    return items, total, name, phone, address, comment
 
 
 def _format_webapp_order(
@@ -87,6 +90,7 @@ def _format_webapp_order(
     name: str,
     phone: str,
     address: str,
+    comment: str,
 ) -> str:
     lines = ["✅ Заказ из Mini App получен.", "", "Состав заказа:"]
     for item in items:
@@ -106,6 +110,10 @@ def _format_webapp_order(
             lines.append(f"Телефон: {escape(phone)}")
         if address:
             lines.append(f"Адрес: {escape(address)}")
+    if comment:
+        lines.append("")
+        lines.append("Комментарий:")
+        lines.append(escape(comment))
 
     return "\n".join(lines)
 
@@ -312,8 +320,8 @@ async def webapp_order_handler(message: Message, config: Config) -> None:
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             raise ValueError("payload is not a dict")
-        items, total, name, phone, address = _parse_webapp_order(payload)
-        confirmation = _format_webapp_order(items, total, name, phone, address)
+        items, total, name, phone, address, comment = _parse_webapp_order(payload)
+        confirmation = _format_webapp_order(items, total, name, phone, address, comment)
     except (json.JSONDecodeError, ValueError, TypeError) as error:
         logger.warning("Invalid web app payload: %s", error)
         await message.answer("Некорректные данные заказа. Проверьте корзину и повторите.")
