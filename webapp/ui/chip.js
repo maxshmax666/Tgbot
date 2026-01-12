@@ -8,12 +8,10 @@ export function createChip({ label, active = false, onClick, disabled = false, a
     onClick,
     disabled,
     ariaLabel: ariaLabel || label,
+    pressed: active,
   });
   if (active) {
     chip.classList.add("is-active");
-    chip.setAttribute("aria-pressed", "true");
-  } else {
-    chip.setAttribute("aria-pressed", "false");
   }
   return chip;
 }

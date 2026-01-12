@@ -1,5 +1,5 @@
 import { createElement, clearElement } from "../ui/dom.js";
-import { createButton } from "../ui/button.js";
+import { createButton, setButtonPressed } from "../ui/button.js";
 import { createCard, createCardFooter } from "../ui/card.js";
 import { createChip } from "../ui/chip.js";
 import { createEmptyState } from "../ui/emptyState.js";
@@ -50,7 +50,7 @@ function createMenuCard(item, navigate, favorites) {
       favButton.setAttribute("aria-label", "Убрать из избранного");
     }
     favButton.classList.toggle("is-active");
-    favButton.setAttribute("aria-pressed", favorites.has(item.id) ? "true" : "false");
+    setButtonPressed(favButton, favorites.has(item.id));
     setFavorites(favorites);
   });
 

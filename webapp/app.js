@@ -10,6 +10,7 @@ import { renderOrderStatusPage } from "./pages/orderStatusPage.js";
 import { renderDynamicPage } from "./pages/dynamicPage.js";
 import { createElement, clearElement } from "./ui/dom.js";
 import { createAppShell } from "./ui/appShell.js";
+import { setButtonCurrent } from "./ui/button.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 
 const app = document.getElementById("app");
@@ -49,7 +50,9 @@ function setActiveNav(pathname) {
   [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
     buttons.forEach((button) => {
       const target = button.dataset.path;
-      button.classList.toggle("is-active", pathname.startsWith(target));
+      const isActive = pathname.startsWith(target);
+      button.classList.toggle("is-active", isActive);
+      setButtonCurrent(button, isActive);
     });
   });
 }

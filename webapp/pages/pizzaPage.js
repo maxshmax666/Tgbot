@@ -1,5 +1,5 @@
 import { createElement, clearElement } from "../ui/dom.js";
-import { createButton } from "../ui/button.js";
+import { createButton, setButtonPressed } from "../ui/button.js";
 import { createCard, createCardFooter } from "../ui/card.js";
 import { createIconButton } from "../ui/iconButton.js";
 import { createPriceTag } from "../ui/priceTag.js";
@@ -59,7 +59,7 @@ export function renderPizzaPage({ navigate, params }) {
         favButton.classList.add("is-active");
         favButton.setAttribute("aria-label", "Убрать из избранного");
       }
-      favButton.setAttribute("aria-pressed", favorites.has(item.id) ? "true" : "false");
+      setButtonPressed(favButton, favorites.has(item.id));
       setFavorites(favorites);
     });
 

@@ -24,6 +24,8 @@ export function createButton({
   disabled = false,
   onClick,
   ariaLabel,
+  pressed,
+  current,
   href,
   type = "button",
   className = "",
@@ -44,6 +46,18 @@ export function createButton({
 
   if (ariaLabel) {
     button.setAttribute("aria-label", ariaLabel);
+  }
+
+  if (typeof pressed === "boolean") {
+    button.setAttribute("aria-pressed", pressed ? "true" : "false");
+  }
+
+  if (typeof current === "boolean") {
+    if (current) {
+      button.setAttribute("aria-current", "page");
+    } else {
+      button.removeAttribute("aria-current");
+    }
   }
 
   if (isLink) {
@@ -74,6 +88,20 @@ export function createButton({
   }
 
   return button;
+}
+
+export function setButtonPressed(button, pressed) {
+  if (!button || typeof pressed !== "boolean") return;
+  button.setAttribute("aria-pressed", pressed ? "true" : "false");
+}
+
+export function setButtonCurrent(button, current) {
+  if (!button || typeof current !== "boolean") return;
+  if (current) {
+    button.setAttribute("aria-current", "page");
+  } else {
+    button.removeAttribute("aria-current");
+  }
 }
 
 export function setButtonLoading(button, loading) {
