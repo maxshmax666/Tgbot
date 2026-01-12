@@ -1,17 +1,21 @@
 :root {
   color-scheme: light dark;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
-  --bg: #0b0d12;
-  --panel: #121621;
-  --panel-soft: #1a2130;
-  --accent: #6c9cff;
-  --accent-soft: rgba(108, 156, 255, 0.18);
-  --text: #f2f5ff;
-  --muted: #9aa7c2;
-  --border: rgba(255, 255, 255, 0.08);
-  --danger: #f26d6d;
-  --success: #5ad28f;
-  --shadow: 0 20px 40px rgba(8, 10, 18, 0.45);
+  --bg: #0b0d10;
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel2: rgba(255, 255, 255, 0.09);
+  --stroke: rgba(255, 255, 255, 0.12);
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.62);
+  --accent: #ff8a2a;
+  --accent2: #ffb36a;
+  --danger: #ff4d4f;
+  --ok: #2dd4bf;
+  --panel-soft: var(--panel2);
+  --accent-soft: rgba(255, 138, 42, 0.18);
+  --border: var(--stroke);
+  --success: var(--ok);
+  --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -21,7 +25,14 @@
 body {
   margin: 0;
   padding: 32px 18px 48px;
-  background: radial-gradient(circle at top, rgba(108, 156, 255, 0.08), transparent 48%), var(--bg);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(900px 600px at 20% 0%, rgba(255, 138, 42, 0.14), transparent 60%),
+    radial-gradient(900px 600px at 90% 20%, rgba(255, 255, 255, 0.08), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 3px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.04) 0, rgba(0, 0, 0, 0.04) 1px, transparent 1px, transparent 4px);
+  background-size: auto, auto, 3px 3px, 4px 4px;
+  background-blend-mode: screen, screen, soft-light, soft-light;
   color: var(--text);
   line-height: 1.5;
 }
@@ -92,12 +103,12 @@ body.admin-mode #app {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  background: rgba(18, 22, 33, 0.6);
-  border: 1px solid var(--border);
+  background: var(--panel);
+  border: 1px solid var(--stroke);
   border-radius: 16px;
   padding: 8px;
   backdrop-filter: blur(12px);
-  box-shadow: var(--shadow);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 .nav-button {
@@ -116,22 +127,22 @@ body.admin-mode #app {
   background: var(--accent);
   color: #0b0b0b;
   border-color: transparent;
-  box-shadow: 0 10px 24px rgba(108, 156, 255, 0.35);
+  box-shadow: 0 10px 24px rgba(255, 138, 42, 0.28);
 }
 
 .nav-button:hover {
   color: var(--text);
-  background: rgba(108, 156, 255, 0.12);
+  background: rgba(255, 179, 106, 0.16);
 }
 
 .panel {
   padding: 18px;
-  background: linear-gradient(160deg, rgba(26, 33, 48, 0.95), rgba(18, 22, 33, 0.95));
+  background: linear-gradient(160deg, var(--panel2), var(--panel));
   border-radius: 18px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--stroke);
   display: grid;
   gap: 12px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.32), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 .panel input[type="radio"] {
@@ -147,8 +158,8 @@ body.admin-mode #app {
 .badge {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(108, 156, 255, 0.12);
-  border: 1px solid rgba(108, 156, 255, 0.25);
+  background: var(--panel2);
+  border: 1px solid var(--stroke);
   font-size: 11px;
   color: var(--accent);
   text-transform: uppercase;
@@ -167,25 +178,25 @@ body.admin-mode #app {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 12px 24px rgba(108, 156, 255, 0.35);
+  box-shadow: 0 12px 24px rgba(255, 138, 42, 0.28), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .button:hover {
   transform: translateY(-1px);
-  box-shadow: 0 14px 28px rgba(108, 156, 255, 0.4);
+  box-shadow: 0 14px 28px rgba(255, 138, 42, 0.34), 0 1px 0 rgba(255, 255, 255, 0.12) inset;
 }
 
 .button.secondary {
-  background: var(--panel-soft);
-  border-color: var(--border);
+  background: var(--panel2);
+  border-color: var(--stroke);
   color: var(--text);
-  box-shadow: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
 .button.ghost {
   background: transparent;
-  border-color: var(--border);
+  border-color: var(--stroke);
   color: var(--text);
   box-shadow: none;
 }
