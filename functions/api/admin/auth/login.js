@@ -7,7 +7,6 @@ import {
   createToken,
   RequestError,
   createSessionCookie,
-  requireEnv,
   requireDb,
 } from "../../_utils.js";
 
@@ -17,6 +16,22 @@ const loginSchema = z.object({
 
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 10 * 60 * 1000;
+
+function resolveAdminSecret(env) {
+  const hash = env.ADMIN_PASSWORD_HASH;
+  const plain = env.ADMIN_PASSWORD;
+  if (!hash && !plain) {
+    throw new RequestError(500, "ENV не настроены: ADMIN_PASSWORD_HASH или ADMIN_PASSWORD");
+  }
+  return { hash, plain };
+}
+
+async function verifyPassword(password, { hash, plain }) {
+  if (hash) {
+    return bcrypt.compare(password, hash);
+  }
+  return password === plain;
+}
 
 function resolveClientKey(request) {
   const ipHeader =
@@ -70,13 +85,13 @@ export async function onRequestPost({ env, request }) {
     }
 
     const body = await parseJsonBody(request, loginSchema);
-    const passwordHash = requireEnv(env.ADMIN_PASSWORD_HASH, "ADMIN_PASSWORD_HASH");
-    const ok = await bcrypt.compare(body.password, passwordHash);
+    const secrets = resolveAdminSecret(env);
+    const ok = await verifyPassword(body.password, secrets);
     if (!ok) {
       const resetAt = existing && existing.reset_at > now ? existing.reset_at : now + WINDOW_MS;
       const failures = existing && existing.reset_at > now ? existing.failures + 1 : 1;
       await saveRateLimit(db, rateKey, failures, resetAt);
-      throw new RequestError(401, "Invalid credentials");
+      throw new RequestError(401, "Неверный пароль");
     }
 
     await clearRateLimit(db, rateKey);

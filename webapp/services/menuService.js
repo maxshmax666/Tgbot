@@ -1,7 +1,11 @@
+import { resolveMediaUrl } from "./mediaBase.js";
+
 function buildImagesFromCount(baseId, photosCount) {
   const count = Number(photosCount);
   if (!baseId || !Number.isFinite(count) || count <= 0) return [];
-  return Array.from({ length: count }, (_, index) => `assets/pizzas/${baseId}/${index + 1}.jpg`);
+  return Array.from({ length: count }, (_, index) =>
+    resolveMediaUrl(`assets/pizzas/${baseId}/${baseId}_${String(index + 1).padStart(2, "0")}.jpg`)
+  );
 }
 
 function normalizeMenuItem(item) {
@@ -11,7 +15,9 @@ function normalizeMenuItem(item) {
   const price = Number(item?.price ?? 0);
   const images = Array.isArray(item?.images) ? item.images.filter(Boolean).map(String) : [];
   const slugBase = String(item?.slug ?? item?.id ?? "");
-  const resolvedImages = images.length ? images : buildImagesFromCount(slugBase, item?.photosCount);
+  const resolvedImages = (images.length ? images : buildImagesFromCount(slugBase, item?.photosCount)).map(
+    resolveMediaUrl
+  );
   return {
     id,
     title,
@@ -32,7 +38,7 @@ function parseMenuPayload(payload) {
 }
 
 export async function fetchMenu() {
-  const response = await fetch("data/menu.json", { cache: "no-store" });
+  const response = await fetch("/data/menu.json", { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const text = await response.text();
   if (text.trim().startsWith("<")) {

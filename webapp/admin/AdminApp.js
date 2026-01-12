@@ -15,6 +15,7 @@ import {
 } from "https://esm.sh/@dnd-kit/sortable@8.0.0";
 import { CSS } from "https://esm.sh/@dnd-kit/utilities@3.2.2";
 import { adminApi } from "../services/adminApi.js";
+import { resolveMediaUrl } from "../services/mediaBase.js";
 
 const BLOCK_TYPES = [
   { type: "hero", label: "Hero", defaultProps: { title: "", subtitle: "", buttonLabel: "", buttonLink: "" } },
@@ -313,7 +314,11 @@ function MediaLibrary({ onSelect, onClose }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[400px] overflow-auto">
           {items.map((item) => (
             <div key={item.key} className="border border-slate-800 rounded-lg p-2 space-y-2">
-              <img src={item.url} alt={item.meta?.name || item.key} className="w-full h-28 object-cover rounded-md" />
+              <img
+                src={resolveMediaUrl(item.url)}
+                alt={item.meta?.name || item.key}
+                className="w-full h-28 object-cover rounded-md"
+              />
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => onSelect(item.url)}>Use</Button>
                 <Button variant="danger" onClick={() => handleDelete(item.key)}>Delete</Button>
@@ -457,7 +462,7 @@ function ProductsView() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {form.images.map((url, index) => (
               <div key={`${url}-${index}`} className="border border-slate-800 rounded-lg p-2 space-y-2">
-                <img src={url} alt="" className="w-full h-24 object-cover rounded-md" />
+            <img src={resolveMediaUrl(url)} alt="" className="w-full h-24 object-cover rounded-md" />
                 <Button variant="danger" onClick={() => removeImage(index)}>Remove</Button>
               </div>
             ))}
@@ -906,7 +911,11 @@ function MediaView() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {items.map((item) => (
           <div key={item.key} className="border border-slate-800 rounded-lg p-2">
-            <img src={item.url} alt={item.meta?.name || item.key} className="w-full h-24 object-cover rounded-md" />
+            <img
+              src={resolveMediaUrl(item.url)}
+              alt={item.meta?.name || item.key}
+              className="w-full h-24 object-cover rounded-md"
+            />
             <p className="text-xs text-slate-400 mt-2 truncate">{item.meta?.name || item.key}</p>
           </div>
         ))}

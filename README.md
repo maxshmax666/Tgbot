@@ -46,7 +46,9 @@ cp .env.example .env
 
 Обязательные переменные для админки/функций:
 - `ADMIN_PASSWORD_HASH`
+- `ADMIN_PASSWORD` (локально вместо хэша)
 - `JWT_SECRET`
+- `PUBLIC_MEDIA_BASE_URL` (опционально, если ассеты не на том же домене)
 
 Для бота используйте `MINIAPP_URL=https://tgbot-3cm.pages.dev/`.
 
@@ -81,7 +83,7 @@ python -m http.server 8080 --directory webapp
 - **Build command:** не требуется
 - **Output directory:** `webapp`
 - **Functions directory:** `functions`
-- **Environment variables:** `ADMIN_PASSWORD_HASH`, `JWT_SECRET`
+- **Environment variables:** `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, `PUBLIC_MEDIA_BASE_URL`
 
 ### 5) Админка
 
@@ -97,4 +99,9 @@ python -m http.server 8080 --directory webapp
    ```env
    ADMIN_PASSWORD_HASH=...
    ```
+   Или используйте `ADMIN_PASSWORD=...` локально (plain-text).
 3. Перезапустите сервер/билд и откройте `/admin/login`.
+
+### 6) Health check
+
+`GET /api/health` → `{ ok: true }`.

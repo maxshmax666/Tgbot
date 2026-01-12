@@ -6,6 +6,7 @@ const textEncoder = new TextEncoder();
 export function json(data, status = 200, headers = {}) {
   const responseHeaders = new Headers({
     "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
   });
   Object.entries(headers).forEach(([key, value]) => {
     responseHeaders.set(key, value);
@@ -44,7 +45,7 @@ export class RequestError extends Error {
 }
 
 export function requireEnv(value, name) {
-  if (!value) throw new RequestError(500, `${name} is not configured`);
+  if (!value) throw new RequestError(500, `ENV не настроены: ${name}`);
   return value;
 }
 

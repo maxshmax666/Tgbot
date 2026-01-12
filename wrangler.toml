@@ -12,3 +12,4 @@ database_id = ""
 [vars]
 JWT_SECRET = "change-me"
 ADMIN_PASSWORD_HASH = ""
+PUBLIC_MEDIA_BASE_URL = ""
