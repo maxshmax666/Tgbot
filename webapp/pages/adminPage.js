@@ -11,7 +11,7 @@ export function renderAdminPage() {
   root.appendChild(mount);
 
   let cleanup = null;
-  import("../admin/AdminApp.bundle.js")
+  import("../admin/AdminApp.js")
     .then((module) => {
       placeholder.remove();
       cleanup = module.mountAdminApp(mount, {

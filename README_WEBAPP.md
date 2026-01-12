@@ -11,6 +11,15 @@ python -m http.server 8080 --directory webapp
 
 Telegram requires HTTPS for Mini Apps. Use any HTTPS tunnel (cloudflared/ngrok).
 
+## Локальный запуск бота
+
+Минимальные требования:
+- Python 3.12+
+
+```bash
+python -m bot.main
+```
+
 ## Каталог и контент
 
 Категории, товары, страницы и медиа управляются через `/admin`.
@@ -19,8 +28,26 @@ Telegram requires HTTPS for Mini Apps. Use any HTTPS tunnel (cloudflared/ngrok).
 ## Админка
 
 - `/admin` — полноценная админка (CRUD товаров/категорий/заказов/медиа/страниц).
-- Авторизация через `ADMIN_PASSWORD_HASH` (bcrypt).
+- Авторизация через `ADMIN_PASSWORD_HASH` (bcrypt) или `ADMIN_PASSWORD` локально.
 - Page Builder поддерживает drag&drop блоков и мгновенную публикацию.
+
+### Как зайти в админку
+
+1. Установите пароль:
+   ```bash
+   node scripts/hash-admin-password.mjs "ваш_пароль"
+   ```
+   Или локально задайте `ADMIN_PASSWORD=...` в `.env`.
+2. Запустите Pages dev:
+   ```bash
+   wrangler pages dev webapp --compatibility-date=2024-10-25 --d1=DB
+   ```
+3. Откройте `http://localhost:8788/admin` или `/admin/login`.
+
+### Медиа без R2
+
+Картинки раздаются статически из `webapp/assets`. При необходимости укажите
+`PUBLIC_MEDIA_BASE_URL` (по умолчанию используется относительный путь).
 
 ## Тест-план MVP+
 

@@ -3,7 +3,15 @@ async function request(path, options = {}) {
   if (options.body && !headers.has("content-type") && !(options.body instanceof FormData)) {
     headers.set("content-type", "application/json");
   }
-  const response = await fetch(path, { ...options, headers, credentials: "include" });
+  let response;
+  try {
+    response = await fetch(path, { ...options, headers, credentials: "include" });
+  } catch (error) {
+    const networkError = new Error("Сервер недоступен. Проверьте, что /api доступен.");
+    networkError.status = 0;
+    networkError.details = error instanceof Error ? error.message : String(error);
+    throw networkError;
+  }
   const contentType = response.headers.get("content-type");
   if (!contentType?.includes("application/json")) {
     const error = new Error("Admin API не отвечает JSON (возможно, не задеплоены Functions /api)");

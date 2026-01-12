@@ -15,6 +15,10 @@ import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageSer
 
 const app = document.getElementById("app");
 
+if (typeof window.PUBLIC_MEDIA_BASE_URL === "undefined") {
+  window.PUBLIC_MEDIA_BASE_URL = "";
+}
+
 const navItems = [
   { label: "Меню", path: "/menu" },
   { label: "Корзина", path: "/cart" },
