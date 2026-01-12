@@ -7,6 +7,9 @@ import { clear, getState, subscribeCart, total } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
 import { addOrder, setLastOrderStatus, storage } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
+import { createCard } from "../ui/card.js";
+import { createCheckoutSummary } from "../ui/checkoutSummary.js";
+import { createPriceTag } from "../ui/priceTag.js";
 
 const PAYMENT_OPTIONS = [
   { id: PAYMENT_METHODS.cash, label: "Наличные", enabled: true },
@@ -17,10 +20,15 @@ const PAYMENT_OPTIONS = [
 function renderOrderItems(container, items) {
   const list = createElement("div", { className: "list" });
   items.forEach((item) => {
-    const row = createElement("div", { className: "panel" });
+    const row = createCard({ variant: "panel", className: "checkout-item" });
     row.appendChild(createElement("div", { text: item.title }));
     row.appendChild(createElement("div", { className: "helper", text: `${item.qty} × ${formatPrice(item.price)}` }));
-    row.appendChild(createElement("div", { className: "helper", text: `Сумма: ${formatPrice(item.price * item.qty)}` }));
+    row.appendChild(
+      createPriceTag({
+        text: `Сумма: ${formatPrice(item.price * item.qty)}`,
+        className: "checkout-line-total",
+      })
+    );
     list.appendChild(row);
   });
   clearElement(container);
@@ -58,7 +66,6 @@ export function renderCheckoutPage({ navigate }) {
     const itemsBlock = createElement("div");
     renderOrderItems(itemsBlock, state.items);
 
-    const summary = createElement("div", { className: "panel" });
     const subtotalValue = total();
     const pickupDiscount = deliveryType === "pickup"
       ? Math.round((subtotalValue * Number(config?.promoPickupDiscount || 0)) / 100)
@@ -72,38 +79,17 @@ export function renderCheckoutPage({ navigate }) {
       : { total: discountedSubtotal, discount: 0 };
     const totalValue = promoResult.total + finalDeliveryFee;
 
-    const subtotalRow = createElement("div", { className: "total-row" });
-    subtotalRow.append(
-      createElement("span", { text: "Подытог" }),
-      createElement("span", { text: formatPrice(subtotalValue) })
-    );
-    const deliveryRow = createElement("div", { className: "total-row" });
-    deliveryRow.append(
-      createElement("span", { text: "Доставка" }),
-      createElement("span", { text: formatPrice(finalDeliveryFee) })
-    );
-    const totalRow = createElement("div", { className: "total-row" });
-    totalRow.append(createElement("span", { text: "Итого" }), createElement("span", { text: formatPrice(totalValue) }));
-
-    summary.append(subtotalRow);
+    const rows = [
+      { label: "Подытог", value: formatPrice(subtotalValue) },
+    ];
     if (pickupDiscount) {
-      const pickupRow = createElement("div", { className: "total-row" });
-      pickupRow.append(
-        createElement("span", { text: `Скидка самовывоз` }),
-        createElement("span", { text: `−${formatPrice(pickupDiscount)}` })
-      );
-      summary.appendChild(pickupRow);
+      rows.push({ label: "Скидка самовывоз", value: `−${formatPrice(pickupDiscount)}` });
     }
-    summary.append(deliveryRow);
+    rows.push({ label: "Доставка", value: formatPrice(finalDeliveryFee) });
     if (promoResult.discount) {
-      const promoRow = createElement("div", { className: "total-row" });
-      promoRow.append(
-        createElement("span", { text: `Промокод ${promoApplied.code}` }),
-        createElement("span", { text: `−${formatPrice(promoResult.discount)}` })
-      );
-      summary.appendChild(promoRow);
+      rows.push({ label: `Промокод ${promoApplied.code}`, value: `−${formatPrice(promoResult.discount)}` });
     }
-    summary.appendChild(totalRow);
+    rows.push({ label: "Итого", value: formatPrice(totalValue) });
 
     const form = createElement("div", { className: "list" });
     const phoneInput = createElement("input", {
@@ -349,6 +335,7 @@ export function renderCheckoutPage({ navigate }) {
       form.append(createElement("label", { className: "helper", text: "Адрес" }), addressInput);
     }
 
+    const summary = createCheckoutSummary({ rows });
     summary.append(
       form,
       commentLabel,
@@ -361,6 +348,7 @@ export function renderCheckoutPage({ navigate }) {
       error,
       submit
     );
+
     content.append(itemsBlock, summary);
   };
 

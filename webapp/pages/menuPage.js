@@ -1,6 +1,5 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
-import { createGallery } from "../ui/gallery.js";
 import { createSkeletonGrid } from "../ui/skeleton.js";
 import { formatPrice } from "../services/format.js";
 import { loadMenu, subscribeMenu } from "../store/menuStore.js";
@@ -8,6 +7,8 @@ import { add } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
 import { getFavorites, setFavorites, getOrders } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
+import { createPizzaCard } from "../ui/pizzaCard.js";
+import { createChip } from "../ui/chip.js";
 
 const DEFAULT_FILTERS = [
   { id: "all", label: "Все" },
@@ -15,58 +16,32 @@ const DEFAULT_FILTERS = [
 ];
 
 function createMenuCard(item, navigate, favorites) {
-  const card = createElement("article", { className: "card clickable" });
-  const gallery = createGallery(item.images, { large: false });
-  const title = createElement("h3", { className: "card-title", text: item.title });
-  const description = createElement("p", { className: "card-description", text: item.description });
-  const tags = createElement("div", { className: "tag-row" });
-  item.tags.forEach((tag) => tags.appendChild(createElement("span", { className: "badge", text: tag })));
-
-  const favButton = createElement("button", {
-    className: ["fav-button", favorites.has(item.id) ? "active" : ""].join(" ").trim(),
-    attrs: { type: "button", "aria-label": "В избранное" },
-    text: "❤",
-  });
-  favButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (favorites.has(item.id)) {
-      favorites.delete(item.id);
-      showToast("Удалено из избранного", "info");
-    } else {
-      favorites.add(item.id);
-      showToast("Добавлено в избранное", "success");
-    }
-    favButton.classList.toggle("active");
-    setFavorites(favorites);
-  });
-
-  const footer = createElement("div", { className: "card-footer" });
-  const price = createElement("div", { className: "card-price", text: formatPrice(item.price) });
-  const addButton = createButton({
-    label: "Добавить",
-    onClick: (event) => {
-      event.stopPropagation();
+  return createPizzaCard({
+    item,
+    priceText: formatPrice(item.price),
+    favorites,
+    onToggleFavorite: (targetItem, button) => {
+      if (favorites.has(targetItem.id)) {
+        favorites.delete(targetItem.id);
+        showToast("Удалено из избранного", "info");
+      } else {
+        favorites.add(targetItem.id);
+        showToast("Добавлено в избранное", "success");
+      }
+      button.classList.toggle("active");
+      setFavorites(favorites);
+    },
+    onAdd: (targetItem) => {
       add({
-        id: item.id,
-        title: item.title,
-        price: item.price,
-        image: item.images?.[0] || "",
+        id: targetItem.id,
+        title: targetItem.title,
+        price: targetItem.price,
+        image: targetItem.images?.[0] || "",
       });
       showToast("Добавлено в корзину", "success");
     },
+    onOpen: (targetItem) => navigate(`/pizza/${targetItem.id}`),
   });
-
-  footer.append(price, addButton);
-
-  card.append(gallery, favButton, title, description);
-  if (item.tags.length) {
-    card.append(tags);
-  }
-  card.append(footer);
-
-  card.addEventListener("click", () => navigate(`/pizza/${item.id}`));
-
-  return card;
 }
 
 export function renderMenuPage({ navigate }) {
@@ -114,16 +89,15 @@ export function renderMenuPage({ navigate }) {
     }));
     const filters = [...DEFAULT_FILTERS, ...categoryFilters];
     filters.forEach((filter) => {
-      const button = createElement("button", {
-        className: ["filter-chip", currentFilter === filter.id ? "active" : ""].join(" ").trim(),
-        attrs: { type: "button" },
-        text: filter.label,
+      const chip = createChip({
+        label: filter.label,
+        active: currentFilter === filter.id,
+        onClick: () => {
+          currentFilter = filter.id;
+          renderState(state);
+        },
       });
-      button.addEventListener("click", () => {
-        currentFilter = filter.id;
-        renderState(state);
-      });
-      filtersRow.appendChild(button);
+      filtersRow.appendChild(chip);
     });
 
     const searchInput = createElement("input", {
@@ -146,12 +120,12 @@ export function renderMenuPage({ navigate }) {
     );
     const contacts = createElement("div", { className: "card-footer" });
     const callLink = createElement("a", {
-      className: "button secondary",
+      className: "button secondary ui-control",
       attrs: { href: `tel:${config?.supportPhone || ""}` },
       text: "Позвонить",
     });
     const chatLink = createElement("a", {
-      className: "button secondary",
+      className: "button secondary ui-control",
       attrs: { href: config?.supportChat || "#", target: "_blank", rel: "noopener noreferrer" },
       text: "Написать",
     });

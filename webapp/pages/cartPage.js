@@ -3,37 +3,20 @@ import { createButton } from "../ui/button.js";
 import { formatPrice } from "../services/format.js";
 import { subscribeCart, setQty, remove, total, getState } from "../store/cartStore.js";
 import { showToast } from "../ui/toast.js";
+import { createCartLineItem } from "../ui/cartLineItem.js";
+import { createCheckoutSummary } from "../ui/checkoutSummary.js";
 
-function createCartItemRow(item) {
-  const row = createElement("div", { className: "panel" });
-  const header = createElement("div", { className: "cart-row" });
-  const info = createElement("div");
-  const title = createElement("div", { text: item.title });
-  const price = createElement("div", { className: "helper", text: formatPrice(item.price) });
-  info.append(title, price);
-
-  const controls = createElement("div", { className: "qty-controls" });
-  const dec = createElement("button", { className: "qty-button", text: "−", attrs: { type: "button" } });
-  const qty = createElement("span", { className: "qty-label", text: String(item.qty) });
-  const inc = createElement("button", { className: "qty-button", text: "+", attrs: { type: "button" } });
-
-  dec.addEventListener("click", () => setQty(item.id, item.qty - 1));
-  inc.addEventListener("click", () => setQty(item.id, item.qty + 1));
-
-  controls.append(dec, qty, inc);
-  header.append(info, controls);
-
-  const remove = createButton({
-    label: "Удалить",
-    variant: "ghost",
-    onClick: () => {
+function buildCartItemRow(item) {
+  return createCartLineItem({
+    item,
+    priceText: formatPrice(item.price),
+    onDecrement: () => setQty(item.id, item.qty - 1),
+    onIncrement: () => setQty(item.id, item.qty + 1),
+    onRemove: () => {
       remove(item.id);
       showToast("Позиция удалена", "info");
     },
   });
-
-  row.append(header, remove);
-  return row;
 }
 
 export function renderCartPage({ navigate }) {
@@ -58,19 +41,19 @@ export function renderCartPage({ navigate }) {
     }
 
     const list = createElement("div", { className: "list" });
-    state.items.forEach((item) => list.appendChild(createCartItemRow(item)));
+    state.items.forEach((item) => list.appendChild(buildCartItemRow(item)));
     content.appendChild(list);
 
-    const summary = createElement("div", { className: "panel" });
-    const total = createElement("div", { className: "total-row" });
-    total.append(createElement("span", { text: "Итого" }), createElement("span", { text: formatPrice(total()) }));
-    summary.appendChild(total);
-    summary.appendChild(
-      createButton({
-        label: "Оформить заказ",
-        onClick: () => navigate("/checkout"),
-      })
-    );
+    const summary = createCheckoutSummary({
+      rows: [{ label: "Итого", value: formatPrice(total()) }],
+      children: [
+        createButton({
+          label: "Оформить заказ",
+          onClick: () => navigate("/checkout"),
+        }),
+      ],
+    });
+
     content.appendChild(summary);
   };
 

@@ -38,8 +38,26 @@ button {
 #app {
   max-width: 640px;
   margin: 0 auto;
+}
+
+.app-shell {
   display: grid;
   gap: 18px;
+}
+
+.app-shell__content {
+  display: grid;
+  gap: 18px;
+}
+
+.top-bar {
+  display: grid;
+  gap: 14px;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 4px);
+}
+
+.bottom-bar {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
 }
 
 body.admin-mode {
@@ -124,6 +142,25 @@ body.admin-mode #app {
   background: rgba(108, 156, 255, 0.12);
 }
 
+.ui-control {
+  transition: all 0.2s ease;
+}
+
+.ui-control:active {
+  transform: translateY(1px);
+}
+
+.ui-control:disabled,
+.ui-control.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-control.is-loading {
+  opacity: 0.8;
+  cursor: progress;
+}
+
 .panel {
   padding: 18px;
   background: linear-gradient(160deg, rgba(26, 33, 48, 0.95), rgba(18, 22, 33, 0.95));
@@ -155,7 +192,8 @@ body.admin-mode #app {
   letter-spacing: 0.06em;
 }
 
-.button {
+.button,
+.ui-button {
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px solid transparent;
@@ -171,31 +209,37 @@ body.admin-mode #app {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.button:hover {
+.button:hover,
+.ui-button:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 28px rgba(108, 156, 255, 0.4);
 }
 
-.button.secondary {
+.button.secondary,
+.ui-button.secondary {
   background: var(--panel-soft);
   border-color: var(--border);
   color: var(--text);
   box-shadow: none;
 }
 
-.button.ghost {
+.button.ghost,
+.ui-button.ghost {
   background: transparent;
   border-color: var(--border);
   color: var(--text);
   box-shadow: none;
 }
 
-.button:disabled {
+.button:disabled,
+.ui-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.button.loading {
+.button.loading,
+.ui-button.loading,
+.ui-button.is-loading {
   opacity: 0.8;
 }
 
@@ -248,9 +292,16 @@ body.admin-mode #app {
   font-size: 16px;
 }
 
-.card-price {
+.card-price,
+.price-tag {
   font-weight: 700;
   color: var(--accent);
+}
+
+.price-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .card-description {
@@ -374,6 +425,16 @@ body.admin-mode #app {
   padding: 4px 10px;
 }
 
+.qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(26, 33, 48, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
 .qty-button {
   width: 30px;
   height: 30px;
@@ -466,7 +527,8 @@ textarea.input {
   flex-wrap: wrap;
 }
 
-.filter-chip {
+.filter-chip,
+.chip {
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -477,10 +539,21 @@ textarea.input {
   transition: all 0.2s ease;
 }
 
-.filter-chip.active {
+.filter-chip.active,
+.chip.active {
   background: var(--accent);
   color: #0b0b0b;
   border-color: transparent;
+}
+
+.chip--tag {
+  padding: 4px 10px;
+  background: rgba(108, 156, 255, 0.12);
+  border: 1px solid rgba(108, 156, 255, 0.25);
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
 }
 
 .section-title {

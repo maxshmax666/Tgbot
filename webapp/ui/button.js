@@ -9,13 +9,23 @@ export function createButton({
   loading = false,
 } = {}) {
   const button = createElement("button", {
-    className: ["button", variant !== "primary" ? variant : ""].filter(Boolean).join(" "),
+    className: [
+      "button",
+      "ui-button",
+      "ui-control",
+      variant !== "primary" ? variant : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
     text: label,
     attrs: { type },
   });
   button.disabled = disabled || loading;
+  if (disabled) {
+    button.classList.add("is-disabled");
+  }
   if (loading) {
-    button.classList.add("loading");
+    button.classList.add("loading", "is-loading");
     button.dataset.label = label;
     button.textContent = "Загрузка…";
   }
@@ -30,12 +40,14 @@ export function setButtonLoading(button, loading) {
   if (loading) {
     button.dataset.label = button.textContent;
     button.textContent = "Загрузка…";
-    button.classList.add("loading");
+    button.classList.add("loading", "is-loading");
+    button.classList.remove("is-disabled");
     button.disabled = true;
   } else {
     const label = button.dataset.label;
     if (label) button.textContent = label;
-    button.classList.remove("loading");
+    button.classList.remove("loading", "is-loading");
     button.disabled = false;
+    button.classList.remove("is-disabled");
   }
 }

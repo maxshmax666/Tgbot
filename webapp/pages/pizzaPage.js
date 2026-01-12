@@ -6,6 +6,8 @@ import { add } from "../store/cartStore.js";
 import { getMenuItemById, loadMenu, subscribeMenu } from "../store/menuStore.js";
 import { getFavorites, setFavorites } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
+import { createCard } from "../ui/card.js";
+import { createPriceTag } from "../ui/priceTag.js";
 
 export function renderPizzaPage({ navigate, params }) {
   const root = createElement("section", { className: "list" });
@@ -29,15 +31,17 @@ export function renderPizzaPage({ navigate, params }) {
       return;
     }
 
-    const card = createElement("div", { className: "panel" });
+    const card = createCard({ variant: "panel", className: "pizza-detail" });
     card.appendChild(createGallery(item.images, { large: true }));
     card.appendChild(createElement("h2", { className: "title", text: item.title }));
     card.appendChild(createElement("p", { className: "helper", text: item.description }));
-    card.appendChild(createElement("div", { className: "card-price", text: formatPrice(item.price) }));
+    card.appendChild(createPriceTag({ text: formatPrice(item.price), className: "card-price" }));
 
     const favorites = getFavorites();
     const favButton = createElement("button", {
-      className: ["fav-button", favorites.has(item.id) ? "active" : ""].join(" ").trim(),
+      className: ["fav-button", "ui-control", favorites.has(item.id) ? "active" : ""]
+        .filter(Boolean)
+        .join(" "),
       attrs: { type: "button" },
       text: favorites.has(item.id) ? "♥ В избранном" : "♡ В избранное",
     });
@@ -60,7 +64,7 @@ export function renderPizzaPage({ navigate, params }) {
       variant: "secondary",
       onClick: () => navigate("/menu"),
     });
-    const add = createButton({
+    const addToCartButton = createButton({
       label: "Добавить в корзину",
       onClick: () =>
         add({
@@ -70,8 +74,8 @@ export function renderPizzaPage({ navigate, params }) {
           image: item.images?.[0] || "",
         }),
     });
-    add.addEventListener("click", () => showToast("Добавлено в корзину", "success"));
-    actions.append(back, add);
+    addToCartButton.addEventListener("click", () => showToast("Добавлено в корзину", "success"));
+    actions.append(back, addToCartButton);
     card.append(favButton, actions);
     content.appendChild(card);
   };
