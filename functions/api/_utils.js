@@ -53,8 +53,14 @@ export function requireDb(env) {
   return env.DB;
 }
 
-export async function ensureOwner(env) {
+export async function ensureOwner(request, env, payload) {
   requireDb(env);
+  const authPayload = payload ?? (request ? await requireAuth(request, env) : null);
+  if (!authPayload) throw new RequestError(401, "Unauthorized");
+  if (authPayload.role !== "owner") {
+    throw new RequestError(403, "Forbidden");
+  }
+  return authPayload;
 }
 
 export async function createToken(payload, env) {

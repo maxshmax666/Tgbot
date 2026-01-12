@@ -1,9 +1,8 @@
-import { json, handleError, requireAuth, ensureOwner, RequestError, requireEnv } from "../_utils.js";
+import { json, handleError, ensureOwner, RequestError, requireEnv } from "../_utils.js";
 
 export async function onRequestPost({ env, request }) {
   try {
-    await ensureOwner(env);
-    await requireAuth(request, env);
+    await ensureOwner(request, env);
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.includes("multipart/form-data")) {
       throw new RequestError(400, "Expected multipart/form-data");
