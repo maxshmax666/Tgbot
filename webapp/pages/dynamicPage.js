@@ -1,5 +1,6 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
+import { createLinkButton } from "../ui/linkButton.js";
 import { createCard, createCardFooter } from "../ui/card.js";
 import { createPriceTag } from "../ui/priceTag.js";
 import { createSection } from "../ui/section.js";
@@ -17,7 +18,7 @@ function renderHero(props) {
     description: props.subtitle,
   });
   if (props.buttonLabel && props.buttonLink) {
-    const link = createButton({ label: props.buttonLabel, href: props.buttonLink });
+    const link = createLinkButton({ label: props.buttonLabel, href: props.buttonLink });
     section.appendChild(link);
   }
   return section;
