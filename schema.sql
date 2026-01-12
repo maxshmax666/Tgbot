@@ -71,3 +71,9 @@ CREATE TABLE IF NOT EXISTS media (
   created_at TEXT NOT NULL,
   meta_json TEXT
 );
+
+CREATE TABLE IF NOT EXISTS login_rate_limits (
+  key TEXT PRIMARY KEY,
+  failures INTEGER NOT NULL,
+  reset_at INTEGER NOT NULL
+);
