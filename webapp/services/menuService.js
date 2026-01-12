@@ -7,7 +7,7 @@ function buildImages(slug, photosCount) {
   const list = [];
   for (let i = 1; i <= total; i += 1) {
     const index = String(i).padStart(2, "0");
-    list.push(`assets/pizzas/${slug}/${slug}_${index}.jpg`);
+    list.push(`/assets/pizzas/${slug}/${slug}_${index}.jpg`);
   }
   return list;
 }
@@ -40,7 +40,7 @@ export async function fetchMenu() {
     return normalizeMenu(cached.items);
   }
 
-  const response = await fetch("data/menu.json", { cache: "no-store" });
+  const response = await fetch("/data/menu.json", { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }

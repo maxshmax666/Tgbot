@@ -19,7 +19,7 @@ const DEFAULT_CONFIG = {
 export async function fetchConfig() {
   if (cachedConfig) return cachedConfig;
   try {
-    const response = await fetch("data/config.json", { cache: "no-store" });
+    const response = await fetch("/data/config.json", { cache: "no-store" });
     if (response.ok) {
       cachedConfig = { ...DEFAULT_CONFIG, ...(await response.json()) };
     } else {
