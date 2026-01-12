@@ -23,7 +23,7 @@ function createCartItemRow(item) {
   controls.append(dec, qty, inc);
   header.append(info, controls);
 
-  const remove = createButton({
+  const removeButton = createButton({
     label: "Удалить",
     variant: "ghost",
     onClick: () => {
@@ -32,7 +32,7 @@ function createCartItemRow(item) {
     },
   });
 
-  row.append(header, remove);
+  row.append(header, removeButton);
   return row;
 }
 
@@ -62,9 +62,9 @@ export function renderCartPage({ navigate }) {
     content.appendChild(list);
 
     const summary = createElement("div", { className: "panel" });
-    const total = createElement("div", { className: "total-row" });
-    total.append(createElement("span", { text: "Итого" }), createElement("span", { text: formatPrice(total()) }));
-    summary.appendChild(total);
+    const totalRow = createElement("div", { className: "total-row" });
+    totalRow.append(createElement("span", { text: "Итого" }), createElement("span", { text: formatPrice(total()) }));
+    summary.appendChild(totalRow);
     summary.appendChild(
       createButton({
         label: "Оформить заказ",
