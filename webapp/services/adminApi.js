@@ -11,6 +11,11 @@ async function request(path, options = {}) {
     throw error;
   }
   const payload = await response.json().catch(() => null);
+  if (payload == null) {
+    const error = new Error("Admin API вернул пустой ответ");
+    error.status = response.status;
+    throw error;
+  }
   if (!response.ok) {
     const message = payload?.error?.message || "Request failed";
     const details = payload?.error?.details;
@@ -34,7 +39,7 @@ export const adminApi = {
     return request("/api/admin/auth/logout", { method: "POST" });
   },
   me() {
-    return request("/api/admin/me").then((data) => data.user);
+    return request("/api/admin/me").then((data) => data?.user ?? null);
   },
   listCategories() {
     return request("/api/admin/categories").then((data) => data.items || []);

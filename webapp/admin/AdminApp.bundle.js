@@ -23,7 +23,18 @@ async function request(path, options = {}) {
     headers.set("content-type", "application/json");
   }
   const response = await fetch(path, { ...options, headers, credentials: "include" });
+  const contentType = response.headers.get("content-type");
+  if (!contentType?.includes("application/json")) {
+    const error = new Error("Admin API не отвечает JSON (возможно, не задеплоены Functions /api)");
+    error.status = response.status;
+    throw error;
+  }
   const payload = await response.json().catch(() => null);
+  if (payload == null) {
+    const error = new Error("Admin API вернул пустой ответ");
+    error.status = response.status;
+    throw error;
+  }
   if (!response.ok) {
     const message = payload?.error?.message || "Request failed";
     const details = payload?.error?.details;
@@ -46,7 +57,7 @@ var adminApi = {
     return request("/api/admin/auth/logout", { method: "POST" });
   },
   me() {
-    return request("/api/admin/me").then((data) => data.user);
+    return request("/api/admin/me").then((data) => data?.user ?? null);
   },
   listCategories() {
     return request("/api/admin/categories").then((data) => data.items || []);
@@ -631,11 +642,16 @@ function AdminApp({ navigate, initialPath }) {
     setError(null);
     try {
       const data = await adminApi.me();
-      setUser(data);
-      setStatus("authenticated");
+      if (data) {
+        setUser(data);
+        setStatus("authenticated");
+      } else {
+        setUser(null);
+        setStatus("unauthenticated");
+      }
     } catch (err) {
       setUser(null);
-      if (err.status === 401) {
+      if (err.status === 401 || err.status === 403) {
         setStatus("unauthenticated");
       } else {
         setStatus("error");
@@ -648,6 +664,11 @@ function AdminApp({ navigate, initialPath }) {
   }, [fetchSession]);
   const handleLogin = async (password) => {
     const data = await adminApi.login(password);
+    if (!data) {
+      const error = new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u0442\u044C\u0441\u044F. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C \u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 API.");
+      error.status = 401;
+      throw error;
+    }
     setUser(data);
     setStatus("authenticated");
     setError(null);

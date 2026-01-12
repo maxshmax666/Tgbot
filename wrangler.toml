@@ -9,11 +9,6 @@ binding = "DB"
 database_name = "tgbot_db"
 database_id = ""
 
-[[r2_buckets]]
-binding = "MEDIA_BUCKET"
-bucket_name = "tgbot-media"
-
 [vars]
 JWT_SECRET = "change-me"
 ADMIN_PASSWORD_HASH = ""
-R2_PUBLIC_URL = "https://example-bucket.r2.dev"

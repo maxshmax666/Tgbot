@@ -1,14 +1,16 @@
-import { json, handleError, ensureOwner, RequestError } from "../../_utils.js";
+import { json, handleError, ensureOwner } from "../../_utils.js";
 
 export async function onRequestDelete({ env, request, params }) {
   try {
     await ensureOwner(request, env);
-    const key = params.key;
-    const bucket = env.MEDIA_BUCKET;
-    if (!bucket) throw new RequestError(500, "MEDIA_BUCKET binding is missing");
-    await bucket.delete(key);
-    await env.DB.prepare("DELETE FROM media WHERE key = ?").bind(key).run();
-    return json({ ok: true });
+    return json(
+      {
+        ok: false,
+        error: "UPLOAD_DISABLED",
+        message: "R2 disabled. Use static assets paths like /assets/...",
+      },
+      501
+    );
   } catch (err) {
     return handleError(err);
   }

@@ -989,11 +989,16 @@ function AdminApp({ navigate, initialPath }) {
     setError(null);
     try {
       const data = await adminApi.me();
-      setUser(data);
-      setStatus("authenticated");
+      if (data) {
+        setUser(data);
+        setStatus("authenticated");
+      } else {
+        setUser(null);
+        setStatus("unauthenticated");
+      }
     } catch (err) {
       setUser(null);
-      if (err.status === 401) {
+      if (err.status === 401 || err.status === 403) {
         setStatus("unauthenticated");
       } else {
         setStatus("error");
@@ -1008,6 +1013,11 @@ function AdminApp({ navigate, initialPath }) {
 
   const handleLogin = async (password) => {
     const data = await adminApi.login(password);
+    if (!data) {
+      const error = new Error("Не удалось авторизоваться. Проверьте пароль и настройки API.");
+      error.status = 401;
+      throw error;
+    }
     setUser(data);
     setStatus("authenticated");
     setError(null);
