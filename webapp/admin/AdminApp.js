@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.2.0";
+import React, { useCallback, useEffect, useMemo, useState } from "https://esm.sh/react@18.2.0";
 import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
 import {
   DndContext,
@@ -82,8 +82,68 @@ function Select(props) {
   );
 }
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
+          <div className="bg-slate-900 rounded-xl p-6 max-w-lg w-full space-y-3">
+            <h2 className="text-lg font-semibold">Ошибка загрузки</h2>
+            <p className="text-sm text-slate-400">
+              Произошла ошибка в интерфейсе админки. Проверьте консоль и настройки окружения.
+            </p>
+            <pre className="text-xs text-rose-300 whitespace-pre-wrap break-words">
+              {this.state.error?.message || "Unknown error"}
+            </pre>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+function LoadingScreen({ label = "Загрузка…" }) {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+      <div className="bg-slate-900 rounded-xl p-6 w-full max-w-md text-center space-y-3">
+        <div className="h-10 w-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm text-slate-400">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function ErrorState({ title, message, details, onRetry }) {
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+      <div className="bg-slate-900 rounded-xl p-6 w-full max-w-lg space-y-3">
+        <h2 className="text-lg font-semibold">{title}</h2>
+        <p className="text-sm text-slate-400">{message}</p>
+        {details && (
+          <pre className="text-xs text-rose-300 whitespace-pre-wrap break-words">
+            {details}
+          </pre>
+        )}
+        {onRetry && (
+          <Button onClick={onRetry}>Повторить</Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Login({ onLogin, onNavigate }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -93,9 +153,11 @@ function Login({ onLogin }) {
     setError("");
     setLoading(true);
     try {
-      await adminApi.login(email, password);
-      const user = await adminApi.me();
-      onLogin(user);
+      const user = await onLogin(password);
+      if (onNavigate) {
+        onNavigate("/admin");
+      }
+      return user;
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {
@@ -104,12 +166,10 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100">
+    <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
       <form onSubmit={handleSubmit} className="bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4">
         <h1 className="text-xl font-semibold">Admin Login</h1>
-        <Field label="Email">
-          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </Field>
+        <p className="text-sm text-slate-400">Введите пароль администратора.</p>
         <Field label="Password">
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
@@ -911,40 +971,93 @@ function AdminLayout({ user, onLogout }) {
   );
 }
 
-function AdminApp() {
+function AdminApp({ navigate, initialPath }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState(null);
+
+  const goTo = (path) => {
+    if (navigate) {
+      navigate(path);
+    } else {
+      window.history.pushState({}, "", path);
+    }
+  };
+
+  const fetchSession = useCallback(async () => {
+    setStatus("loading");
+    setError(null);
+    try {
+      const data = await adminApi.me();
+      setUser(data);
+      setStatus("authenticated");
+    } catch (err) {
+      setUser(null);
+      if (err.status === 401) {
+        setStatus("unauthenticated");
+      } else {
+        setStatus("error");
+        setError(err);
+      }
+    }
+  }, []);
 
   useEffect(() => {
-    adminApi
-      .me()
-      .then((data) => {
-        setUser(data);
-      })
-      .catch(() => {
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    fetchSession();
+  }, [fetchSession]);
+
+  const handleLogin = async (password) => {
+    const data = await adminApi.login(password);
+    setUser(data);
+    setStatus("authenticated");
+    setError(null);
+    return data;
+  };
 
   const handleLogout = async () => {
     await adminApi.logout();
     setUser(null);
+    setStatus("unauthenticated");
+    goTo("/admin/login");
   };
 
-  if (loading) {
-    return <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">Loading...</div>;
+  const isLoginRoute = (initialPath || window.location.pathname).startsWith("/admin/login");
+
+  if (status === "loading") {
+    return <LoadingScreen label="Проверяем доступ к админке…" />;
   }
 
-  if (!user) {
-    return <Login onLogin={setUser} />;
+  if (status === "error") {
+    return (
+      <ErrorState
+        title="Ошибка загрузки админки"
+        message="Не удалось подключиться к админ API. Проверьте переменные окружения и логи билда."
+        details={error?.details ? JSON.stringify(error.details, null, 2) : error?.message}
+        onRetry={fetchSession}
+      />
+    );
+  }
+
+  if (status === "unauthenticated" || !user) {
+    if (!isLoginRoute) {
+      goTo("/admin/login");
+    }
+    return <Login onLogin={handleLogin} onNavigate={isLoginRoute ? goTo : null} />;
+  }
+
+  if (isLoginRoute) {
+    goTo("/admin");
   }
 
   return <AdminLayout user={user} onLogout={handleLogout} />;
 }
 
-export function mountAdminApp(container) {
+export function mountAdminApp(container, options = {}) {
   const root = createRoot(container);
-  root.render(<AdminApp />);
+  root.render(
+    <ErrorBoundary>
+      <AdminApp navigate={options.navigate} initialPath={options.initialPath} />
+    </ErrorBoundary>
+  );
   return () => root.unmount();
 }

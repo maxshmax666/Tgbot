@@ -67,6 +67,7 @@ const routes = [
   { path: /^\/cart\/?$/, render: renderCartPage },
   { path: /^\/checkout\/?$/, render: renderCheckoutPage },
   { path: /^\/profile\/?$/, render: renderProfilePage },
+  { path: /^\/admin\/login\/?$/, render: renderAdminPage },
   { path: /^\/admin\/?$/, render: renderAdminPage },
   { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
   { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
@@ -114,6 +115,8 @@ function navigate(path) {
   window.history.pushState({}, "", path);
   renderRoute(path);
 }
+
+window.appNavigate = navigate;
 
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
 

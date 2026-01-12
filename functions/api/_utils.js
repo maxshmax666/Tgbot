@@ -1,15 +1,18 @@
 import { SignJWT, jwtVerify } from "jose";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 
 const textEncoder = new TextEncoder();
 
-export function json(data, status = 200) {
+export function json(data, status = 200, headers = {}) {
+  const responseHeaders = new Headers({
+    "content-type": "application/json; charset=utf-8",
+  });
+  Object.entries(headers).forEach(([key, value]) => {
+    responseHeaders.set(key, value);
+  });
   return new Response(JSON.stringify(data), {
     status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-    },
+    headers: responseHeaders,
   });
 }
 
@@ -45,24 +48,13 @@ export function requireEnv(value, name) {
   return value;
 }
 
-export async function ensureOwner(env) {
-  const db = env.DB;
-  if (!db) throw new RequestError(500, "DB binding is missing");
-  const existing = await db.prepare("SELECT id FROM users WHERE role = 'owner' LIMIT 1").first();
-  if (existing) return;
+export function requireDb(env) {
+  if (!env.DB) throw new RequestError(500, "DB binding is missing");
+  return env.DB;
+}
 
-  const email = env.ADMIN_EMAIL;
-  const password = env.ADMIN_PASSWORD;
-  if (!email || !password) {
-    throw new RequestError(500, "ADMIN_EMAIL/ADMIN_PASSWORD are required for bootstrap");
-  }
-  const passwordHash = await bcrypt.hash(password, 10);
-  await db
-    .prepare(
-      "INSERT INTO users (email, password_hash, role, created_at) VALUES (?, ?, 'owner', datetime('now'))"
-    )
-    .bind(email.toLowerCase(), passwordHash)
-    .run();
+export async function ensureOwner(env) {
+  requireDb(env);
 }
 
 export async function createToken(payload, env) {
@@ -81,9 +73,39 @@ export async function verifyToken(token, env) {
   return payload;
 }
 
+export function getSessionToken(request) {
+  const cookieHeader = request.headers.get("cookie") || "";
+  const cookies = cookieHeader.split(";").map((item) => item.trim());
+  const tokenCookie = cookies.find((item) => item.startsWith("admin_session="));
+  if (!tokenCookie) return null;
+  const [, value] = tokenCookie.split("=");
+  return value || null;
+}
+
+export function createSessionCookie(token, request) {
+  const secure = new URL(request.url).protocol === "https:";
+  const parts = [
+    `admin_session=${token}`,
+    "Path=/",
+    "HttpOnly",
+    "SameSite=Strict",
+    "Max-Age=604800",
+  ];
+  if (secure) parts.push("Secure");
+  return parts.join("; ");
+}
+
+export function clearSessionCookie(request) {
+  const secure = new URL(request.url).protocol === "https:";
+  const parts = ["admin_session=", "Path=/", "HttpOnly", "SameSite=Strict", "Max-Age=0"];
+  if (secure) parts.push("Secure");
+  return parts.join("; ");
+}
+
 export async function requireAuth(request, env) {
   const header = request.headers.get("authorization") || "";
-  const [, token] = header.split(" ");
+  const [, bearerToken] = header.split(" ");
+  const token = getSessionToken(request) || bearerToken;
   if (!token) throw new RequestError(401, "Unauthorized");
   try {
     const payload = await verifyToken(token, env);
