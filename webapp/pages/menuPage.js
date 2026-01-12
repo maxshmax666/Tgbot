@@ -9,11 +9,8 @@ import { fetchConfig } from "../services/configService.js";
 import { getFavorites, setFavorites, getOrders } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
 
-const FILTERS = [
+const DEFAULT_FILTERS = [
   { id: "all", label: "Все" },
-  { id: "meat", label: "Мясные" },
-  { id: "cheese", label: "Сырные" },
-  { id: "vegetarian", label: "Вегетарианские" },
   { id: "favorite", label: "Избранное" },
 ];
 
@@ -111,7 +108,12 @@ export function renderMenuPage({ navigate }) {
 
     const favorites = getFavorites();
     const filtersRow = createElement("div", { className: "filter-row" });
-    FILTERS.forEach((filter) => {
+    const categoryFilters = state.categories.map((category) => ({
+      id: String(category.id),
+      label: category.title,
+    }));
+    const filters = [...DEFAULT_FILTERS, ...categoryFilters];
+    filters.forEach((filter) => {
       const button = createElement("button", {
         className: ["filter-chip", currentFilter === filter.id ? "active" : ""].join(" ").trim(),
         attrs: { type: "button" },
@@ -162,7 +164,7 @@ export function renderMenuPage({ navigate }) {
       .filter((item) => {
         if (currentFilter === "favorite") return favorites.has(item.id);
         if (currentFilter === "all") return true;
-        return item.tags.includes(currentFilter);
+        return String(item.categoryId || "") === currentFilter;
       })
       .filter((item) => (searchValue ? item.title.toLowerCase().includes(searchValue) : true));
 

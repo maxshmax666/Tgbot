@@ -2,6 +2,7 @@ import { fetchMenu } from "../services/menuService.js";
 
 const state = {
   items: [],
+  categories: [],
   status: "idle",
   error: null,
 };
@@ -26,11 +27,12 @@ export async function loadMenu() {
   state.error = null;
   notify();
   try {
-    const items = await fetchMenu();
-    state.items = items;
+    const data = await fetchMenu();
+    state.items = data.items;
+    state.categories = data.categories;
     state.status = "loaded";
     notify();
-    return items;
+    return data.items;
   } catch (error) {
     state.status = "error";
     state.error = error instanceof Error ? error.message : "Не удалось загрузить меню";
@@ -45,4 +47,8 @@ export function getMenuItemById(id) {
 
 export function getMenuState() {
   return { ...state };
+}
+
+export function getCategories() {
+  return state.categories;
 }

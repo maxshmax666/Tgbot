@@ -42,6 +42,16 @@ button {
   gap: 18px;
 }
 
+body.admin-mode {
+  padding: 0;
+  background: #0b0d12;
+}
+
+body.admin-mode #app {
+  max-width: none;
+  margin: 0;
+}
+
 .header {
   display: grid;
   gap: 8px;

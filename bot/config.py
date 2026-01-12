@@ -47,7 +47,7 @@ def load_config() -> Config:
         db_path=db_path,
         webapp_url=os.getenv(
             "WEBAPP_URL",
-            "https://janet-paris-bowl-introducing.trycloudflare.com/",
+            "https://tgbot-3cm.pages.dev/",
         ),
         yookassa_shop_id=os.getenv("YOOKASSA_SHOP_ID"),
         yookassa_secret_key=os.getenv("YOOKASSA_SECRET_KEY"),
