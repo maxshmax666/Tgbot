@@ -1,9 +1,8 @@
-import { json, handleError, requireAuth, ensureOwner } from "../../_utils.js";
+import { json, handleError, ensureOwner } from "../../_utils.js";
 
 export async function onRequestGet({ env, request }) {
   try {
-    await ensureOwner(env);
-    await requireAuth(request, env);
+    await ensureOwner(request, env);
     const result = await env.DB.prepare(
       "SELECT id, created_at, status, customer_name, phone, address, comment, items_json, total FROM orders ORDER BY created_at DESC, id DESC"
     ).all();

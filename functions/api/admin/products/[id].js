@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, requireAuth, ensureOwner, idSchema } from "../../_utils.js";
+import { json, handleError, parseJsonBody, ensureOwner, idSchema } from "../../_utils.js";
 
 const imageSchema = z.object({
   url: z.string().url(),
@@ -19,8 +19,7 @@ const productSchema = z.object({
 
 export async function onRequest({ env, request, params }) {
   try {
-    await ensureOwner(env);
-    await requireAuth(request, env);
+    await ensureOwner(request, env);
     const id = idSchema.parse(params.id);
 
     if (request.method === "GET") {
