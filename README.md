@@ -47,7 +47,6 @@ cp .env.example .env
 Обязательные переменные для админки/функций:
 - `ADMIN_PASSWORD_HASH`
 - `JWT_SECRET`
-- `R2_PUBLIC_URL`
 
 Для бота используйте `MINIAPP_URL=https://tgbot-3cm.pages.dev/`.
 
@@ -62,20 +61,12 @@ wrangler d1 execute tgbot_db --file=./schema.sql
 
 Скопируйте `database_id` в `wrangler.toml`.
 
-### 3) R2 bucket
-
-```bash
-wrangler r2 bucket create tgbot-media
-```
-
-Публичный URL укажите в `R2_PUBLIC_URL` (например, `https://<account>.r2.dev/tgbot-media`).
-
-### 4) Локальная разработка
+### 3) Локальная разработка
 
 WebApp + Pages Functions:
 
 ```bash
-wrangler pages dev webapp --compatibility-date=2024-10-25 --d1=DB --r2=MEDIA_BUCKET
+wrangler pages dev webapp --compatibility-date=2024-10-25 --d1=DB
 ```
 
 WebApp отдельно (без функций):
@@ -84,15 +75,15 @@ WebApp отдельно (без функций):
 python -m http.server 8080 --directory webapp
 ```
 
-### 5) Деплой
+### 4) Деплой
 
 Подключите репозиторий к Cloudflare Pages и укажите:
 - **Build command:** не требуется
 - **Output directory:** `webapp`
 - **Functions directory:** `functions`
-- **Environment variables:** `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, `R2_PUBLIC_URL`
+- **Environment variables:** `ADMIN_PASSWORD_HASH`, `JWT_SECRET`
 
-### 6) Админка
+### 5) Админка
 
 Админка доступна по `/admin`. Авторизация выполняется через пароль из `.env`.
 

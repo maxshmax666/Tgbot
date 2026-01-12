@@ -1,4 +1,4 @@
-import { json, handleError, requireAuth } from "../_utils.js";
+import { json, handleError, requireAuth, RequestError } from "../_utils.js";
 
 export async function onRequestGet({ env, request }) {
   try {
@@ -11,6 +11,9 @@ export async function onRequestGet({ env, request }) {
       },
     });
   } catch (err) {
+    if (err instanceof RequestError && err.status === 401) {
+      return json({ user: null }, 401);
+    }
     return handleError(err);
   }
 }
