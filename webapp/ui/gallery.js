@@ -1,4 +1,5 @@
 import { createElement } from "./dom.js";
+import { applyImageFallback, PLACEHOLDER_IMAGE } from "./image.js";
 
 function setupLazyLoad(track) {
   if (!("IntersectionObserver" in window)) {
@@ -32,10 +33,17 @@ export function createGallery(images = [], { large = false } = {}) {
 
   if (!Array.isArray(images) || images.length === 0) {
     const fallback = createElement("div", { className: "gallery-slide" });
-    const placeholder = createElement("div", {
+    const img = createElement("img", {
       className: ["gallery-image", large ? "large" : ""].join(" ").trim(),
+      attrs: {
+        alt: "Фото недоступно",
+        loading: "lazy",
+        decoding: "async",
+        src: PLACEHOLDER_IMAGE,
+      },
     });
-    fallback.appendChild(placeholder);
+    applyImageFallback(img);
+    fallback.appendChild(img);
     track.appendChild(fallback);
   } else {
     images.forEach((src, index) => {
@@ -49,10 +57,7 @@ export function createGallery(images = [], { large = false } = {}) {
           "data-src": src,
         },
       });
-      img.addEventListener("error", () => {
-        img.classList.add("missing");
-        img.removeAttribute("src");
-      });
+      applyImageFallback(img);
       slide.appendChild(img);
       track.appendChild(slide);
 

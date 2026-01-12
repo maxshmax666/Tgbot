@@ -1,5 +1,6 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
+import { applyImageFallback } from "../ui/image.js";
 import { add } from "../store/cartStore.js";
 import { formatPrice } from "../services/format.js";
 import { loadMenu, getMenuState } from "../store/menuStore.js";
@@ -43,6 +44,7 @@ function renderGallery(props) {
   const grid = createElement("div", { className: "menu-grid" });
   (props.images || []).forEach((url) => {
     const img = createElement("img", { className: "image", attrs: { src: url, alt: props.title || "" } });
+    applyImageFallback(img);
     grid.appendChild(img);
   });
   section.appendChild(grid);
@@ -64,7 +66,9 @@ function renderProductsGrid(props, items) {
   products.forEach((item) => {
     const card = createElement("article", { className: "card" });
     if (item.images?.[0]) {
-      card.appendChild(createElement("img", { className: "image", attrs: { src: item.images[0], alt: item.title } }));
+      const img = createElement("img", { className: "image", attrs: { src: item.images[0], alt: item.title } });
+      applyImageFallback(img);
+      card.appendChild(img);
     }
     card.appendChild(createElement("h3", { className: "card-title", text: item.title }));
     card.appendChild(createElement("p", { className: "card-description", text: item.description }));
