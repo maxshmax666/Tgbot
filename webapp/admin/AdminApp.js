@@ -1028,10 +1028,12 @@ function AdminApp({ navigate, initialPath }) {
   }
 
   if (status === "error") {
+    const errorMessage =
+      error?.message || "Не удалось подключиться к админ API. Проверьте переменные окружения и логи билда.";
     return (
       <ErrorState
         title="Ошибка загрузки админки"
-        message="Не удалось подключиться к админ API. Проверьте переменные окружения и логи билда."
+        message={errorMessage}
         details={error?.details ? JSON.stringify(error.details, null, 2) : error?.message}
         onRetry={fetchSession}
       />

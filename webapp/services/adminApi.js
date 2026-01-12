@@ -4,6 +4,12 @@ async function request(path, options = {}) {
     headers.set("content-type", "application/json");
   }
   const response = await fetch(path, { ...options, headers, credentials: "include" });
+  const contentType = response.headers.get("content-type");
+  if (!contentType?.includes("application/json")) {
+    const error = new Error("Admin API не отвечает JSON (возможно, не задеплоены Functions /api)");
+    error.status = response.status;
+    throw error;
+  }
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message = payload?.error?.message || "Request failed";
