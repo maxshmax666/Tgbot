@@ -1,5 +1,6 @@
-import { json } from "../../_utils.js";
+import { clearSessionCookie, json } from "../../_utils.js";
 
-export async function onRequestPost() {
-  return json({ ok: true });
+export async function onRequestPost({ request }) {
+  const sessionCookie = clearSessionCookie(request);
+  return json({ ok: true }, 200, { "set-cookie": sessionCookie });
 }

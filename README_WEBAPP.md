@@ -19,7 +19,7 @@ Telegram requires HTTPS for Mini Apps. Use any HTTPS tunnel (cloudflared/ngrok).
 ## Админка
 
 - `/admin` — полноценная админка (CRUD товаров/категорий/заказов/медиа/страниц).
-- Первый владелец создаётся из `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
+- Авторизация через `ADMIN_PASSWORD_HASH` (bcrypt).
 - Page Builder поддерживает drag&drop блоков и мгновенную публикацию.
 
 ## Тест-план MVP+

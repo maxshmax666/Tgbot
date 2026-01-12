@@ -23,17 +23,8 @@ pip install -r requirements.txt
 
 ```env
 BOT_TOKEN=123456:ABCDEF
-ADMIN_CHAT_ID=123456789
-DB_PATH=/data/data/com.termux/files/home/pizza-bot/bot.db
-YOOKASSA_SHOP_ID=123456
-YOOKASSA_SECRET_KEY=test_...
-YOOKASSA_RETURN_URL=https://t.me/your_bot
+MINIAPP_URL=https://tgbot-3cm.pages.dev/
 ```
-
-### Как получить ADMIN_CHAT_ID
-
-1. Напишите любому боту, например `@userinfobot`.
-2. Скопируйте `Id` из ответа.
 
 ### Запуск
 
@@ -54,12 +45,11 @@ cp .env.example .env
 ```
 
 Обязательные переменные для админки/функций:
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
+- `ADMIN_PASSWORD_HASH`
 - `JWT_SECRET`
 - `R2_PUBLIC_URL`
 
-Для бота используйте `WEBAPP_URL=https://tgbot-3cm.pages.dev/`.
+Для бота используйте `MINIAPP_URL=https://tgbot-3cm.pages.dev/`.
 
 ### 2) D1 база данных
 
@@ -100,8 +90,20 @@ python -m http.server 8080 --directory webapp
 - **Build command:** не требуется
 - **Output directory:** `webapp`
 - **Functions directory:** `functions`
-- **Environment variables:** `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `JWT_SECRET`, `R2_PUBLIC_URL`
+- **Environment variables:** `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, `R2_PUBLIC_URL`
 
 ### 6) Админка
 
-Админка доступна по `/admin`. При первом запросе создаётся владелец из `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
+Админка доступна по `/admin`. Авторизация выполняется через пароль из `.env`.
+
+#### Как задать пароль
+
+1. Сгенерируйте bcrypt-хэш:
+   ```bash
+   node scripts/hash-admin-password.mjs "ваш_пароль"
+   ```
+2. Запишите хэш в `.env`:
+   ```env
+   ADMIN_PASSWORD_HASH=...
+   ```
+3. Перезапустите сервер/билд и откройте `/admin/login`.

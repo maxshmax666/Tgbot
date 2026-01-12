@@ -1,47 +1,30 @@
-const TOKEN_KEY = "tgbot_admin_token";
-
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-export function setToken(token) {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-  }
-}
-
 async function request(path, options = {}) {
   const headers = new Headers(options.headers || {});
-  const token = getToken();
-  if (token) headers.set("authorization", `Bearer ${token}`);
   if (options.body && !headers.has("content-type") && !(options.body instanceof FormData)) {
     headers.set("content-type", "application/json");
   }
-  const response = await fetch(path, { ...options, headers });
+  const response = await fetch(path, { ...options, headers, credentials: "include" });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
     const message = payload?.error?.message || "Request failed";
     const details = payload?.error?.details;
     const error = new Error(message);
     error.details = details;
+    error.status = response.status;
     throw error;
   }
   return payload;
 }
 
 export const adminApi = {
-  async login(email, password) {
+  async login(password) {
     const data = await request("/api/admin/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ password }),
     });
-    setToken(data.token);
     return data.user;
   },
   logout() {
-    setToken(null);
     return request("/api/admin/auth/logout", { method: "POST" });
   },
   me() {
