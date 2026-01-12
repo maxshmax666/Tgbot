@@ -1,5 +1,14 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
+import { createCard, createCardFooter } from "../ui/card.js";
+import { createChip } from "../ui/chip.js";
+import { createEmptyState } from "../ui/emptyState.js";
+import { createErrorState } from "../ui/errorState.js";
+import { createIconButton } from "../ui/iconButton.js";
+import { createInput } from "../ui/input.js";
+import { createLoadingState } from "../ui/loadingState.js";
+import { createPriceTag } from "../ui/priceTag.js";
+import { createSection } from "../ui/section.js";
 import { createGallery } from "../ui/gallery.js";
 import { createSkeletonGrid } from "../ui/skeleton.js";
 import { formatPrice } from "../services/format.js";
@@ -15,33 +24,38 @@ const DEFAULT_FILTERS = [
 ];
 
 function createMenuCard(item, navigate, favorites) {
-  const card = createElement("article", { className: "card clickable" });
+  const card = createCard({ interactive: true });
   const gallery = createGallery(item.images, { large: false });
   const title = createElement("h3", { className: "card-title", text: item.title });
   const description = createElement("p", { className: "card-description", text: item.description });
   const tags = createElement("div", { className: "tag-row" });
   item.tags.forEach((tag) => tags.appendChild(createElement("span", { className: "badge", text: tag })));
 
-  const favButton = createElement("button", {
-    className: ["fav-button", favorites.has(item.id) ? "active" : ""].join(" ").trim(),
-    attrs: { type: "button", "aria-label": "В избранное" },
-    text: "❤",
+  const isFav = favorites.has(item.id);
+  const favButton = createIconButton({
+    icon: "❤",
+    ariaLabel: isFav ? "Убрать из избранного" : "В избранное",
+    active: isFav,
+    className: "favorite-toggle",
   });
   favButton.addEventListener("click", (event) => {
     event.stopPropagation();
     if (favorites.has(item.id)) {
       favorites.delete(item.id);
       showToast("Удалено из избранного", "info");
+      favButton.setAttribute("aria-label", "В избранное");
     } else {
       favorites.add(item.id);
       showToast("Добавлено в избранное", "success");
+      favButton.setAttribute("aria-label", "Убрать из избранного");
     }
-    favButton.classList.toggle("active");
+    favButton.classList.toggle("is-active");
+    favButton.setAttribute("aria-pressed", favorites.has(item.id) ? "true" : "false");
     setFavorites(favorites);
   });
 
-  const footer = createElement("div", { className: "card-footer" });
-  const price = createElement("div", { className: "card-price", text: formatPrice(item.price) });
+  const footer = createCardFooter();
+  const price = createPriceTag({ value: formatPrice(item.price) });
   const addButton = createButton({
     label: "Добавить",
     onClick: (event) => {
@@ -65,6 +79,12 @@ function createMenuCard(item, navigate, favorites) {
   card.append(footer);
 
   card.addEventListener("click", () => navigate(`/pizza/${item.id}`));
+  card.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      navigate(`/pizza/${item.id}`);
+    }
+  });
 
   return card;
 }
@@ -82,27 +102,38 @@ export function renderMenuPage({ navigate }) {
     clearElement(content);
 
     if (state.status === "loading" || state.status === "idle") {
-      content.appendChild(createSkeletonGrid(4));
+      content.appendChild(
+        createLoadingState({
+          text: "Загружаем меню…",
+          content: createSkeletonGrid(4),
+        })
+      );
       return;
     }
 
     if (state.status === "error") {
-      const panel = createElement("div", { className: "panel" });
-      panel.appendChild(createElement("p", { className: "helper", text: state.error || "Ошибка загрузки" }));
       const retry = createButton({
         label: "Повторить",
         variant: "secondary",
         onClick: () => loadMenu().catch(() => null),
       });
-      panel.appendChild(retry);
-      content.appendChild(panel);
+      content.appendChild(
+        createErrorState({
+          title: "Ошибка загрузки",
+          description: state.error || "Не удалось получить меню. Попробуйте ещё раз.",
+          action: retry,
+        })
+      );
       return;
     }
 
     if (!state.items.length) {
-      const empty = createElement("div", { className: "panel" });
-      empty.appendChild(createElement("p", { className: "helper", text: "Меню временно пустое." }));
-      content.appendChild(empty);
+      content.appendChild(
+        createEmptyState({
+          title: "Меню временно пустое",
+          description: "Мы уже обновляем ассортимент. Проверьте чуть позже.",
+        })
+      );
       return;
     }
 
@@ -114,29 +145,30 @@ export function renderMenuPage({ navigate }) {
     }));
     const filters = [...DEFAULT_FILTERS, ...categoryFilters];
     filters.forEach((filter) => {
-      const button = createElement("button", {
-        className: ["filter-chip", currentFilter === filter.id ? "active" : ""].join(" ").trim(),
-        attrs: { type: "button" },
-        text: filter.label,
-      });
-      button.addEventListener("click", () => {
-        currentFilter = filter.id;
-        renderState(state);
+      const button = createChip({
+        label: filter.label,
+        active: currentFilter === filter.id,
+        ariaLabel: `Фильтр: ${filter.label}`,
+        onClick: () => {
+          currentFilter = filter.id;
+          renderState(state);
+        },
       });
       filtersRow.appendChild(button);
     });
 
-    const searchInput = createElement("input", {
-      className: "input",
-      attrs: { type: "search", placeholder: "Поиск по названию" },
-    });
-    searchInput.value = searchValue;
-    searchInput.addEventListener("input", (event) => {
-      searchValue = event.target.value.trim().toLowerCase();
-      renderState(state);
+    const searchInput = createInput({
+      type: "search",
+      placeholder: "Поиск по названию",
+      ariaLabel: "Поиск по названию",
+      value: searchValue,
+      onInput: (event) => {
+        searchValue = event.target.value.trim().toLowerCase();
+        renderState(state);
+      },
     });
 
-    const banner = createElement("div", { className: "panel banner" });
+    const banner = createSection({ className: "banner" });
     banner.appendChild(createElement("div", { text: config?.bannerText || "Доставка 45 минут" }));
     banner.appendChild(
       createElement("div", {
@@ -144,17 +176,23 @@ export function renderMenuPage({ navigate }) {
         text: `Телефон: ${config?.supportPhone || ""}`,
       })
     );
-    const contacts = createElement("div", { className: "card-footer" });
-    const callLink = createElement("a", {
-      className: "button secondary",
-      attrs: { href: `tel:${config?.supportPhone || ""}` },
-      text: "Позвонить",
+    const contacts = createCardFooter();
+    const callLink = createButton({
+      label: "Позвонить",
+      variant: "secondary",
+      href: `tel:${config?.supportPhone || ""}`,
+      ariaLabel: "Позвонить в поддержку",
     });
-    const chatLink = createElement("a", {
-      className: "button secondary",
-      attrs: { href: config?.supportChat || "#", target: "_blank", rel: "noopener noreferrer" },
-      text: "Написать",
+    const chatLink = createButton({
+      label: "Написать",
+      variant: "secondary",
+      href: config?.supportChat || "#",
+      ariaLabel: "Написать в поддержку",
     });
+    if (chatLink.tagName === "A") {
+      chatLink.setAttribute("target", "_blank");
+      chatLink.setAttribute("rel", "noopener noreferrer");
+    }
     contacts.append(callLink, chatLink);
     banner.appendChild(contacts);
 
@@ -190,11 +228,12 @@ export function renderMenuPage({ navigate }) {
     }
 
     if (!filtered.length) {
-      const empty = createElement("div", { className: "panel" });
-      empty.appendChild(
-        createElement("p", { className: "helper", text: "Ничего не найдено. Попробуйте другой фильтр." })
+      content.appendChild(
+        createEmptyState({
+          title: "Ничего не найдено",
+          description: "Попробуйте другой фильтр или очистите поиск.",
+        })
       );
-      content.appendChild(empty);
       return;
     }
 

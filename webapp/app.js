@@ -9,24 +9,10 @@ import { renderAdminPage } from "./pages/adminPage.js";
 import { renderOrderStatusPage } from "./pages/orderStatusPage.js";
 import { renderDynamicPage } from "./pages/dynamicPage.js";
 import { createElement, clearElement } from "./ui/dom.js";
+import { createAppShell } from "./ui/appShell.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 
 const app = document.getElementById("app");
-
-const header = createElement("header", { className: "header" });
-header.appendChild(createElement("h1", { className: "title", text: "Pizza Tagil" }));
-header.appendChild(
-  createElement("p", {
-    className: "subtitle",
-    text: "Мини App для заказа пиццы без лишних шагов.",
-  })
-);
-
-const warning = createElement("div", { className: "warning", text: "Browser Mode: Telegram WebApp недоступен." });
-warning.hidden = true;
-
-const debugPanel = createElement("div", { className: "panel debug-panel" });
-debugPanel.hidden = true;
 
 const navItems = [
   { label: "Меню", path: "/menu" },
@@ -35,32 +21,15 @@ const navItems = [
   { label: "Профиль", path: "/profile" },
   { label: "Админ", path: "/admin" },
 ];
+const appShell = createAppShell({
+  title: "Pizza Tagil",
+  subtitle: "Мини App для заказа пиццы без лишних шагов.",
+  navItems,
+  onNavigate: (path) => navigate(path),
+});
+const { warning, debugPanel, topBar, bottomBar, content } = appShell;
 
-function createNav() {
-  const nav = createElement("nav", { className: "nav" });
-  const buttons = navItems.map((item) => {
-    const button = createElement("button", {
-      className: "nav-button",
-      text: item.label,
-      attrs: { type: "button", "data-path": item.path },
-    });
-    nav.appendChild(button);
-    return button;
-  });
-  nav.addEventListener("click", (event) => {
-    const button = event.target.closest("button[data-path]");
-    if (!button) return;
-    navigate(button.dataset.path);
-  });
-  return { nav, buttons };
-}
-
-const topNav = createNav();
-const bottomNav = createNav();
-
-const content = createElement("main");
-
-app.append(header, warning, debugPanel, topNav.nav, content, bottomNav.nav);
+app.append(...appShell.elements);
 
 const routes = [
   { path: /^\/menu\/?$/, render: renderMenuPage },
@@ -77,10 +46,10 @@ const routes = [
 let cleanup = null;
 
 function setActiveNav(pathname) {
-  [topNav.buttons, bottomNav.buttons].forEach((buttons) => {
+  [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
     buttons.forEach((button) => {
       const target = button.dataset.path;
-      button.classList.toggle("active", pathname.startsWith(target));
+      button.classList.toggle("is-active", pathname.startsWith(target));
     });
   });
 }
@@ -94,9 +63,8 @@ function renderRoute(pathname) {
   }
 
   const isAdmin = path.startsWith("/admin");
-  header.hidden = isAdmin;
-  topNav.nav.hidden = isAdmin;
-  bottomNav.nav.hidden = isAdmin;
+  topBar.element.hidden = isAdmin;
+  bottomBar.element.hidden = isAdmin;
   document.body.classList.toggle("admin-mode", isAdmin);
 
   renderDebug();
@@ -125,7 +93,7 @@ warning.hidden = telegramState.available;
 
 subscribeCart(() => {
   const itemsCount = count();
-  [topNav.buttons, bottomNav.buttons].forEach((buttons) => {
+  [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
     const cartButton = buttons[1];
     cartButton.textContent = itemsCount ? `Корзина (${itemsCount})` : "Корзина";
   });

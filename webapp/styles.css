@@ -16,6 +16,14 @@
   --border: var(--stroke);
   --success: var(--ok);
   --shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --ring: 0 0 0 2px rgba(255, 179, 106, 0.5);
+  --transition-base: 0.2s ease;
+  --state-hover-bg: rgba(255, 179, 106, 0.16);
+  --state-active-bg: rgba(255, 138, 42, 0.24);
+  --state-disabled-opacity: 0.52;
 }
 
 * {
@@ -53,6 +61,11 @@ button {
   gap: 18px;
 }
 
+.app-content {
+  display: grid;
+  gap: 12px;
+}
+
 body.admin-mode {
   padding: 0;
   background: #0b0d12;
@@ -76,6 +89,12 @@ body.admin-mode #app {
   display: grid;
   gap: 8px;
   padding: 8px 6px 4px;
+}
+
+.top-bar,
+.bottom-bar {
+  display: grid;
+  gap: 12px;
 }
 
 .title {
@@ -105,40 +124,42 @@ body.admin-mode #app {
   gap: 8px;
   background: var(--panel);
   border: 1px solid var(--stroke);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 8px;
   backdrop-filter: blur(12px);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
-.nav-button {
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--muted);
-  font-weight: 600;
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.2s ease;
+.ui-interactive {
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    background var(--transition-base),
+    color var(--transition-base);
 }
 
-.nav-button.active {
-  background: var(--accent);
-  color: #0b0b0b;
-  border-color: transparent;
-  box-shadow: 0 10px 24px rgba(255, 138, 42, 0.28);
+.ui-interactive:is(:focus-visible, .is-focus, [data-state="focus"]) {
+  outline: none;
+  box-shadow: var(--ring);
 }
 
-.nav-button:hover {
-  color: var(--text);
-  background: rgba(255, 179, 106, 0.16);
+.ui-interactive:is(:disabled, .is-disabled, [aria-disabled="true"], [data-disabled="true"]) {
+  opacity: var(--state-disabled-opacity);
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+.ui-interactive:is(.is-loading, [data-state="loading"]) {
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .panel {
   padding: 18px;
   background: linear-gradient(160deg, var(--panel2), var(--panel));
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--stroke);
   display: grid;
   gap: 12px;
@@ -168,7 +189,7 @@ body.admin-mode #app {
 
 .button {
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: var(--accent);
   color: #0b0b0b;
@@ -179,35 +200,154 @@ body.admin-mode #app {
   justify-content: center;
   gap: 6px;
   box-shadow: 0 12px 24px rgba(255, 138, 42, 0.28), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.button:hover {
+.button:is(:hover, .is-hover, [data-state="hover"]) {
   transform: translateY(-1px);
   box-shadow: 0 14px 28px rgba(255, 138, 42, 0.34), 0 1px 0 rgba(255, 255, 255, 0.12) inset;
 }
 
-.button.secondary {
+.button:is(:active, .is-active, [data-state="active"]) {
+  transform: translateY(0);
+}
+
+.button--secondary {
   background: var(--panel2);
   border-color: var(--stroke);
   color: var(--text);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
 }
 
-.button.ghost {
+.button--secondary:is(:hover, .is-hover, [data-state="hover"]) {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.26);
+}
+
+.button--secondary:is(:active, .is-active, [data-state="active"]) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.button--ghost {
   background: transparent;
   border-color: var(--stroke);
   color: var(--text);
   box-shadow: none;
 }
 
-.button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.button--ghost:is(:hover, .is-hover, [data-state="hover"]) {
+  background: rgba(255, 255, 255, 0.08);
+  transform: none;
+  box-shadow: none;
 }
 
-.button.loading {
-  opacity: 0.8;
+.button--ghost:is(:active, .is-active, [data-state="active"]) {
+  background: rgba(255, 255, 255, 0.12);
+  transform: none;
+}
+
+.button--sm {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.button--lg {
+  padding: 12px 18px;
+  font-size: 15px;
+}
+
+.button--nav {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+  box-shadow: none;
+}
+
+.button--nav.active,
+.button--nav.is-active {
+  background: var(--accent);
+  color: #0b0b0b;
+  border-color: transparent;
+  box-shadow: 0 10px 24px rgba(255, 138, 42, 0.28);
+}
+
+.button--nav:is(:hover, .is-hover, [data-state="hover"]) {
+  color: var(--text);
+  background: var(--state-hover-bg);
+  transform: none;
+  box-shadow: none;
+}
+
+.button--chip {
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(26, 33, 48, 0.8);
+  color: var(--text);
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.button--chip.is-active {
+  background: var(--accent);
+  color: #0b0b0b;
+  border-color: transparent;
+}
+
+.button--chip:is(:hover, .is-hover, [data-state="hover"]) {
+  background: var(--state-hover-bg);
+  transform: none;
+  box-shadow: none;
+}
+
+.button--icon {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(15, 18, 28, 0.72);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.button--icon:is(:hover, .is-hover, [data-state="hover"]) {
+  background: rgba(255, 255, 255, 0.12);
+  transform: none;
+  box-shadow: none;
+}
+
+.button--icon:is(:active, .is-active, [data-state="active"]) {
+  background: var(--state-active-bg);
+  transform: none;
+  box-shadow: none;
+}
+
+.icon-button.is-active {
+  background: var(--accent);
+  color: #0b0b0b;
+  border-color: transparent;
+}
+
+.button--qty {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  box-shadow: none;
+}
+
+.button--qty:is(:hover, .is-hover, [data-state="hover"]) {
+  background: rgba(108, 156, 255, 0.12);
+  border-color: rgba(108, 156, 255, 0.35);
+  transform: none;
+  box-shadow: none;
 }
 
 .menu-grid {
@@ -224,7 +364,7 @@ body.admin-mode #app {
 .card {
   background: linear-gradient(160deg, rgba(26, 33, 48, 0.95), rgba(18, 22, 33, 0.95));
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   padding: 14px;
   display: grid;
   gap: 12px;
@@ -232,26 +372,37 @@ body.admin-mode #app {
   box-shadow: var(--shadow);
 }
 
-.fav-button {
+.card--interactive {
+  cursor: pointer;
+}
+
+.card--interactive:is(:hover, .is-hover, [data-state="hover"]) {
+  border-color: rgba(255, 179, 106, 0.35);
+  transform: translateY(-2px);
+}
+
+.card--interactive:is(:active, .is-active, [data-state="active"]) {
+  transform: translateY(0);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.favorite-toggle {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(15, 18, 28, 0.72);
-  border: 1px solid var(--border);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 6px 10px;
-  cursor: pointer;
 }
 
-.fav-button.active {
-  background: var(--accent);
-  color: #0b0b0b;
-  border-color: transparent;
-}
-
-.clickable {
-  cursor: pointer;
+.favorite-chip {
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+  align-self: flex-start;
 }
 
 .card-title {
@@ -259,7 +410,7 @@ body.admin-mode #app {
   font-size: 16px;
 }
 
-.card-price {
+.price-tag {
   font-weight: 700;
   color: var(--accent);
 }
@@ -385,21 +536,6 @@ body.admin-mode #app {
   padding: 4px 10px;
 }
 
-.qty-button {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
-}
-
-.qty-button:hover {
-  background: rgba(108, 156, 255, 0.12);
-  border-color: rgba(108, 156, 255, 0.35);
-}
 
 .qty-label {
   min-width: 20px;
@@ -416,10 +552,38 @@ body.admin-mode #app {
 .input {
   width: 100%;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: rgba(26, 33, 48, 0.9);
   color: var(--text);
+}
+
+.input:is(:focus-visible, .is-focus, [data-state="focus"]) {
+  border-color: rgba(255, 179, 106, 0.5);
+  box-shadow: var(--ring);
+  outline: none;
+}
+
+.input:is(:disabled, .is-disabled, [data-disabled="true"]) {
+  opacity: var(--state-disabled-opacity);
+  cursor: not-allowed;
+}
+
+.section {
+  display: grid;
+  gap: 12px;
+}
+
+.state {
+  border-style: dashed;
+}
+
+.state--error {
+  border-color: rgba(242, 109, 109, 0.5);
+}
+
+.state--loading {
+  border-color: rgba(108, 156, 255, 0.4);
 }
 
 textarea.input {
@@ -477,22 +641,6 @@ textarea.input {
   flex-wrap: wrap;
 }
 
-.filter-chip {
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(26, 33, 48, 0.8);
-  color: var(--text);
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s ease;
-}
-
-.filter-chip.active {
-  background: var(--accent);
-  color: #0b0b0b;
-  border-color: transparent;
-}
 
 .section-title {
   margin: 0;
