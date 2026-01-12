@@ -209,6 +209,14 @@ input:focus-visible {
   box-shadow: 0 12px 24px rgba(255, 138, 42, 0.28), 0 1px 0 rgba(255, 255, 255, 0.08) inset;
 }
 
+a.button[aria-disabled="true"],
+a.button[data-state="loading"] {
+  cursor: not-allowed;
+  pointer-events: none;
+  text-decoration: none;
+  transform: none;
+}
+
 .button:is(:hover, .is-hover, [data-state="hover"]) {
   transform: translateY(-1px);
   box-shadow: 0 14px 28px rgba(255, 138, 42, 0.34), 0 1px 0 rgba(255, 255, 255, 0.12) inset;

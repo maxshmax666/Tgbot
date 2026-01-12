@@ -1,5 +1,6 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton, setButtonPressed } from "../ui/button.js";
+import { createLinkButton } from "../ui/linkButton.js";
 import { createCard, createCardFooter } from "../ui/card.js";
 import { createChip } from "../ui/chip.js";
 import { createEmptyState } from "../ui/emptyState.js";
@@ -177,22 +178,20 @@ export function renderMenuPage({ navigate }) {
       })
     );
     const contacts = createCardFooter();
-    const callLink = createButton({
+    const callLink = createLinkButton({
       label: "Позвонить",
       variant: "secondary",
       href: `tel:${config?.supportPhone || ""}`,
       ariaLabel: "Позвонить в поддержку",
     });
-    const chatLink = createButton({
+    const chatLink = createLinkButton({
       label: "Написать",
       variant: "secondary",
       href: config?.supportChat || "#",
       ariaLabel: "Написать в поддержку",
+      target: "_blank",
+      rel: "noopener noreferrer",
     });
-    if (chatLink.tagName === "A") {
-      chatLink.setAttribute("target", "_blank");
-      chatLink.setAttribute("rel", "noopener noreferrer");
-    }
     contacts.append(callLink, chatLink);
     banner.appendChild(contacts);
 
