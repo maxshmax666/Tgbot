@@ -21,12 +21,15 @@ from bot.storage.repos import (
     cart_get_items,
     cart_snapshot,
     cart_total_price,
-    order_create_with_items,
     order_create,
+    order_create_webapp,
     order_get_latest,
+    order_exists_by_order_id,
     order_set_payment,
     order_set_status,
+    order_set_status_by_order_id,
     OrderItemInput,
+    admin_payload_upsert,
 )
 from bot.utils.formatting import format_admin_order, format_cart
 from bot.utils.media import build_media, get_placeholder_photo
@@ -48,9 +51,13 @@ def _coerce_amount(value: Any, field_name: str) -> int:
     raise ValueError(f"{field_name} must be a number")
 
 
-def _parse_webapp_order(
-    payload: dict[str, Any],
-) -> tuple[list[OrderItemInput], int, str, str, str, str]:
+def _parse_webapp_order(payload: dict[str, Any]) -> dict[str, Any]:
+    if payload.get("type") != "pizza_order_v1":
+        raise ValueError("unsupported order type")
+    order_id = str(payload.get("order_id", "")).strip()
+    if not order_id:
+        raise ValueError("order_id is required")
+
     items_raw = payload.get("items")
     if not isinstance(items_raw, list) or not items_raw:
         raise ValueError("items must be a non-empty list")
@@ -65,55 +72,64 @@ def _parse_webapp_order(
             continue
         qty = _coerce_amount(item.get("qty"), "qty")
         price = _coerce_amount(item.get("price"), "price")
-        subtotal = item.get("subtotal")
-        if subtotal is None:
-            subtotal_value = qty * price
-        else:
-            subtotal_value = _coerce_amount(subtotal, "subtotal")
+        subtotal_value = qty * price
+        item_id = str(item.get("id", "")).strip() or None
         items.append(
-            OrderItemInput(title=title, qty=qty, price=price, subtotal=subtotal_value)
+            OrderItemInput(item_id=item_id, title=title, qty=qty, price=price, subtotal=subtotal_value)
         )
 
     if not items:
         raise ValueError("no valid items")
 
-    name = str(payload.get("name", "")).strip()
-    phone = str(payload.get("phone", "")).strip()
-    address = str(payload.get("address", "")).strip()
+    customer = payload.get("customer") or {}
+    delivery = payload.get("delivery") or {}
+    payment = payload.get("payment") or {}
+    user = payload.get("user") or {}
+
+    phone = str(customer.get("phone", "")).strip()
+    if not phone:
+        raise ValueError("phone is required")
+    name = str(customer.get("name", "")).strip()
+    address = str(delivery.get("address", "")).strip()
+    delivery_type = str(delivery.get("type", "delivery")).strip()
+    payment_method = str(payment.get("method", "")).strip()
     comment = str(payload.get("comment", "")).strip()
-    return items, total, name, phone, address, comment
+
+    return {
+        "order_id": order_id,
+        "items": items,
+        "total": total,
+        "name": name,
+        "phone": phone,
+        "address": address,
+        "delivery_type": delivery_type,
+        "payment_method": payment_method,
+        "comment": comment,
+        "username": str(user.get("username", "")).strip() or None,
+    }
 
 
-def _format_webapp_order(
-    items: list[OrderItemInput],
-    total: int,
-    name: str,
-    phone: str,
-    address: str,
-    comment: str,
-) -> str:
-    lines = ["✅ Заказ из Mini App получен.", "", "Состав заказа:"]
-    for item in items:
+def _format_webapp_order(parsed: dict[str, Any]) -> str:
+    lines = ["✅ Заказ из Mini App получен.", f"Заказ: {escape(parsed['order_id'])}", "", "Состав заказа:"]
+    for item in parsed["items"]:
         title = escape(item.title)
-        lines.append(
-            f"• {title} — {item.qty} × {item.price} ₽ = {item.subtotal} ₽"
-        )
+        lines.append(f"• {title} — {item.qty} × {item.price} ₽ = {item.subtotal} ₽")
     lines.append("")
-    lines.append(f"Итого: {total} ₽")
+    lines.append(f"Итого: {parsed['total']} ₽")
+    lines.append(f"Оплата: {escape(parsed['payment_method'] or '-')}")
+    lines.append(f"Доставка: {escape(parsed['delivery_type'])}")
 
-    if name or phone or address:
-        lines.append("")
-        lines.append("Контакты:")
-        if name:
-            lines.append(f"Имя: {escape(name)}")
-        if phone:
-            lines.append(f"Телефон: {escape(phone)}")
-        if address:
-            lines.append(f"Адрес: {escape(address)}")
-    if comment:
+    lines.append("")
+    lines.append("Контакты:")
+    if parsed.get("name"):
+        lines.append(f"Имя: {escape(parsed['name'])}")
+    lines.append(f"Телефон: {escape(parsed['phone'])}")
+    if parsed.get("address"):
+        lines.append(f"Адрес: {escape(parsed['address'])}")
+    if parsed.get("comment"):
         lines.append("")
         lines.append("Комментарий:")
-        lines.append(escape(comment))
+        lines.append(escape(parsed["comment"]))
 
     return "\n".join(lines)
 
@@ -320,21 +336,39 @@ async def webapp_order_handler(message: Message, config: Config) -> None:
         payload = json.loads(raw)
         if not isinstance(payload, dict):
             raise ValueError("payload is not a dict")
-        items, total, name, phone, address, comment = _parse_webapp_order(payload)
-        confirmation = _format_webapp_order(items, total, name, phone, address, comment)
+        if str(payload.get("type", "")).startswith("admin_"):
+            if payload.get("type") == "admin_order_status_v1":
+                order_id = str(payload.get("order_id", "")).strip()
+                status = str(payload.get("status", "")).strip()
+                if order_id and status:
+                    await order_set_status_by_order_id(str(config.db_path), order_id, status)
+            await admin_payload_upsert(str(config.db_path), payload["type"], json.dumps(payload))
+            await message.answer("Админ-данные сохранены ✅")
+            return
+        parsed = _parse_webapp_order(payload)
+        confirmation = _format_webapp_order(parsed)
     except (json.JSONDecodeError, ValueError, TypeError) as error:
         logger.warning("Invalid web app payload: %s", error)
         await message.answer("Некорректные данные заказа. Проверьте корзину и повторите.")
         return
 
     try:
-        await order_create_with_items(
+        if await order_exists_by_order_id(str(config.db_path), parsed["order_id"]):
+            await message.answer("Этот заказ уже принят ✅")
+            return
+        await order_create_webapp(
             db_path=str(config.db_path),
             tg_id=message.from_user.id,
-            total=total,
-            status="received",
-            payment_method="webapp",
-            items=items,
+            username=parsed.get("username"),
+            order_id=parsed["order_id"],
+            phone=parsed["phone"],
+            name=parsed.get("name"),
+            delivery_type=parsed["delivery_type"],
+            address=parsed.get("address"),
+            payment_method=parsed.get("payment_method") or "cash",
+            total=parsed["total"],
+            status="new",
+            items=parsed["items"],
         )
     except Exception:
         logger.exception("Failed to persist webapp order")
@@ -342,3 +376,7 @@ async def webapp_order_handler(message: Message, config: Config) -> None:
         return
 
     await message.answer(confirmation)
+    try:
+        await message.bot.send_message(config.admin_chat_id, confirmation)
+    except Exception:
+        logger.exception("Failed to notify admin about webapp order")

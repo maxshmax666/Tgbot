@@ -1,10 +1,14 @@
-import { initTelegram } from "./services/telegramService.js";
-import { getCartCount, subscribeCart } from "./store/cartStore.js";
+import { initTelegram, isTelegram, getUser } from "./services/telegramService.js";
+import { count, subscribeCart } from "./store/cartStore.js";
 import { renderMenuPage } from "./pages/menuPage.js";
 import { renderCartPage } from "./pages/cartPage.js";
 import { renderCheckoutPage } from "./pages/checkoutPage.js";
 import { renderPizzaPage } from "./pages/pizzaPage.js";
+import { renderProfilePage } from "./pages/profilePage.js";
+import { renderAdminPage } from "./pages/adminPage.js";
+import { renderOrderStatusPage } from "./pages/orderStatusPage.js";
 import { createElement, clearElement } from "./ui/dom.js";
+import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 
 const app = document.getElementById("app");
 
@@ -17,41 +21,64 @@ header.appendChild(
   })
 );
 
-const warning = createElement("div", { className: "warning", text: "Открой внутри Telegram" });
+const warning = createElement("div", { className: "warning", text: "Browser Mode: Telegram WebApp недоступен." });
 warning.hidden = true;
 
-const nav = createElement("nav", { className: "nav" });
-const navButtons = [
+const debugPanel = createElement("div", { className: "panel debug-panel" });
+debugPanel.hidden = true;
+
+const navItems = [
   { label: "Меню", path: "/menu" },
   { label: "Корзина", path: "/cart" },
   { label: "Оформить", path: "/checkout" },
-].map((item) => {
-  const button = createElement("button", {
-    className: "nav-button",
-    text: item.label,
-    attrs: { type: "button", "data-path": item.path },
+  { label: "Профиль", path: "/profile" },
+  { label: "Админ", path: "/admin" },
+];
+
+function createNav() {
+  const nav = createElement("nav", { className: "nav" });
+  const buttons = navItems.map((item) => {
+    const button = createElement("button", {
+      className: "nav-button",
+      text: item.label,
+      attrs: { type: "button", "data-path": item.path },
+    });
+    nav.appendChild(button);
+    return button;
   });
-  nav.appendChild(button);
-  return button;
-});
+  nav.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-path]");
+    if (!button) return;
+    navigate(button.dataset.path);
+  });
+  return { nav, buttons };
+}
+
+const topNav = createNav();
+const bottomNav = createNav();
 
 const content = createElement("main");
 
-app.append(header, warning, nav, content);
+app.append(header, warning, debugPanel, topNav.nav, content, bottomNav.nav);
 
 const routes = [
   { path: /^\/menu\/?$/, render: renderMenuPage },
   { path: /^\/cart\/?$/, render: renderCartPage },
   { path: /^\/checkout\/?$/, render: renderCheckoutPage },
+  { path: /^\/profile\/?$/, render: renderProfilePage },
+  { path: /^\/admin\/?$/, render: renderAdminPage },
+  { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
   { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
 ];
 
 let cleanup = null;
 
 function setActiveNav(pathname) {
-  navButtons.forEach((button) => {
-    const target = button.dataset.path;
-    button.classList.toggle("active", pathname.startsWith(target));
+  [topNav.buttons, bottomNav.buttons].forEach((buttons) => {
+    buttons.forEach((button) => {
+      const target = button.dataset.path;
+      button.classList.toggle("active", pathname.startsWith(target));
+    });
   });
 }
 
@@ -63,6 +90,7 @@ function renderRoute(pathname) {
     return;
   }
 
+  renderDebug();
   if (cleanup) cleanup();
   clearElement(content);
 
@@ -79,21 +107,55 @@ function navigate(path) {
   renderRoute(path);
 }
 
-nav.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-path]");
-  if (!button) return;
-  navigate(button.dataset.path);
-});
-
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
 
 const telegramState = initTelegram();
 warning.hidden = telegramState.available;
 
 subscribeCart(() => {
-  const count = getCartCount();
-  const cartButton = navButtons[1];
-  cartButton.textContent = count ? `Корзина (${count})` : "Корзина";
+  const itemsCount = count();
+  [topNav.buttons, bottomNav.buttons].forEach((buttons) => {
+    const cartButton = buttons[1];
+    cartButton.textContent = itemsCount ? `Корзина (${itemsCount})` : "Корзина";
+  });
 });
 
+function renderDebug() {
+  const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
+  debugPanel.hidden = !isDebug;
+  if (!isDebug) return;
+  clearElement(debugPanel);
+  const lastStatus = getLastOrderStatus();
+  debugPanel.appendChild(createElement("h3", { className: "section-title", text: "Debug" }));
+  debugPanel.appendChild(createElement("div", { className: "helper", text: `isTelegram: ${isTelegram()}` }));
+  const user = getUser();
+  debugPanel.appendChild(
+    createElement("div", {
+      className: "helper",
+      text: `user: ${user?.id || "—"} ${user?.username ? `@${user.username}` : ""}`,
+    })
+  );
+  debugPanel.appendChild(
+    createElement("div", {
+      className: "helper",
+      text: `lastOrderStatus: ${lastStatus?.status || "—"}`,
+    })
+  );
+  debugPanel.appendChild(
+    createElement("div", {
+      className: "helper",
+      text: `cart items: ${count()}`,
+    })
+  );
+  debugPanel.appendChild(
+    createElement("div", {
+      className: "helper",
+      text: `storage: cart=${storage.has(STORAGE_KEYS.cart)} orders=${storage.has(
+        STORAGE_KEYS.orders
+      )} favs=${storage.has(STORAGE_KEYS.favorites)}`,
+    })
+  );
+}
+
+renderDebug();
 renderRoute(window.location.pathname);

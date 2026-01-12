@@ -4,9 +4,20 @@ import { createGallery } from "../ui/gallery.js";
 import { createSkeletonGrid } from "../ui/skeleton.js";
 import { formatPrice } from "../services/format.js";
 import { loadMenu, subscribeMenu } from "../store/menuStore.js";
-import { addToCart } from "../store/cartStore.js";
+import { add } from "../store/cartStore.js";
+import { fetchConfig } from "../services/configService.js";
+import { getFavorites, setFavorites, getOrders } from "../services/storageService.js";
+import { showToast } from "../ui/toast.js";
 
-function createMenuCard(item, navigate) {
+const FILTERS = [
+  { id: "all", label: "Все" },
+  { id: "meat", label: "Мясные" },
+  { id: "cheese", label: "Сырные" },
+  { id: "vegetarian", label: "Вегетарианские" },
+  { id: "favorite", label: "Избранное" },
+];
+
+function createMenuCard(item, navigate, favorites) {
   const card = createElement("article", { className: "card clickable" });
   const gallery = createGallery(item.images, { large: false });
   const title = createElement("h3", { className: "card-title", text: item.title });
@@ -14,24 +25,43 @@ function createMenuCard(item, navigate) {
   const tags = createElement("div", { className: "tag-row" });
   item.tags.forEach((tag) => tags.appendChild(createElement("span", { className: "badge", text: tag })));
 
+  const favButton = createElement("button", {
+    className: ["fav-button", favorites.has(item.id) ? "active" : ""].join(" ").trim(),
+    attrs: { type: "button", "aria-label": "В избранное" },
+    text: "❤",
+  });
+  favButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (favorites.has(item.id)) {
+      favorites.delete(item.id);
+      showToast("Удалено из избранного", "info");
+    } else {
+      favorites.add(item.id);
+      showToast("Добавлено в избранное", "success");
+    }
+    favButton.classList.toggle("active");
+    setFavorites(favorites);
+  });
+
   const footer = createElement("div", { className: "card-footer" });
   const price = createElement("div", { className: "card-price", text: formatPrice(item.price) });
   const addButton = createButton({
     label: "Добавить",
     onClick: (event) => {
       event.stopPropagation();
-      addToCart({
+      add({
         id: item.id,
         title: item.title,
         price: item.price,
         image: item.images?.[0] || "",
       });
+      showToast("Добавлено в корзину", "success");
     },
   });
 
   footer.append(price, addButton);
 
-  card.append(gallery, title, description);
+  card.append(gallery, favButton, title, description);
   if (item.tags.length) {
     card.append(tags);
   }
@@ -46,6 +76,10 @@ export function renderMenuPage({ navigate }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div");
   root.appendChild(content);
+
+  let currentFilter = "all";
+  let searchValue = "";
+  let config = null;
 
   const renderState = (state) => {
     clearElement(content);
@@ -75,13 +109,102 @@ export function renderMenuPage({ navigate }) {
       return;
     }
 
+    const favorites = getFavorites();
+    const filtersRow = createElement("div", { className: "filter-row" });
+    FILTERS.forEach((filter) => {
+      const button = createElement("button", {
+        className: ["filter-chip", currentFilter === filter.id ? "active" : ""].join(" ").trim(),
+        attrs: { type: "button" },
+        text: filter.label,
+      });
+      button.addEventListener("click", () => {
+        currentFilter = filter.id;
+        renderState(state);
+      });
+      filtersRow.appendChild(button);
+    });
+
+    const searchInput = createElement("input", {
+      className: "input",
+      attrs: { type: "search", placeholder: "Поиск по названию" },
+    });
+    searchInput.value = searchValue;
+    searchInput.addEventListener("input", (event) => {
+      searchValue = event.target.value.trim().toLowerCase();
+      renderState(state);
+    });
+
+    const banner = createElement("div", { className: "panel banner" });
+    banner.appendChild(createElement("div", { text: config?.bannerText || "Доставка 45 минут" }));
+    banner.appendChild(
+      createElement("div", {
+        className: "helper",
+        text: `Телефон: ${config?.supportPhone || ""}`,
+      })
+    );
+    const contacts = createElement("div", { className: "card-footer" });
+    const callLink = createElement("a", {
+      className: "button secondary",
+      attrs: { href: `tel:${config?.supportPhone || ""}` },
+      text: "Позвонить",
+    });
+    const chatLink = createElement("a", {
+      className: "button secondary",
+      attrs: { href: config?.supportChat || "#", target: "_blank", rel: "noopener noreferrer" },
+      text: "Написать",
+    });
+    contacts.append(callLink, chatLink);
+    banner.appendChild(contacts);
+
     const grid = createElement("div", { className: "menu-grid" });
-    state.items.forEach((item) => grid.appendChild(createMenuCard(item, navigate)));
+    const filtered = state.items
+      .filter((item) => item.isAvailable !== false)
+      .filter((item) => {
+        if (currentFilter === "favorite") return favorites.has(item.id);
+        if (currentFilter === "all") return true;
+        return item.tags.includes(currentFilter);
+      })
+      .filter((item) => (searchValue ? item.title.toLowerCase().includes(searchValue) : true));
+
+    const orders = getOrders();
+    const topMap = new Map();
+    orders.forEach((order) => {
+      order.items?.forEach((item) => {
+        topMap.set(item.id, (topMap.get(item.id) || 0) + item.qty);
+      });
+    });
+    const topIds = Array.from(topMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([id]) => id);
+    const recommended = state.items.filter((item) => topIds.includes(item.id));
+
+    content.append(banner, searchInput, filtersRow);
+    if (recommended.length) {
+      const recTitle = createElement("h3", { className: "section-title", text: "Топ продаж" });
+      const recGrid = createElement("div", { className: "menu-grid" });
+      recommended.forEach((item) => recGrid.appendChild(createMenuCard(item, navigate, favorites)));
+      content.append(recTitle, recGrid);
+    }
+
+    if (!filtered.length) {
+      const empty = createElement("div", { className: "panel" });
+      empty.appendChild(
+        createElement("p", { className: "helper", text: "Ничего не найдено. Попробуйте другой фильтр." })
+      );
+      content.appendChild(empty);
+      return;
+    }
+
+    filtered.forEach((item) => grid.appendChild(createMenuCard(item, navigate, favorites)));
     content.appendChild(grid);
   };
 
   const unsubscribe = subscribeMenu(renderState);
-  loadMenu().catch(() => null);
+  fetchConfig().then((configValue) => {
+    config = configValue;
+    loadMenu().catch(() => null);
+  });
 
   return { element: root, cleanup: unsubscribe };
 }
