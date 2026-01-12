@@ -4,7 +4,13 @@ let container = null;
 
 function ensureContainer() {
   if (container) return container;
-  container = createElement("div", { className: "toast-container" });
+  container = createElement("div", {
+    className: "toast-container",
+    attrs: {
+      role: "status",
+      "aria-live": "polite",
+    },
+  });
   document.body.appendChild(container);
   return container;
 }
@@ -12,6 +18,9 @@ function ensureContainer() {
 export function showToast(message, variant = "info") {
   const root = ensureContainer();
   const toast = createElement("div", { className: ["toast", variant].join(" ") });
+  if (variant === "error") {
+    toast.setAttribute("aria-live", "assertive");
+  }
   toast.textContent = message;
   root.appendChild(toast);
   window.setTimeout(() => toast.classList.add("show"), 10);

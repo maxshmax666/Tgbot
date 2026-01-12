@@ -139,6 +139,13 @@ body.admin-mode #app {
     color var(--transition-base);
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent2);
+  outline-offset: 2px;
+}
+
 .ui-interactive:is(:focus-visible, .is-focus, [data-state="focus"]) {
   outline: none;
   box-shadow: var(--ring);
