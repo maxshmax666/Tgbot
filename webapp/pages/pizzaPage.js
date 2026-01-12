@@ -1,5 +1,9 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
+import { createCard, createCardFooter } from "../ui/card.js";
+import { createIconButton } from "../ui/iconButton.js";
+import { createPriceTag } from "../ui/priceTag.js";
+import { createSection } from "../ui/section.js";
 import { createGallery } from "../ui/gallery.js";
 import { formatPrice } from "../services/format.js";
 import { add } from "../store/cartStore.js";
@@ -16,7 +20,7 @@ export function renderPizzaPage({ navigate, params }) {
     clearElement(content);
     const item = getMenuItemById(params.id);
     if (!item) {
-      const panel = createElement("div", { className: "panel" });
+      const panel = createSection();
       panel.appendChild(createElement("p", { className: "helper", text: "Пицца не найдена." }));
       panel.appendChild(
         createButton({
@@ -29,32 +33,37 @@ export function renderPizzaPage({ navigate, params }) {
       return;
     }
 
-    const card = createElement("div", { className: "panel" });
+    const card = createCard({ className: "pizza-card" });
     card.appendChild(createGallery(item.images, { large: true }));
     card.appendChild(createElement("h2", { className: "title", text: item.title }));
     card.appendChild(createElement("p", { className: "helper", text: item.description }));
-    card.appendChild(createElement("div", { className: "card-price", text: formatPrice(item.price) }));
+    card.appendChild(createPriceTag({ value: formatPrice(item.price) }));
 
     const favorites = getFavorites();
-    const favButton = createElement("button", {
-      className: ["fav-button", favorites.has(item.id) ? "active" : ""].join(" ").trim(),
-      attrs: { type: "button" },
-      text: favorites.has(item.id) ? "♥ В избранном" : "♡ В избранное",
+    const isFav = favorites.has(item.id);
+    const favButton = createIconButton({
+      icon: isFav ? "♥" : "♡",
+      ariaLabel: isFav ? "Убрать из избранного" : "Добавить в избранное",
+      active: isFav,
+      className: "favorite-chip",
     });
     favButton.addEventListener("click", () => {
       if (favorites.has(item.id)) {
         favorites.delete(item.id);
-        favButton.textContent = "♡ В избранное";
-        favButton.classList.remove("active");
+        favButton.textContent = "♡";
+        favButton.classList.remove("is-active");
+        favButton.setAttribute("aria-label", "Добавить в избранное");
       } else {
         favorites.add(item.id);
-        favButton.textContent = "♥ В избранном";
-        favButton.classList.add("active");
+        favButton.textContent = "♥";
+        favButton.classList.add("is-active");
+        favButton.setAttribute("aria-label", "Убрать из избранного");
       }
+      favButton.setAttribute("aria-pressed", favorites.has(item.id) ? "true" : "false");
       setFavorites(favorites);
     });
 
-    const actions = createElement("div", { className: "card-footer" });
+    const actions = createCardFooter();
     const back = createButton({
       label: "Назад",
       variant: "secondary",

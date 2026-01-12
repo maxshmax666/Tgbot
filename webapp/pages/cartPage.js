@@ -1,11 +1,13 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
+import { createEmptyState } from "../ui/emptyState.js";
+import { createSection } from "../ui/section.js";
 import { formatPrice } from "../services/format.js";
 import { subscribeCart, setQty, remove, total, getState } from "../store/cartStore.js";
 import { showToast } from "../ui/toast.js";
 
 function createCartItemRow(item) {
-  const row = createElement("div", { className: "panel" });
+  const row = createSection({ className: "cart-item" });
   const header = createElement("div", { className: "cart-row" });
   const info = createElement("div");
   const title = createElement("div", { text: item.title });
@@ -13,12 +15,21 @@ function createCartItemRow(item) {
   info.append(title, price);
 
   const controls = createElement("div", { className: "qty-controls" });
-  const dec = createElement("button", { className: "qty-button", text: "−", attrs: { type: "button" } });
+  const dec = createButton({
+    label: "−",
+    variant: "qty",
+    size: "sm",
+    ariaLabel: "Уменьшить количество",
+    onClick: () => setQty(item.id, item.qty - 1),
+  });
   const qty = createElement("span", { className: "qty-label", text: String(item.qty) });
-  const inc = createElement("button", { className: "qty-button", text: "+", attrs: { type: "button" } });
-
-  dec.addEventListener("click", () => setQty(item.id, item.qty - 1));
-  inc.addEventListener("click", () => setQty(item.id, item.qty + 1));
+  const inc = createButton({
+    label: "+",
+    variant: "qty",
+    size: "sm",
+    ariaLabel: "Увеличить количество",
+    onClick: () => setQty(item.id, item.qty + 1),
+  });
 
   controls.append(dec, qty, inc);
   header.append(info, controls);
@@ -44,16 +55,17 @@ export function renderCartPage({ navigate }) {
   const renderState = (state) => {
     clearElement(content);
     if (!state.items.length) {
-      const empty = createElement("div", { className: "panel" });
-      empty.appendChild(createElement("p", { className: "helper", text: "Корзина пуста — добавьте любимую пиццу." }));
-      empty.appendChild(
-        createButton({
-          label: "Перейти в меню",
-          variant: "secondary",
-          onClick: () => navigate("/menu"),
+      content.appendChild(
+        createEmptyState({
+          title: "Корзина пуста",
+          description: "Добавьте любимую пиццу из меню.",
+          action: createButton({
+            label: "Перейти в меню",
+            variant: "secondary",
+            onClick: () => navigate("/menu"),
+          }),
         })
       );
-      content.appendChild(empty);
       return;
     }
 
@@ -61,7 +73,7 @@ export function renderCartPage({ navigate }) {
     state.items.forEach((item) => list.appendChild(createCartItemRow(item)));
     content.appendChild(list);
 
-    const summary = createElement("div", { className: "panel" });
+    const summary = createSection({ className: "cart-summary" });
     const totalRow = createElement("div", { className: "total-row" });
     totalRow.append(createElement("span", { text: "Итого" }), createElement("span", { text: formatPrice(total()) }));
     summary.appendChild(totalRow);
