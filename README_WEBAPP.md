@@ -11,19 +11,16 @@ python -m http.server 8080 --directory webapp
 
 Telegram requires HTTPS for Mini Apps. Use any HTTPS tunnel (cloudflared/ngrok).
 
-## Добавление пиццы
+## Каталог и контент
 
-1. Обновите `webapp/data/menu.json` (структура: `id`, `slug`, `title`, `price`, `desc`, `photosCount`, `tags`, `isAvailable`).
-2. Добавьте фото в `webapp/assets/pizzas/<slug>/<slug>_01.jpg ... _0N.jpg`.
-3. Перезагрузите страницу или очистите кеш.
+Категории, товары, страницы и медиа управляются через `/admin`.
+Данные хранятся в D1 и сразу отображаются на публичном сайте без пересборки.
 
 ## Админка
 
-- Открыть `/admin` в WebApp.
-- Доступ: Telegram user ID из `webapp/data/config.json` (`adminTgId`) или PIN (`adminPinHash`).
-- Действия админки сохраняются локально в `localStorage`, для синхронизации используйте кнопку "Синхронизировать с ботом".
-
-PIN задаётся как SHA-256 hash строки (можно сгенерировать любым онлайн/локальным хэшером).
+- `/admin` — полноценная админка (CRUD товаров/категорий/заказов/медиа/страниц).
+- Первый владелец создаётся из `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
+- Page Builder поддерживает drag&drop блоков и мгновенную публикацию.
 
 ## Тест-план MVP+
 

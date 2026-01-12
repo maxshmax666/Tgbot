@@ -284,6 +284,25 @@ export function renderCheckoutPage({ navigate }) {
         try {
           const payment = await preparePayment(order, selectedMethod);
           order.payment = payment;
+          try {
+            await fetch("/api/public/orders", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                customerName: order.customer.name || "Гость",
+                phone: order.customer.phone,
+                address: order.delivery.address,
+                comment: order.comment,
+                items: order.items.map((item) => ({
+                  ...item,
+                  id: Number(item.id),
+                })),
+                total: order.total,
+              }),
+            });
+          } catch (apiError) {
+            console.warn("Failed to persist order in API", apiError);
+          }
           setLastOrderStatus({ status: "order:creating", order_id: order.order_id });
           const sent = sendData(order);
           if (!sent && !isTelegram()) {

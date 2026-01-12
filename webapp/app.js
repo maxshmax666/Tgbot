@@ -7,6 +7,7 @@ import { renderPizzaPage } from "./pages/pizzaPage.js";
 import { renderProfilePage } from "./pages/profilePage.js";
 import { renderAdminPage } from "./pages/adminPage.js";
 import { renderOrderStatusPage } from "./pages/orderStatusPage.js";
+import { renderDynamicPage } from "./pages/dynamicPage.js";
 import { createElement, clearElement } from "./ui/dom.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 
@@ -69,6 +70,7 @@ const routes = [
   { path: /^\/admin\/?$/, render: renderAdminPage },
   { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
   { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
+  { path: /^\/page\/([^/]+)\/?$/, render: renderDynamicPage },
 ];
 
 let cleanup = null;
@@ -89,6 +91,12 @@ function renderRoute(pathname) {
     navigate("/menu");
     return;
   }
+
+  const isAdmin = path.startsWith("/admin");
+  header.hidden = isAdmin;
+  topNav.nav.hidden = isAdmin;
+  bottomNav.nav.hidden = isAdmin;
+  document.body.classList.toggle("admin-mode", isAdmin);
 
   renderDebug();
   if (cleanup) cleanup();
