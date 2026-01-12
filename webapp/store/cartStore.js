@@ -1,4 +1,4 @@
-const STORAGE_KEY = "pizza_cart_v1";
+import { STORAGE_KEYS, storage } from "../services/storageService.js";
 
 const state = {
   items: [],
@@ -7,96 +7,95 @@ const state = {
 
 const listeners = new Set();
 
-function notify() {
+function normalizeItems(items) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      id: String(item.id || ""),
+      title: String(item.title || ""),
+      price: Number(item.price || 0),
+      image: item.image || "",
+      qty: Number(item.qty || 0),
+    }))
+    .filter((item) => item.id && item.qty > 0);
+}
+
+function persist(items) {
+  storage.write(STORAGE_KEYS.cart, items);
+}
+
+function dispatchChange(nextState) {
+  state.items = nextState.items;
   state.updatedAt = Date.now();
-  listeners.forEach((listener) => listener({ ...state }));
+  listeners.forEach((listener) => listener(getState()));
+  window.dispatchEvent(new CustomEvent("cart:changed", { detail: getState() }));
 }
 
-function persist() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
-  } catch (error) {
-    console.error("Failed to save cart", error);
-  }
+export function hydrateCart() {
+  const items = normalizeItems(storage.read(STORAGE_KEYS.cart, []));
+  dispatchChange({ items });
 }
-
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      state.items = parsed
-        .map((item) => ({
-          id: String(item.id || ""),
-          title: String(item.title || ""),
-          price: Number(item.price || 0),
-          image: item.image || "",
-          qty: Number(item.qty || 0),
-        }))
-        .filter((item) => item.id && item.qty > 0);
-    }
-  } catch (error) {
-    console.warn("Failed to load cart", error);
-  }
-}
-
-load();
 
 export function subscribeCart(listener) {
   listeners.add(listener);
-  listener({ ...state });
+  listener(getState());
   return () => listeners.delete(listener);
 }
 
-export function getCartItems() {
-  return [...state.items];
+export function getState() {
+  return { items: [...state.items], updatedAt: state.updatedAt };
 }
 
-export function getCartTotal() {
-  return state.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+export function setState(items) {
+  const normalized = normalizeItems(items);
+  persist(normalized);
+  dispatchChange({ items: normalized });
 }
 
-export function getCartCount() {
-  return state.items.reduce((sum, item) => sum + item.qty, 0);
-}
-
-export function addToCart(item) {
-  const existing = state.items.find((cartItem) => cartItem.id === item.id);
+export function add(item) {
+  const items = [...state.items];
+  const existing = items.find((cartItem) => cartItem.id === item.id);
   if (existing) {
     existing.qty += 1;
   } else {
-    state.items.push({
-      id: item.id,
-      title: item.title,
-      price: item.price,
-      image: item.image,
+    items.push({
+      id: String(item.id || ""),
+      title: String(item.title || ""),
+      price: Number(item.price || 0),
+      image: item.image || "",
       qty: 1,
     });
   }
-  persist();
-  notify();
+  persist(items);
+  dispatchChange({ items });
 }
 
-export function updateQty(id, qty) {
-  const target = state.items.find((item) => item.id === id);
+export function setQty(id, qty) {
+  const items = [...state.items];
+  const target = items.find((item) => item.id === id);
   if (!target) return;
   target.qty = Math.max(0, qty);
-  if (target.qty === 0) {
-    state.items = state.items.filter((item) => item.id !== id);
-  }
-  persist();
-  notify();
+  const next = items.filter((item) => item.qty > 0);
+  persist(next);
+  dispatchChange({ items: next });
 }
 
-export function removeFromCart(id) {
-  state.items = state.items.filter((item) => item.id !== id);
-  persist();
-  notify();
+export function remove(id) {
+  const next = state.items.filter((item) => item.id !== id);
+  persist(next);
+  dispatchChange({ items: next });
 }
 
-export function clearCart() {
-  state.items = [];
-  persist();
-  notify();
+export function clear() {
+  persist([]);
+  dispatchChange({ items: [] });
 }
+
+export function total() {
+  return state.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+}
+
+export function count() {
+  return state.items.reduce((sum, item) => sum + item.qty, 0);
+}
+
+hydrateCart();

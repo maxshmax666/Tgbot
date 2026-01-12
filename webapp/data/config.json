@@ -1,0 +1,13 @@
+{
+  "minOrder": 700,
+  "workHours": { "open": "10:00", "close": "22:00" },
+  "deliveryFee": 0,
+  "freeDeliveryFrom": 1500,
+  "supportPhone": "+7 (900) 000-00-00",
+  "supportChat": "https://t.me/pizzatagil_support",
+  "bannerText": "Доставка 45 минут / Скидка 10% при самовывозе",
+  "adminPinHash": null,
+  "adminTgId": null,
+  "promoPickupDiscount": 10,
+  "deliveryZones": []
+}

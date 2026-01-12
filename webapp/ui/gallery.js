@@ -49,6 +49,10 @@ export function createGallery(images = [], { large = false } = {}) {
           "data-src": src,
         },
       });
+      img.addEventListener("error", () => {
+        img.classList.add("missing");
+        img.removeAttribute("src");
+      });
       slide.appendChild(img);
       track.appendChild(slide);
 
@@ -74,6 +78,13 @@ export function createGallery(images = [], { large = false } = {}) {
       rafId = 0;
       updateDots();
     });
+  });
+
+  track.addEventListener("click", () => {
+    if (images.length <= 1) return;
+    const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+    const next = (index + 1) % images.length;
+    track.scrollTo({ left: next * track.clientWidth, behavior: "smooth" });
   });
 
   container.appendChild(track);
