@@ -2,6 +2,7 @@
 /api/*  /api/:splat  200
 
 # --- Admin (static files in /webapp/admin) ---
+/admin/AdminApp.bundle.js  /admin/AdminApp.bundle.js 200
 /admin/*  /admin/:splat  200
 /admin    /admin/index.html 200
 
