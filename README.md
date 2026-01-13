@@ -3,7 +3,7 @@
 ## Setup Termux
 
 Минимальные требования:
-- Python 3.12.12
+- Python 3.12.8 (см. `.python-version`)
 - Termux (Android)
 
 ### Установка
