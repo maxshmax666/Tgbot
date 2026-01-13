@@ -379,6 +379,16 @@ async def payment_check_handler(query: CallbackQuery, bot: Bot, config: Config) 
         await query.answer()
         return
 
+    if query.message:
+        try:
+            await query.message.edit_caption(
+                "Платеж в обработке. Попробуйте позже.",
+                reply_markup=payment_check_keyboard(),
+            )
+        except (TelegramBadRequest, TelegramNotFound):
+            logger.debug("Failed to update payment check message", exc_info=True)
+    await query.answer("Платеж еще не завершен. Попробуйте позже.")
+
 
 @router.message(F.web_app_data)
 async def webapp_order_handler(message: Message, config: Config) -> None:
