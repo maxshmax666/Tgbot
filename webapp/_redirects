@@ -1,8 +1,16 @@
-/menu /index.html 200
-/cart /index.html 200
-/checkout /index.html 200
-/profile /index.html 200
-/admin /index.html 200
-/admin/login /index.html 200
-/order-status /index.html 200
-/* /index.html 200
+# --- API (Cloudflare Pages Functions) ---
+/api/*  /api/:splat  200
+
+# --- Admin (static files in /webapp/admin) ---
+/admin/*  /admin/:splat  200
+/admin    /admin/index.html 200
+
+# --- Mini App routes (SPA) ---
+/menu          /index.html 200
+/cart          /index.html 200
+/checkout      /index.html 200
+/profile       /index.html 200
+/order-status  /index.html 200
+
+# --- Fallback (SPA) ---
+/*  /index.html 200
