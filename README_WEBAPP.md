@@ -4,6 +4,14 @@
 
 Requirements:
 - Python 3.12.8+ (for simple static server)
+- Node.js 20.11+ (for bundling via esbuild)
+
+Install dependencies and build the webapp bundle:
+
+```bash
+npm install
+npm run build:webapp
+```
 
 ```bash
 python -m http.server 8080 --directory webapp
