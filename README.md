@@ -61,7 +61,7 @@ wrangler d1 create tgbot_db
 wrangler d1 execute tgbot_db --file=./schema.sql
 ```
 
-Скопируйте `database_id` в `wrangler.toml`.
+Сохраните `database_id` в настройках проекта Cloudflare Pages (D1 binding).
 
 ### 3) Локальная разработка
 
@@ -80,10 +80,16 @@ python -m http.server 8080 --directory webapp
 ### 4) Деплой
 
 Подключите репозиторий к Cloudflare Pages и укажите:
-- **Build command:** не требуется
-- **Output directory:** `webapp`
+- **Root directory:** `/`
+- **Build command:** `npm ci`
+- **Build output directory:** `webapp`
 - **Functions directory:** `functions`
-- **Environment variables:** `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, `PUBLIC_MEDIA_BASE_URL`
+Конфигурация Pages задается в UI, `wrangler.toml` не используется.
+
+Production checklist (env):
+- [ ] `ADMIN_PASSWORD_HASH`
+- [ ] `JWT_SECRET`
+- [ ] `PUBLIC_MEDIA_BASE_URL` (опционально, если ассеты не на том же домене)
 
 ### 5) Админка
 
