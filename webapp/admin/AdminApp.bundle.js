@@ -243,6 +243,22 @@ function LoadingScreen({ label = "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u04
 function ErrorState({ title, message, details, onRetry }) {
   return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-lg space-y-3" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, message), details && /* @__PURE__ */ React.createElement("pre", { className: "text-xs text-rose-300 whitespace-pre-wrap break-words" }, details), onRetry && /* @__PURE__ */ React.createElement(Button, { onClick: onRetry }, "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C")));
 }
+function formatZodIssues(details) {
+  if (!Array.isArray(details)) return null;
+  const lines = details.map((issue) => {
+    if (!issue || typeof issue !== "object") return null;
+    const path = Array.isArray(issue.path) ? issue.path.join(".") : "";
+    if (path === "password" && issue.code === "too_small" && typeof issue.minimum === "number") {
+      return `\u041F\u0430\u0440\u043E\u043B\u044C \u043C\u0438\u043D\u0438\u043C\u0443\u043C ${issue.minimum} \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432`;
+    }
+    if (path === "password" && issue.code === "invalid_type") {
+      return "\u041F\u0430\u0440\u043E\u043B\u044C \u043E\u0431\u044F\u0437\u0430\u0442\u0435\u043B\u0435\u043D";
+    }
+    if (issue.message) return path ? `${path}: ${issue.message}` : issue.message;
+    return path ? `${path}: \u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u043E\u0435 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435` : "\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u043E\u0435 \u0437\u043D\u0430\u0447\u0435\u043D\u0438\u0435";
+  }).filter(Boolean);
+  return lines.length ? lines.join("\n") : null;
+}
 function Login({ onLogin, onNavigate }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -258,12 +274,15 @@ function Login({ onLogin, onNavigate }) {
       }
       return user;
     } catch (err) {
-      setError(err.message || "Login failed");
+      const zodMessage = formatZodIssues(err?.details);
+      const envMessage = err?.status === 500 && typeof err?.message === "string" && err.message.startsWith("ENV \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u044B");
+      const fallbackMessage = err?.message || "Login failed";
+      setError(envMessage ? err.message : zodMessage || fallbackMessage);
     } finally {
       setLoading(false);
     }
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" }, /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, className: "bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4" }, /* @__PURE__ */ React.createElement("h1", { className: "text-xl font-semibold" }, "Admin Login"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C \u0430\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0430\u0442\u043E\u0440\u0430."), /* @__PURE__ */ React.createElement(Field, { label: "Password" }, /* @__PURE__ */ React.createElement(Input, { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), error && /* @__PURE__ */ React.createElement("p", { className: "text-rose-400 text-sm" }, error), /* @__PURE__ */ React.createElement(Button, { type: "submit", disabled: loading }, loading ? "Signing in..." : "Sign in")));
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" }, /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, className: "bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4" }, /* @__PURE__ */ React.createElement("h1", { className: "text-xl font-semibold" }, "Admin Login"), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C \u0430\u0434\u043C\u0438\u043D\u0438\u0441\u0442\u0440\u0430\u0442\u043E\u0440\u0430."), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, "\u041F\u0430\u0440\u043E\u043B\u044C \u0437\u0430\u0434\u0430\u0451\u0442\u0441\u044F \u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u043C\u0438 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F ", /* @__PURE__ */ React.createElement("code", { className: "text-slate-300" }, "ADMIN_PASSWORD_HASH"), " \u0438\u043B\u0438 ", /* @__PURE__ */ React.createElement("code", { className: "text-slate-300" }, "ADMIN_PASSWORD"), " (\u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E). \u041C\u0438\u043D\u0438\u043C\u0443\u043C 6 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432."), /* @__PURE__ */ React.createElement(Field, { label: "Password" }, /* @__PURE__ */ React.createElement(Input, { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), error && /* @__PURE__ */ React.createElement("p", { className: "text-rose-400 text-sm whitespace-pre-line" }, error), /* @__PURE__ */ React.createElement(Button, { type: "submit", disabled: loading }, loading ? "Signing in..." : "Sign in")));
 }
 function CategoriesView() {
   const [items, setItems] = useState([]);

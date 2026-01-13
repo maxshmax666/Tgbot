@@ -144,6 +144,25 @@ function ErrorState({ title, message, details, onRetry }) {
   );
 }
 
+function formatZodIssues(details) {
+  if (!Array.isArray(details)) return null;
+  const lines = details
+    .map((issue) => {
+      if (!issue || typeof issue !== "object") return null;
+      const path = Array.isArray(issue.path) ? issue.path.join(".") : "";
+      if (path === "password" && issue.code === "too_small" && typeof issue.minimum === "number") {
+        return `Пароль минимум ${issue.minimum} символов`;
+      }
+      if (path === "password" && issue.code === "invalid_type") {
+        return "Пароль обязателен";
+      }
+      if (issue.message) return path ? `${path}: ${issue.message}` : issue.message;
+      return path ? `${path}: Некорректное значение` : "Некорректное значение";
+    })
+    .filter(Boolean);
+  return lines.length ? lines.join("\n") : null;
+}
+
 function Login({ onLogin, onNavigate }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -160,7 +179,11 @@ function Login({ onLogin, onNavigate }) {
       }
       return user;
     } catch (err) {
-      setError(err.message || "Login failed");
+      const zodMessage = formatZodIssues(err?.details);
+      const envMessage =
+        err?.status === 500 && typeof err?.message === "string" && err.message.startsWith("ENV не настроены");
+      const fallbackMessage = err?.message || "Login failed";
+      setError(envMessage ? err.message : zodMessage || fallbackMessage);
     } finally {
       setLoading(false);
     }
@@ -171,10 +194,15 @@ function Login({ onLogin, onNavigate }) {
       <form onSubmit={handleSubmit} className="bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4">
         <h1 className="text-xl font-semibold">Admin Login</h1>
         <p className="text-sm text-slate-400">Введите пароль администратора.</p>
+        <p className="text-xs text-slate-500">
+          Пароль задаётся переменными окружения{" "}
+          <code className="text-slate-300">ADMIN_PASSWORD_HASH</code> или{" "}
+          <code className="text-slate-300">ADMIN_PASSWORD</code> (локально). Минимум 6 символов.
+        </p>
         <Field label="Password">
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
-        {error && <p className="text-rose-400 text-sm">{error}</p>}
+        {error && <p className="text-rose-400 text-sm whitespace-pre-line">{error}</p>}
         <Button type="submit" disabled={loading}>
           {loading ? "Signing in..." : "Sign in"}
         </Button>
