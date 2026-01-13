@@ -22,16 +22,24 @@ async function request(path, options = {}) {
   if (options.body && !headers.has("content-type") && !(options.body instanceof FormData)) {
     headers.set("content-type", "application/json");
   }
-  const response = await fetch(path, { ...options, headers, credentials: "include" });
+  let response;
+  try {
+    response = await fetch(path, { ...options, headers, credentials: "include" });
+  } catch (error) {
+    const networkError = new Error("\u0421\u0435\u0440\u0432\u0435\u0440 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435, \u0447\u0442\u043E /api \u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D.");
+    networkError.status = 0;
+    networkError.details = error instanceof Error ? error.message : String(error);
+    throw networkError;
+  }
   const contentType = response.headers.get("content-type");
   if (!contentType?.includes("application/json")) {
-    const error = new Error("Admin API не отвечает JSON (возможно, не задеплоены Functions /api)");
+    const error = new Error("Admin API \u043D\u0435 \u043E\u0442\u0432\u0435\u0447\u0430\u0435\u0442 JSON (\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u043D\u0435 \u0437\u0430\u0434\u0435\u043F\u043B\u043E\u0435\u043D\u044B Functions /api)");
     error.status = response.status;
     throw error;
   }
   const payload = await response.json().catch(() => null);
   if (payload == null) {
-    const error = new Error("Admin API вернул пустой ответ");
+    const error = new Error("Admin API \u0432\u0435\u0440\u043D\u0443\u043B \u043F\u0443\u0441\u0442\u043E\u0439 \u043E\u0442\u0432\u0435\u0442");
     error.status = response.status;
     throw error;
   }
@@ -134,6 +142,29 @@ var adminApi = {
     return request(`/api/admin/media/${encodeURIComponent(key)}`, { method: "DELETE" });
   }
 };
+
+// webapp/services/mediaBase.js
+var cachedBaseUrl = null;
+function normalizeBaseUrl(value) {
+  if (!value) return "";
+  return String(value).trim().replace(/\/+$/, "");
+}
+function getPublicMediaBaseUrl() {
+  if (cachedBaseUrl !== null) return cachedBaseUrl;
+  cachedBaseUrl = normalizeBaseUrl(globalThis.PUBLIC_MEDIA_BASE_URL);
+  return cachedBaseUrl;
+}
+function resolveMediaUrl(url) {
+  if (!url) return "";
+  const raw = String(url).trim();
+  if (!raw) return "";
+  if (/^(https?:)?\/\//i.test(raw) || raw.startsWith("data:") || raw.startsWith("blob:")) {
+    return raw;
+  }
+  const base = getPublicMediaBaseUrl();
+  const normalized = raw.startsWith("/") ? raw : `/${raw}`;
+  return base ? `${base}${normalized}` : normalized;
+}
 
 // webapp/admin/AdminApp.js
 var BLOCK_TYPES = [
@@ -310,7 +341,14 @@ function MediaLibrary({ onSelect, onClose }) {
     await adminApi.deleteMedia(key);
     await load();
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-4xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold" }, "Media library"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onClose }, "Close")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 items-center" }, /* @__PURE__ */ React.createElement("input", { type: "file", onChange: (e) => setFile(e.target.files?.[0] || null) }), /* @__PURE__ */ React.createElement(Button, { onClick: handleUpload, disabled: !file }, "Upload")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[400px] overflow-auto" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React.createElement("img", { src: item.url, alt: item.meta?.name || item.key, className: "w-full h-28 object-cover rounded-md" }), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => onSelect(item.url) }, "Use"), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.key) }, "Delete")))))));
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-4xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold" }, "Media library"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onClose }, "Close")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 items-center" }, /* @__PURE__ */ React.createElement("input", { type: "file", onChange: (e) => setFile(e.target.files?.[0] || null) }), /* @__PURE__ */ React.createElement(Button, { onClick: handleUpload, disabled: !file }, "Upload")), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[400px] overflow-auto" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React.createElement(
+    "img",
+    {
+      src: resolveMediaUrl(item.url),
+      alt: item.meta?.name || item.key,
+      className: "w-full h-28 object-cover rounded-md"
+    }
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => onSelect(item.url) }, "Use"), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.key) }, "Delete")))))));
 }
 function ProductsView() {
   const [products, setProducts] = useState([]);
@@ -385,7 +423,7 @@ function ProductsView() {
   const removeImage = (index) => {
     setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
   };
-  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, "Product editor"), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement(Input, { value: form.title, onChange: (e) => setForm((prev) => ({ ...prev, title: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: "Price" }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: form.price, onChange: (e) => setForm((prev) => ({ ...prev, price: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement(Select, { value: form.categoryId, onChange: (e) => setForm((prev) => ({ ...prev, categoryId: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0411\u0435\u0437 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438"), categories.map((cat) => /* @__PURE__ */ React.createElement("option", { key: cat.id, value: cat.id }, cat.title)))), /* @__PURE__ */ React.createElement(Field, { label: "Sort" }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: form.sort, onChange: (e) => setForm((prev) => ({ ...prev, sort: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: "Active" }, /* @__PURE__ */ React.createElement(Select, { value: form.isActive ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" })) }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, "Active"), /* @__PURE__ */ React.createElement("option", { value: "no" }, "Inactive"))), /* @__PURE__ */ React.createElement(Field, { label: "Featured" }, /* @__PURE__ */ React.createElement(Select, { value: form.isFeatured ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" })) }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, "Yes"), /* @__PURE__ */ React.createElement("option", { value: "no" }, "No")))), /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, value: form.description, onChange: (e) => setForm((prev) => ({ ...prev, description: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 text-sm" }, "Images"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => setMediaOpen(true) }, "Media library"), /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => addImage(window.prompt("Image URL") || "") }, "Add URL"))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3" }, form.images.map((url, index) => /* @__PURE__ */ React.createElement("div", { key: `${url}-${index}`, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React.createElement("img", { src: url, alt: "", className: "w-full h-24 object-cover rounded-md" }), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => removeImage(index) }, "Remove"))))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { onClick: handleSubmit, disabled: !form.title.trim() }, "Save"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: resetForm }, "Reset"))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold mb-4" }, "Products"), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, products.map((product) => /* @__PURE__ */ React.createElement("div", { key: product.id, className: "border border-slate-800 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-medium" }, product.title), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-400" }, product.price, " \u20BD")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleEdit(product) }, "Edit"), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(product.id) }, "Delete")))))), mediaOpen && /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, "Product editor"), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: "Title" }, /* @__PURE__ */ React.createElement(Input, { value: form.title, onChange: (e) => setForm((prev) => ({ ...prev, title: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: "Price" }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: form.price, onChange: (e) => setForm((prev) => ({ ...prev, price: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: "Category" }, /* @__PURE__ */ React.createElement(Select, { value: form.categoryId, onChange: (e) => setForm((prev) => ({ ...prev, categoryId: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u0411\u0435\u0437 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438"), categories.map((cat) => /* @__PURE__ */ React.createElement("option", { key: cat.id, value: cat.id }, cat.title)))), /* @__PURE__ */ React.createElement(Field, { label: "Sort" }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: form.sort, onChange: (e) => setForm((prev) => ({ ...prev, sort: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: "Active" }, /* @__PURE__ */ React.createElement(Select, { value: form.isActive ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" })) }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, "Active"), /* @__PURE__ */ React.createElement("option", { value: "no" }, "Inactive"))), /* @__PURE__ */ React.createElement(Field, { label: "Featured" }, /* @__PURE__ */ React.createElement(Select, { value: form.isFeatured ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" })) }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, "Yes"), /* @__PURE__ */ React.createElement("option", { value: "no" }, "No")))), /* @__PURE__ */ React.createElement(Field, { label: "Description" }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, value: form.description, onChange: (e) => setForm((prev) => ({ ...prev, description: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 text-sm" }, "Images"), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => setMediaOpen(true) }, "Media library"), /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => addImage(window.prompt("Image URL") || "") }, "Add URL"))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3" }, form.images.map((url, index) => /* @__PURE__ */ React.createElement("div", { key: `${url}-${index}`, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React.createElement("img", { src: resolveMediaUrl(url), alt: "", className: "w-full h-24 object-cover rounded-md" }), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => removeImage(index) }, "Remove"))))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { onClick: handleSubmit, disabled: !form.title.trim() }, "Save"), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: resetForm }, "Reset"))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold mb-4" }, "Products"), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, products.map((product) => /* @__PURE__ */ React.createElement("div", { key: product.id, className: "border border-slate-800 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-medium" }, product.title), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-400" }, product.price, " \u20BD")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleEdit(product) }, "Edit"), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(product.id) }, "Delete")))))), mediaOpen && /* @__PURE__ */ React.createElement(
     MediaLibrary,
     {
       onSelect: (url) => {
@@ -593,7 +631,14 @@ function MediaView() {
   useEffect(() => {
     load();
   }, []);
-  return /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, "Media library"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2" }, /* @__PURE__ */ React.createElement("img", { src: item.url, alt: item.meta?.name || item.key, className: "w-full h-24 object-cover rounded-md" }), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-2 truncate" }, item.meta?.name || item.key)))));
+  return /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, "Media library"), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2" }, /* @__PURE__ */ React.createElement(
+    "img",
+    {
+      src: resolveMediaUrl(item.url),
+      alt: item.meta?.name || item.key,
+      className: "w-full h-24 object-cover rounded-md"
+    }
+  ), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-2 truncate" }, item.meta?.name || item.key)))));
 }
 function Dashboard() {
   return /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, "Welcome"), /* @__PURE__ */ React.createElement("p", { className: "text-slate-400" }, "Use the sidebar to manage catalog, orders, media and pages."));
@@ -665,9 +710,9 @@ function AdminApp({ navigate, initialPath }) {
   const handleLogin = async (password) => {
     const data = await adminApi.login(password);
     if (!data) {
-      const error = new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u0442\u044C\u0441\u044F. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C \u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 API.");
-      error.status = 401;
-      throw error;
+      const error2 = new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u0442\u044C\u0441\u044F. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C \u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 API.");
+      error2.status = 401;
+      throw error2;
     }
     setUser(data);
     setStatus("authenticated");
@@ -685,11 +730,12 @@ function AdminApp({ navigate, initialPath }) {
     return /* @__PURE__ */ React.createElement(LoadingScreen, { label: "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u0434\u043E\u0441\u0442\u0443\u043F \u043A \u0430\u0434\u043C\u0438\u043D\u043A\u0435\u2026" });
   }
   if (status === "error") {
+    const errorMessage = error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0441\u044F \u043A \u0430\u0434\u043C\u0438\u043D API. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0435 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F \u0438 \u043B\u043E\u0433\u0438 \u0431\u0438\u043B\u0434\u0430.";
     return /* @__PURE__ */ React.createElement(
       ErrorState,
       {
         title: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438 \u0430\u0434\u043C\u0438\u043D\u043A\u0438",
-        message: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0441\u044F \u043A \u0430\u0434\u043C\u0438\u043D API. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0435 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F \u0438 \u043B\u043E\u0433\u0438 \u0431\u0438\u043B\u0434\u0430.",
+        message: errorMessage,
         details: error?.details ? JSON.stringify(error.details, null, 2) : error?.message,
         onRetry: fetchSession
       }
