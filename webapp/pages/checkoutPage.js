@@ -226,9 +226,7 @@ export function renderCheckoutPage({ navigate }) {
           const address = addressInput.value.trim().toLowerCase();
           const match = config.deliveryZones.some((zone) => address.includes(String(zone).toLowerCase()));
           if (!match) {
-            error.textContent = "Адрес вне зоны доставки.";
-            error.hidden = false;
-            return;
+            showToast("Адрес вне зоны доставки. Заказ может быть отклонен.", "info");
           }
         }
         if (subtotalValue < Number(config?.minOrder || 0)) {
