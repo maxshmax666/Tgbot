@@ -24,6 +24,25 @@ pip install -r requirements.txt
 ```env
 BOT_TOKEN=123456:ABCDEF
 MINIAPP_URL=https://tgbot-3cm.pages.dev/
+WEBAPP_URL=https://tgbot-3cm.pages.dev/
+ADMIN_CHAT_ID=123456789
+DB_PATH=./bot.db
+```
+
+Обязательные: `BOT_TOKEN`, `MINIAPP_URL`, `WEBAPP_URL`, `ADMIN_CHAT_ID`.
+`DB_PATH` можно не задавать — по умолчанию `./bot.db`.
+
+Опционально (оплата и уведомления):
+```env
+YOOKASSA_SHOP_ID=
+YOOKASSA_SECRET_KEY=
+YOOKASSA_RETURN_URL=
+ADMIN_EMAIL=
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_TLS=true
 ```
 
 ### Запуск
