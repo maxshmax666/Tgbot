@@ -101,7 +101,7 @@ python -m http.server 8080 --directory webapp
 
 Подключите репозиторий к Cloudflare Pages и укажите:
 - **Root directory:** `/`
-- **Build command:** `npm ci`
+- **Build command:** `npm ci && npm run build:admin`
 - **Build output directory:** `webapp`
 - **Functions directory:** `functions`
 Конфигурация Pages задается в UI, `wrangler.toml` не используется.
