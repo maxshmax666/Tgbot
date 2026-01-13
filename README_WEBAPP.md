@@ -3,7 +3,7 @@
 ## Local run
 
 Requirements:
-- Python 3.10+ (for simple static server)
+- Python 3.12.8+ (for simple static server)
 
 ```bash
 python -m http.server 8080 --directory webapp
@@ -14,7 +14,7 @@ Telegram requires HTTPS for Mini Apps. Use any HTTPS tunnel (cloudflared/ngrok).
 ## Локальный запуск бота
 
 Минимальные требования:
-- Python 3.12+
+- Python 3.12.8+
 
 ```bash
 python -m bot.main
