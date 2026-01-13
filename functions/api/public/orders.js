@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, RequestError, requireDb } from "../_utils.js";
+import { getRequestId, json, handleError, parseJsonBody, RequestError, requireDb } from "../_utils.js";
 
 const orderSchema = z.object({
   order_id: z.string().min(1),
@@ -154,9 +154,22 @@ const loadDeliveryZones = async (db) => {
 };
 
 export async function onRequestPost({ env, request }) {
+  const requestId = getRequestId(request);
+  let orderId = null;
+  const logEvent = (level, details = {}) => {
+    const payload = {
+      level,
+      request_id: requestId,
+      order_id: orderId,
+      ...details,
+    };
+    console.log(JSON.stringify(payload));
+  };
+
   try {
     const db = requireDb(env);
     const body = await parseJsonBody(request, orderSchema);
+    orderId = body.order_id;
 
     if (!body.items.length) {
       throw new RequestError(400, "Items are required");
@@ -221,7 +234,12 @@ export async function onRequestPost({ env, request }) {
       .first();
 
     if (existingOrder) {
-      return json({ id: existingOrder.id, status: existingOrder.status, order_id: body.order_id }, 200);
+      logEvent("info", { message: "order_exists", status: existingOrder.status });
+      return json(
+        { id: existingOrder.id, status: existingOrder.status, order_id: body.order_id },
+        200,
+        { "x-request-id": requestId }
+      );
     }
 
     try {
@@ -241,7 +259,12 @@ export async function onRequestPost({ env, request }) {
         )
         .run();
 
-      return json({ id: result.meta.last_row_id, status: "new", order_id: body.order_id }, 201);
+      logEvent("info", { message: "order_created", status: "new" });
+      return json(
+        { id: result.meta.last_row_id, status: "new", order_id: body.order_id },
+        201,
+        { "x-request-id": requestId }
+      );
     } catch (insertError) {
       if (String(insertError?.message || "").includes("UNIQUE")) {
         const conflictOrder = await db
@@ -249,12 +272,18 @@ export async function onRequestPost({ env, request }) {
           .bind(body.order_id)
           .first();
         if (conflictOrder) {
-          return json({ id: conflictOrder.id, status: conflictOrder.status, order_id: body.order_id }, 200);
+          logEvent("info", { message: "order_conflict", status: conflictOrder.status });
+          return json(
+            { id: conflictOrder.id, status: conflictOrder.status, order_id: body.order_id },
+            200,
+            { "x-request-id": requestId }
+          );
         }
       }
       throw insertError;
     }
   } catch (err) {
-    return handleError(err);
+    logEvent("error", { message: "order_failed", error: String(err?.message || err) });
+    return handleError(err, requestId);
   }
 }

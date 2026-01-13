@@ -254,6 +254,7 @@ export function renderCheckoutPage({ navigate }) {
         const order = {
           type: "pizza_order_v1",
           order_id: orderId,
+          request_id: null,
           ts: Math.floor(Date.now() / 1000),
           source: "webapp",
           user: {
@@ -301,6 +302,10 @@ export function renderCheckoutPage({ navigate }) {
               headers: { "content-type": "application/json" },
               body: JSON.stringify(apiPayload),
             });
+            const requestId = apiResponse.headers.get("x-request-id");
+            if (requestId) {
+              order.request_id = requestId;
+            }
             if (!apiResponse.ok) {
               pendingSync = true;
               throw new Error(`API status ${apiResponse.status}`);
@@ -311,22 +316,35 @@ export function renderCheckoutPage({ navigate }) {
               order_id: order.order_id,
               payload: apiPayload,
               ts: Date.now(),
+              request_id: order.request_id || undefined,
             });
             console.warn("Failed to persist order in API", apiError);
           }
-          setLastOrderStatus({ status: "order:creating", order_id: order.order_id });
+          setLastOrderStatus({
+            status: "order:creating",
+            order_id: order.order_id,
+            request_id: order.request_id || undefined,
+          });
           const sent = sendData(order);
           if (!sent && !isTelegram()) {
             const status = pendingSync ? "order:pending_sync" : "order:sent";
             addOrder({ ...order, status });
-            setLastOrderStatus({ status, order_id: order.order_id });
+            setLastOrderStatus({
+              status,
+              order_id: order.order_id,
+              request_id: order.request_id || undefined,
+            });
             clear();
             showToast("Заказ сохранён локально", "success");
             navigate("/order-status");
             return;
           }
           const status = sent ? (pendingSync ? "order:pending_sync" : "order:sent") : "order:error";
-          setLastOrderStatus({ status, order_id: order.order_id });
+          setLastOrderStatus({
+            status,
+            order_id: order.order_id,
+            request_id: order.request_id || undefined,
+          });
           if (!sent) {
             throw new Error("Telegram unavailable");
           }
@@ -337,7 +355,11 @@ export function renderCheckoutPage({ navigate }) {
           navigate("/order-status");
         } catch (err) {
           console.error("Checkout failed", err);
-          setLastOrderStatus({ status: "order:error", order_id: order.order_id });
+          setLastOrderStatus({
+            status: "order:error",
+            order_id: order.order_id,
+            request_id: order.request_id || undefined,
+          });
           addOrder({ ...order, status: "order:error" });
           error.textContent = "Не удалось отправить заказ. Сохранено локально.";
           error.hidden = false;

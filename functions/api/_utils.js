@@ -17,8 +17,8 @@ export function json(data, status = 200, headers = {}) {
   });
 }
 
-export function error(status, message, details) {
-  return json({ error: { message, details } }, status);
+export function error(status, message, details, headers = {}) {
+  return json({ error: { message, details } }, status, headers);
 }
 
 export function parseJsonBody(request, schema) {
@@ -52,6 +52,16 @@ export function requireEnv(value, name) {
 export function requireDb(env) {
   if (!env.DB) throw new RequestError(500, "DB binding is missing");
   return env.DB;
+}
+
+export function getRequestId(request) {
+  const headerValue = request?.headers?.get("x-request-id") || "";
+  const trimmed = headerValue.trim();
+  if (trimmed) return trimmed;
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 export async function ensureOwner(request, env, payload) {
@@ -122,12 +132,12 @@ export async function requireAuth(request, env) {
   }
 }
 
-export function handleError(err) {
+export function handleError(err, requestId) {
   if (err instanceof RequestError) {
-    return error(err.status, err.message, err.details);
+    return error(err.status, err.message, err.details, requestId ? { "x-request-id": requestId } : {});
   }
   console.error(err);
-  return error(500, "Internal server error");
+  return error(500, "Internal server error", undefined, requestId ? { "x-request-id": requestId } : {});
 }
 
 export const idSchema = z.coerce.number().int().positive();

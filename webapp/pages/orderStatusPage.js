@@ -21,6 +21,7 @@ export function renderOrderStatusPage({ navigate }) {
     const status = getLastOrderStatus();
     const orders = getOrders();
     const latest = orders[0];
+    const requestId = latest?.request_id || status?.request_id;
 
     const panel = createElement("div", { className: "panel" });
     panel.appendChild(
@@ -40,6 +41,14 @@ export function renderOrderStatusPage({ navigate }) {
         createElement("div", {
           className: "helper",
           text: `Сумма: ${formatPrice(latest.total)}`,
+        })
+      );
+    }
+    if (requestId) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `Request ID: ${requestId}`,
         })
       );
     }
