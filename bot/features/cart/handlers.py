@@ -41,6 +41,18 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 
+def _log_structured(
+    level: str,
+    request_id: str | None,
+    order_id: str | int | None,
+    **extra: Any,
+) -> None:
+    payload = {"level": level, "request_id": request_id, "order_id": order_id, **extra}
+    message = json.dumps(payload, ensure_ascii=False)
+    log_method = getattr(logger, level, logger.info)
+    log_method(message)
+
+
 def _coerce_amount(value: Any, field_name: str) -> int:
     if isinstance(value, bool):
         raise ValueError(f"{field_name} must be a number")
@@ -318,6 +330,7 @@ async def payment_handler(query: CallbackQuery, config: Config) -> None:
 
     configure_yookassa(config)
     order_id = await order_create(config.db_path, query.from_user.id, total, method)
+    _log_structured("info", None, order_id, message="payment_initiated", method=method, total=total)
 
     description = f"Заказ #{order_id}"
     if method == "card":
@@ -358,10 +371,12 @@ async def payment_check_handler(query: CallbackQuery, bot: Bot, config: Config) 
     try:
         status = get_payment_status(order.payment_id)
     except Exception:
+        _log_structured("error", None, order.id, message="payment_check_failed")
         logger.exception("Failed to check payment")
         await query.answer("Не удалось проверить оплату. Попробуйте позже.", show_alert=True)
         return
 
+    _log_structured("info", None, order.id, message="payment_status_checked", payment_status=status)
     if status == "succeeded":
         await order_set_status(config.db_path, order.id, "paid")
         items = await cart_get_items(config.db_path, query.from_user.id)
