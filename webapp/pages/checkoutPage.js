@@ -289,6 +289,7 @@ export function renderCheckoutPage({ navigate }) {
               method: "POST",
               headers: { "content-type": "application/json" },
               body: JSON.stringify({
+                order_id: order.order_id,
                 customerName: order.customer.name || "Гость",
                 phone: order.customer.phone,
                 address: order.delivery.address,

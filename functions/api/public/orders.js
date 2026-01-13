@@ -2,6 +2,7 @@ import { z } from "zod";
 import { json, handleError, parseJsonBody, RequestError, requireDb } from "../_utils.js";
 
 const orderSchema = z.object({
+  order_id: z.string().min(1),
   customerName: z.string().min(1),
   phone: z.string().min(3),
   address: z.string().optional().nullable(),
@@ -63,22 +64,45 @@ export async function onRequestPost({ env, request }) {
       throw new RequestError(400, "Total mismatch", { expectedTotal: computedTotal });
     }
 
-    const result = await db
-      .prepare(
-        `INSERT INTO orders (created_at, status, customer_name, phone, address, comment, items_json, total)
-         VALUES (datetime('now'), 'new', ?, ?, ?, ?, ?, ?)`
-      )
-      .bind(
-        body.customerName,
-        body.phone,
-        body.address || null,
-        body.comment || null,
-        JSON.stringify(normalizedItems),
-        computedTotal
-      )
-      .run();
+    const existingOrder = await db
+      .prepare("SELECT id, status FROM orders WHERE order_id = ?")
+      .bind(body.order_id)
+      .first();
 
-    return json({ id: result.meta.last_row_id, status: "new" }, 201);
+    if (existingOrder) {
+      return json({ id: existingOrder.id, status: existingOrder.status, order_id: body.order_id }, 200);
+    }
+
+    try {
+      const result = await db
+        .prepare(
+          `INSERT INTO orders (order_id, created_at, status, customer_name, phone, address, comment, items_json, total)
+           VALUES (?, datetime('now'), 'new', ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          body.order_id,
+          body.customerName,
+          body.phone,
+          body.address || null,
+          body.comment || null,
+          JSON.stringify(normalizedItems),
+          computedTotal
+        )
+        .run();
+
+      return json({ id: result.meta.last_row_id, status: "new", order_id: body.order_id }, 201);
+    } catch (insertError) {
+      if (String(insertError?.message || "").includes("UNIQUE")) {
+        const conflictOrder = await db
+          .prepare("SELECT id, status FROM orders WHERE order_id = ?")
+          .bind(body.order_id)
+          .first();
+        if (conflictOrder) {
+          return json({ id: conflictOrder.id, status: conflictOrder.status, order_id: body.order_id }, 200);
+        }
+      }
+      throw insertError;
+    }
   } catch (err) {
     return handleError(err);
   }
