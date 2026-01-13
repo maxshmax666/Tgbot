@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS page_blocks (
 
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
   status TEXT NOT NULL,
   customer_name TEXT NOT NULL,
@@ -63,6 +64,8 @@ CREATE TABLE IF NOT EXISTS orders (
   items_json TEXT NOT NULL,
   total REAL NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
 
 CREATE TABLE IF NOT EXISTS media (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

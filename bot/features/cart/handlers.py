@@ -432,6 +432,7 @@ async def webapp_order_handler(message: Message, config: Config) -> None:
         if await order_exists_by_order_id(str(config.db_path), parsed["order_id"]):
             await message.answer("Этот заказ уже принят ✅")
             return
+        logger.info("Webapp order %s received; storing for dedup and admin notification", parsed["order_id"])
         await order_create_webapp(
             db_path=str(config.db_path),
             tg_id=message.from_user.id,
