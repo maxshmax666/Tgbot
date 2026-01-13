@@ -4,11 +4,11 @@
   "type": "module",
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "jose": "^5.2.4",
-    "zod": "^3.23.8"
+    "jose": "^5.10.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
-    "esbuild": "^0.21.5"
+    "esbuild": "^0.27.2"
   },
   "scripts": {
     "build:admin": "esbuild webapp/admin/AdminApp.js --bundle --format=esm --loader:.js=jsx --outfile=webapp/admin/AdminApp.bundle.js --external:https://*"
