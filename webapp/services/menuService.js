@@ -36,21 +36,74 @@ function normalizeMenuItem(item) {
   };
 }
 
+function collectPayloadKeys(value) {
+  if (!value || typeof value !== "object") return [];
+  return Object.keys(value);
+}
+
 function parseMenuPayload(payload) {
-  const itemsPayload = Array.isArray(payload)
+  const rawItemsPayload = Array.isArray(payload)
     ? payload
     : Array.isArray(payload?.items)
       ? payload.items
       : Array.isArray(payload?.items?.items)
         ? payload.items.items
-        : [];
-  const categories = Array.isArray(payload?.categories)
+        : Array.isArray(payload?.data?.items)
+          ? payload.data.items
+          : Array.isArray(payload?.data?.items?.items)
+            ? payload.data.items.items
+            : Array.isArray(payload?.result?.items)
+              ? payload.result.items
+              : undefined;
+  const itemsPayload = Array.isArray(rawItemsPayload) ? rawItemsPayload : [];
+  if (!Array.isArray(rawItemsPayload)) {
+    const diagnostic = {
+      message: "Menu items payload has unexpected shape.",
+      payloadKeys: collectPayloadKeys(payload),
+      dataKeys: collectPayloadKeys(payload?.data),
+      resultKeys: collectPayloadKeys(payload?.result),
+      itemsKeys: collectPayloadKeys(payload?.items),
+    };
+    console.error(diagnostic);
+  }
+  if (!Array.isArray(itemsPayload)) {
+    throw new Error("Menu items payload is not an array after normalization.");
+  }
+
+  const rawCategoriesPayload = Array.isArray(payload?.categories)
     ? payload.categories
     : Array.isArray(payload?.categories?.items)
       ? payload.categories.items
       : Array.isArray(payload?.categories?.items?.items)
         ? payload.categories.items.items
-        : [];
+        : Array.isArray(payload?.data?.categories)
+          ? payload.data.categories
+          : Array.isArray(payload?.data?.categories?.items)
+            ? payload.data.categories.items
+            : Array.isArray(payload?.data?.categories?.items?.items)
+              ? payload.data.categories.items.items
+              : Array.isArray(payload?.result?.categories)
+                ? payload.result.categories
+                : Array.isArray(payload?.result?.categories?.items)
+                  ? payload.result.categories.items
+                  : Array.isArray(payload?.result?.categories?.items?.items)
+                    ? payload.result.categories.items.items
+                    : undefined;
+  const categories = Array.isArray(rawCategoriesPayload) ? rawCategoriesPayload : [];
+  if (!Array.isArray(rawCategoriesPayload)) {
+    const diagnostic = {
+      message: "Menu categories payload has unexpected shape.",
+      payloadKeys: collectPayloadKeys(payload),
+      dataKeys: collectPayloadKeys(payload?.data),
+      resultKeys: collectPayloadKeys(payload?.result),
+      categoriesKeys: collectPayloadKeys(payload?.categories),
+    };
+    console.error(diagnostic);
+  }
+  if (!Array.isArray(categories)) {
+    throw new Error("Menu categories payload is not an array after normalization.");
+  }
+
   const items = itemsPayload.map(normalizeMenuItem).filter((item) => item.id && item.title);
   return { items, categories };
 }
@@ -88,6 +141,8 @@ async function fetchApiJson(url) {
   if (!response.ok) {
     const httpError = new Error(`HTTP ${response.status} for ${url}`);
     httpError.isFallback = response.status >= 500;
+    httpError.status = response.status;
+    httpError.cause = response;
     throw httpError;
   }
   return response.json();
