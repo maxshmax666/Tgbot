@@ -15,21 +15,23 @@ from bot.features.menu.handlers import render_menu
 from bot.features.menu.state import MenuStateStore
 from bot.payments import configure_yookassa, create_payment_card, create_payment_sbp, get_payment_status
 from bot.storage.repos import (
+    admin_payload_upsert,
     cart_add,
     cart_clear,
     cart_decrement,
     cart_get_items,
     cart_snapshot,
     cart_total_price,
+    get_product_by_code,
+    get_product_by_id,
     order_create,
     order_create_webapp,
-    order_get_latest,
     order_exists_by_order_id,
+    order_get_latest,
     order_set_payment,
     order_set_status,
     order_set_status_by_order_id,
     OrderItemInput,
-    admin_payload_upsert,
 )
 from bot.utils.formatting import format_admin_order, format_cart
 from bot.utils.media import build_media, get_placeholder_photo
@@ -51,6 +53,12 @@ def _coerce_amount(value: Any, field_name: str) -> int:
     raise ValueError(f"{field_name} must be a number")
 
 
+def _coerce_optional_amount(value: Any, field_name: str) -> int | None:
+    if value is None:
+        return None
+    return _coerce_amount(value, field_name)
+
+
 def _parse_webapp_order(payload: dict[str, Any]) -> dict[str, Any]:
     if payload.get("type") != "pizza_order_v1":
         raise ValueError("unsupported order type")
@@ -62,21 +70,15 @@ def _parse_webapp_order(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(items_raw, list) or not items_raw:
         raise ValueError("items must be a non-empty list")
 
-    total = _coerce_amount(payload.get("total"), "total")
-    items: list[OrderItemInput] = []
+    total = _coerce_optional_amount(payload.get("total"), "total")
+    items: list[dict[str, Any]] = []
     for item in items_raw:
         if not isinstance(item, dict):
             continue
-        title = str(item.get("title", "")).strip()
-        if not title:
-            continue
         qty = _coerce_amount(item.get("qty"), "qty")
-        price = _coerce_amount(item.get("price"), "price")
-        subtotal_value = qty * price
-        item_id = str(item.get("id", "")).strip() or None
-        items.append(
-            OrderItemInput(item_id=item_id, title=title, qty=qty, price=price, subtotal=subtotal_value)
-        )
+        item_id = str(item.get("id") or item.get("code") or "").strip() or None
+        price = _coerce_optional_amount(item.get("price"), "price")
+        items.append({"item_id": item_id, "qty": qty, "client_price": price})
 
     if not items:
         raise ValueError("no valid items")
@@ -107,6 +109,58 @@ def _parse_webapp_order(payload: dict[str, Any]) -> dict[str, Any]:
         "comment": comment,
         "username": str(user.get("username", "")).strip() or None,
     }
+
+
+async def _recalculate_webapp_items(
+    db_path: str,
+    order_id: str,
+    items: list[dict[str, Any]],
+    client_total: int | None,
+) -> tuple[list[OrderItemInput], int]:
+    recalculated: list[OrderItemInput] = []
+    for item in items:
+        item_id = item.get("item_id")
+        qty = item.get("qty")
+        client_price = item.get("client_price")
+        if not item_id:
+            raise ValueError("Отсутствует идентификатор товара.")
+        if qty is None or qty <= 0:
+            raise ValueError(f"Некорректное количество для товара {item_id}.")
+
+        product = None
+        if str(item_id).isdigit():
+            product = await get_product_by_id(db_path, int(item_id))
+        if product is None:
+            product = await get_product_by_code(db_path, str(item_id))
+        if product is None:
+            raise ValueError(f"Товар {item_id} не найден.")
+
+        if client_price is not None and client_price != product.price:
+            logger.warning(
+                "Webapp price mismatch: order=%s item=%s client=%s db=%s",
+                order_id,
+                item_id,
+                client_price,
+                product.price,
+            )
+
+        subtotal = qty * product.price
+        recalculated.append(
+            OrderItemInput(
+                item_id=str(product.id),
+                title=product.title,
+                qty=qty,
+                price=product.price,
+                subtotal=subtotal,
+            )
+        )
+
+    total = sum(item.subtotal for item in recalculated)
+    if client_total is not None and client_total != total:
+        logger.warning(
+            "Webapp total mismatch: order=%s client=%s db=%s", order_id, client_total, total
+        )
+    return recalculated, total
 
 
 def _format_webapp_order(parsed: dict[str, Any]) -> str:
@@ -346,10 +400,22 @@ async def webapp_order_handler(message: Message, config: Config) -> None:
             await message.answer("Админ-данные сохранены ✅")
             return
         parsed = _parse_webapp_order(payload)
+        recalculated_items, recalculated_total = await _recalculate_webapp_items(
+            str(config.db_path),
+            parsed["order_id"],
+            parsed["items"],
+            parsed["total"],
+        )
+        parsed["items"] = recalculated_items
+        parsed["total"] = recalculated_total
         confirmation = _format_webapp_order(parsed)
-    except (json.JSONDecodeError, ValueError, TypeError) as error:
+    except json.JSONDecodeError as error:
         logger.warning("Invalid web app payload: %s", error)
         await message.answer("Некорректные данные заказа. Проверьте корзину и повторите.")
+        return
+    except (ValueError, TypeError) as error:
+        logger.warning("Invalid web app payload: %s", error)
+        await message.answer(f"Заказ отклонен: {error}")
         return
 
     try:
