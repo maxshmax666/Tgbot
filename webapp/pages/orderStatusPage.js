@@ -7,6 +7,7 @@ const STATUS_LABELS = {
   "order:creating": "Создаём заказ",
   "order:sent": "Заказ отправлен",
   "order:success": "Заказ принят",
+  "order:pending_sync": "Ожидает синхронизации",
   "order:error": "Ошибка отправки",
 };
 

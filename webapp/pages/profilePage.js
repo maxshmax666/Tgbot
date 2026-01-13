@@ -20,6 +20,17 @@ function computeStats(orders) {
   return { totalOrders, totalSpent, avgCheck, favorite };
 }
 
+const STATUS_LABELS = {
+  "order:sent": "Отправлен",
+  "order:pending_sync": "Ожидает синхронизации",
+  "order:error": "Ошибка",
+  "order:success": "Отправлен",
+};
+
+function getStatusLabel(status) {
+  return STATUS_LABELS[status] || "Отправлен";
+}
+
 export function renderProfilePage({ navigate }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div");
@@ -62,7 +73,7 @@ export function renderProfilePage({ navigate }) {
         );
         const status = createElement("div", {
           className: "helper",
-          text: order.status || "order:success",
+          text: getStatusLabel(order.status),
         });
         const items = createElement("div", {
           className: "helper",

@@ -12,6 +12,7 @@ import { createElement, clearElement } from "./ui/dom.js";
 import { createAppShell } from "./ui/appShell.js";
 import { setButtonCurrent } from "./ui/button.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
+import { syncPendingOrders } from "./services/orderSyncService.js";
 
 const app = document.getElementById("app");
 
@@ -94,6 +95,9 @@ function navigate(path) {
 window.appNavigate = navigate;
 
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
+window.addEventListener("online", () => {
+  syncPendingOrders();
+});
 
 const telegramState = initTelegram();
 warning.textContent =
@@ -147,3 +151,4 @@ function renderDebug() {
 
 renderDebug();
 renderRoute(window.location.pathname);
+syncPendingOrders();

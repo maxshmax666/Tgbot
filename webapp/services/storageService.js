@@ -11,6 +11,7 @@ const safeParse = (value, fallback) => {
 export const STORAGE_KEYS = {
   cart: "pt_cart_v1",
   orders: "pt_orders_v1",
+  pendingOrders: "pt_pending_orders_v1",
   favorites: "pt_favs_v1",
   adminAuth: "pt_admin_auth_v1",
   adminMenu: "pt_admin_menu_v1",
@@ -62,6 +63,32 @@ export function addOrder(order) {
   const items = getOrders();
   items.unshift(order);
   storage.write(STORAGE_KEYS.orders, items.slice(0, 50));
+}
+
+export function updateOrderStatus(orderId, status) {
+  if (!orderId) return;
+  const items = getOrders();
+  const index = items.findIndex((item) => item.order_id === orderId);
+  if (index === -1) return;
+  items[index] = { ...items[index], status };
+  storage.write(STORAGE_KEYS.orders, items);
+}
+
+export function getPendingOrders() {
+  const items = storage.read(STORAGE_KEYS.pendingOrders, []);
+  return Array.isArray(items) ? items : [];
+}
+
+export function addPendingOrder(order) {
+  const items = getPendingOrders();
+  items.unshift(order);
+  storage.write(STORAGE_KEYS.pendingOrders, items.slice(0, 50));
+}
+
+export function removePendingOrder(orderId) {
+  if (!orderId) return;
+  const items = getPendingOrders().filter((item) => item.order_id !== orderId);
+  storage.write(STORAGE_KEYS.pendingOrders, items);
 }
 
 export function getFavorites() {

@@ -5,7 +5,7 @@ import { PAYMENT_METHODS, preparePayment, applyPromo, getPromoList } from "../se
 import { sendData, showTelegramAlert, getUser, isTelegram } from "../services/telegramService.js";
 import { clear, getState, subscribeCart, total } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
-import { addOrder, setLastOrderStatus, storage } from "../services/storageService.js";
+import { addOrder, addPendingOrder, setLastOrderStatus, storage } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
 
 const PAYMENT_OPTIONS = [
@@ -284,42 +284,55 @@ export function renderCheckoutPage({ navigate }) {
         try {
           const payment = await preparePayment(order, selectedMethod);
           order.payment = payment;
+          const apiPayload = {
+            order_id: order.order_id,
+            customerName: order.customer.name || "Гость",
+            phone: order.customer.phone,
+            address: order.delivery.address,
+            comment: order.comment,
+            items: order.items.map((item) => ({
+              ...item,
+              id: Number(item.id),
+            })),
+            total: order.total,
+          };
+          let pendingSync = false;
           try {
-            await fetch("/api/public/orders", {
+            const apiResponse = await fetch("/api/public/orders", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({
-                order_id: order.order_id,
-                customerName: order.customer.name || "Гость",
-                phone: order.customer.phone,
-                address: order.delivery.address,
-                comment: order.comment,
-                items: order.items.map((item) => ({
-                  ...item,
-                  id: Number(item.id),
-                })),
-                total: order.total,
-              }),
+              body: JSON.stringify(apiPayload),
             });
+            if (!apiResponse.ok) {
+              pendingSync = true;
+              throw new Error(`API status ${apiResponse.status}`);
+            }
           } catch (apiError) {
+            pendingSync = true;
+            addPendingOrder({
+              order_id: order.order_id,
+              payload: apiPayload,
+              ts: Date.now(),
+            });
             console.warn("Failed to persist order in API", apiError);
           }
           setLastOrderStatus({ status: "order:creating", order_id: order.order_id });
           const sent = sendData(order);
           if (!sent && !isTelegram()) {
-            addOrder({ ...order, status: "order:success" });
-            setLastOrderStatus({ status: "order:success", order_id: order.order_id });
+            const status = pendingSync ? "order:pending_sync" : "order:sent";
+            addOrder({ ...order, status });
+            setLastOrderStatus({ status, order_id: order.order_id });
             clear();
             showToast("Заказ сохранён локально", "success");
             navigate("/order-status");
             return;
           }
-          setLastOrderStatus({ status: sent ? "order:sent" : "order:error", order_id: order.order_id });
+          const status = sent ? (pendingSync ? "order:pending_sync" : "order:sent") : "order:error";
+          setLastOrderStatus({ status, order_id: order.order_id });
           if (!sent) {
             throw new Error("Telegram unavailable");
           }
-          addOrder({ ...order, status: "order:success" });
-          setLastOrderStatus({ status: "order:success", order_id: order.order_id });
+          addOrder({ ...order, status });
           clear();
           showTelegramAlert("Заказ отправлен в бот ✅");
           showToast("Заказ принят, мы скоро свяжемся!", "success");
