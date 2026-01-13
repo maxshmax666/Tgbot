@@ -16,6 +16,7 @@ import {
 import { CSS } from "https://esm.sh/@dnd-kit/utilities@3.2.2";
 import { adminApi } from "../services/adminApi.js";
 import { resolveMediaUrl } from "../services/mediaBase.js";
+import { confirmPopup } from "../services/telegramService.js";
 
 const BLOCK_TYPES = [
   { type: "hero", label: "Hero", defaultProps: { title: "", subtitle: "", buttonLabel: "", buttonLink: "" } },
@@ -244,7 +245,8 @@ function CategoriesView() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Удалить категорию?")) return;
+    const confirmed = await confirmPopup({ message: "Удалить категорию?" });
+    if (!confirmed) return;
     await adminApi.deleteCategory(id);
     await load();
   };
@@ -323,7 +325,8 @@ function MediaLibrary({ onSelect, onClose }) {
   };
 
   const handleDelete = async (key) => {
-    if (!window.confirm("Удалить файл?")) return;
+    const confirmed = await confirmPopup({ message: "Удалить файл?" });
+    if (!confirmed) return;
     await adminApi.deleteMedia(key);
     await load();
   };
@@ -427,7 +430,8 @@ function ProductsView() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Удалить товар?")) return;
+    const confirmed = await confirmPopup({ message: "Удалить товар?" });
+    if (!confirmed) return;
     await adminApi.deleteProduct(id);
     await load();
   };
@@ -729,7 +733,8 @@ function PageBuilder({ page, onRefresh }) {
 
   const deleteSelected = async () => {
     if (!selected) return;
-    if (!window.confirm("Удалить блок?")) return;
+    const confirmed = await confirmPopup({ message: "Удалить блок?" });
+    if (!confirmed) return;
     await adminApi.deletePageBlock(selected.id);
     const updated = blocks.filter((block) => block.id !== selected.id);
     setBlocks(updated);
@@ -863,7 +868,8 @@ function PagesView() {
   };
 
   const handleDelete = async (page) => {
-    if (!window.confirm("Удалить страницу?")) return;
+    const confirmed = await confirmPopup({ message: "Удалить страницу?" });
+    if (!confirmed) return;
     await adminApi.deletePage(page.id);
     setSelectedPage(null);
     await load();
