@@ -47,7 +47,7 @@ def menu_keyboard(
     rows.append(
         [
             InlineKeyboardButton(
-                text="🍕 Открыть магазин",
+                text="🍕 Открыть магазин (внутри Telegram)",
                 web_app=WebAppInfo(url=webapp_url),
             )
         ]
