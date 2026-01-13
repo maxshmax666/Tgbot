@@ -37,8 +37,20 @@ function normalizeMenuItem(item) {
 }
 
 function parseMenuPayload(payload) {
-  const itemsPayload = Array.isArray(payload) ? payload : payload?.items || [];
-  const categories = Array.isArray(payload?.categories) ? payload.categories : [];
+  const itemsPayload = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload?.items?.items)
+        ? payload.items.items
+        : [];
+  const categories = Array.isArray(payload?.categories)
+    ? payload.categories
+    : Array.isArray(payload?.categories?.items)
+      ? payload.categories.items
+      : Array.isArray(payload?.categories?.items?.items)
+        ? payload.categories.items.items
+        : [];
   const items = itemsPayload.map(normalizeMenuItem).filter((item) => item.id && item.title);
   return { items, categories };
 }
@@ -83,11 +95,14 @@ async function fetchApiJson(url) {
 
 export async function fetchMenu() {
   try {
-    const [items, categories] = await Promise.all([
+    const [productsResponse, categoriesResponse] = await Promise.all([
       fetchApiJson("/api/public/products"),
       fetchApiJson("/api/public/categories"),
     ]);
-    return parseMenuPayload({ items, categories });
+    return parseMenuPayload({
+      items: productsResponse.items ?? productsResponse,
+      categories: categoriesResponse.items ?? categoriesResponse,
+    });
   } catch (error) {
     if (!isFallbackEligible(error)) {
       throw error;
