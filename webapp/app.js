@@ -96,7 +96,9 @@ window.appNavigate = navigate;
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
 
 const telegramState = initTelegram();
-warning.hidden = telegramState.available;
+warning.textContent =
+  "Откройте через кнопку «🍕 Открыть магазин» в боте, иначе Telegram функции недоступны.";
+warning.hidden = telegramState.available && !telegramState.missingInitData;
 
 subscribeCart(() => {
   const itemsCount = count();

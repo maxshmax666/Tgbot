@@ -2,14 +2,34 @@ let mainButtonHandler = null;
 
 const getWebApp = () => window.Telegram?.WebApp || null;
 
-export function isTelegram() {
+const hasValidPlatform = (webApp) =>
+  Boolean(
+    webApp &&
+      typeof webApp.platform === "string" &&
+      webApp.platform.trim().length > 0 &&
+      typeof webApp.version === "string" &&
+      webApp.version.trim().length > 0
+  );
+
+const hasInitData = (webApp) => Boolean(webApp?.initData);
+
+export function getTelegramState() {
   const webApp = getWebApp();
-  return Boolean(webApp?.initData || webApp?.initDataUnsafe?.user);
+  const available = hasValidPlatform(webApp);
+  return {
+    available,
+    missingInitData: available && !hasInitData(webApp),
+  };
+}
+
+export function isTelegram() {
+  return getTelegramState().available;
 }
 
 export function initTelegram() {
   const webApp = getWebApp();
-  if (!webApp || !isTelegram()) return { available: false };
+  const state = getTelegramState();
+  if (!webApp || !state.available) return { available: false, missingInitData: false };
   try {
     webApp.ready();
     webApp.expand();
@@ -22,7 +42,7 @@ export function initTelegram() {
   } catch (error) {
     console.warn("Telegram init failed", error);
   }
-  return { available: true };
+  return state;
 }
 
 export function getUser() {
