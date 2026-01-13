@@ -11,6 +11,7 @@
     "esbuild": "^0.27.2"
   },
   "scripts": {
-    "build:admin": "esbuild webapp/admin/AdminApp.js --bundle --format=esm --loader:.js=jsx --outfile=webapp/admin/AdminApp.bundle.js --external:https://*"
+    "build:admin": "esbuild webapp/admin/AdminApp.js --bundle --format=esm --loader:.js=jsx --outfile=webapp/admin/AdminApp.bundle.js --external:https://*",
+    "build:webapp": "esbuild webapp/app.js --bundle --format=esm --loader:.js=jsx --outfile=webapp/app.bundle.js --external:https://*"
   }
 }
