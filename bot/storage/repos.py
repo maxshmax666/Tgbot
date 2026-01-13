@@ -244,6 +244,35 @@ async def get_product_by_id(db_path: str, product_id: int) -> Product | None:
         )
 
 
+async def get_product_by_code(db_path: str, code: str) -> Product | None:
+    async with aiosqlite.connect(db_path) as conn:
+        async with conn.execute(
+            """
+            SELECT id, code, title, description, details, price, category, category_title,
+                   photo_dir, is_popular, is_new
+            FROM products
+            WHERE code = ?
+            """,
+            (code,),
+        ) as cur:
+            row = await cur.fetchone()
+        if not row:
+            return None
+        return Product(
+            id=row[0],
+            code=row[1],
+            title=row[2],
+            description=row[3],
+            details=row[4],
+            price=row[5],
+            category=row[6],
+            category_title=row[7],
+            photo_dir=row[8],
+            is_popular=bool(row[9]),
+            is_new=bool(row[10]),
+        )
+
+
 async def get_categories(db_path: str) -> list[Category]:
     async with aiosqlite.connect(db_path) as conn:
         categories: list[Category] = []
