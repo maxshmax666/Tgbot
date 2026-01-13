@@ -41,20 +41,19 @@ function collectPayloadKeys(value) {
   return Object.keys(value);
 }
 
+function firstArrayCandidate(...candidates) {
+  return candidates.find(Array.isArray);
+}
+
 function parseMenuPayload(payload) {
-  const rawItemsPayload = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.items)
-      ? payload.items
-      : Array.isArray(payload?.items?.items)
-        ? payload.items.items
-        : Array.isArray(payload?.data?.items)
-          ? payload.data.items
-          : Array.isArray(payload?.data?.items?.items)
-            ? payload.data.items.items
-            : Array.isArray(payload?.result?.items)
-              ? payload.result.items
-              : undefined;
+  const rawItemsPayload = firstArrayCandidate(
+    payload,
+    payload?.items,
+    payload?.items?.items,
+    payload?.data?.items,
+    payload?.data?.items?.items,
+    payload?.result?.items
+  );
   const itemsPayload = Array.isArray(rawItemsPayload) ? rawItemsPayload : [];
   if (!Array.isArray(rawItemsPayload)) {
     const diagnostic = {
@@ -70,25 +69,21 @@ function parseMenuPayload(payload) {
     throw new Error("Menu items payload is not an array after normalization.");
   }
 
-  const rawCategoriesPayload = Array.isArray(payload?.categories)
-    ? payload.categories
-    : Array.isArray(payload?.categories?.items)
-      ? payload.categories.items
-      : Array.isArray(payload?.categories?.items?.items)
-        ? payload.categories.items.items
-        : Array.isArray(payload?.data?.categories)
-          ? payload.data.categories
-          : Array.isArray(payload?.data?.categories?.items)
-            ? payload.data.categories.items
-            : Array.isArray(payload?.data?.categories?.items?.items)
-              ? payload.data.categories.items.items
-              : Array.isArray(payload?.result?.categories)
-                ? payload.result.categories
-                : Array.isArray(payload?.result?.categories?.items)
-                  ? payload.result.categories.items
-                  : Array.isArray(payload?.result?.categories?.items?.items)
-                    ? payload.result.categories.items.items
-                    : undefined;
+  const rawCategoriesPayload = firstArrayCandidate(
+    payload?.categories,
+    payload?.categories?.items,
+    payload?.categories?.items?.items,
+    payload?.data?.items,
+    payload?.data?.items?.items,
+    payload?.data?.categories,
+    payload?.data?.categories?.items,
+    payload?.data?.categories?.items?.items,
+    payload?.result?.items,
+    payload?.result?.items?.items,
+    payload?.result?.categories,
+    payload?.result?.categories?.items,
+    payload?.result?.categories?.items?.items
+  );
   const categories = Array.isArray(rawCategoriesPayload) ? rawCategoriesPayload : [];
   if (!Array.isArray(rawCategoriesPayload)) {
     const diagnostic = {
@@ -162,6 +157,14 @@ export async function fetchMenu() {
     if (!isFallbackEligible(error)) {
       throw error;
     }
-    return fetchLocalMenu();
+    try {
+      return await fetchLocalMenu();
+    } catch (fallbackError) {
+      const combinedError = new Error("Menu fetch failed (API and local fallback).");
+      combinedError.cause = { api: error, fallback: fallbackError };
+      combinedError.apiError = error;
+      combinedError.fallbackError = fallbackError;
+      throw combinedError;
+    }
   }
 }
