@@ -3,8 +3,9 @@
 ## Setup Termux
 
 Минимальные требования:
-- Python 3.12.8 (см. `.python-version`)
+- Python >=3.10,<3.13 (см. `.python-version` для локальной версии)
 - Termux (Android)
+Причина: бинарные колёса PyO3/pydantic-core не публикуются для всех версий Python за пределами этого диапазона.
 
 ### Установка
 

@@ -1,3 +1,4 @@
+# Requires Python >=3.10,<3.13
 aiogram==3.5.0
 aiosmtplib==3.0.1
 aiosqlite==0.20.0
