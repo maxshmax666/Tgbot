@@ -5,14 +5,30 @@ import { createSection } from "../ui/section.js";
 import { formatPrice } from "../services/format.js";
 import { subscribeCart, setQty, remove, total, getState } from "../store/cartStore.js";
 import { showToast } from "../ui/toast.js";
+import { applyImageFallback, PLACEHOLDER_IMAGE } from "../ui/image.js";
 
 function createCartItemRow(item) {
   const row = createSection({ className: "cart-item" });
   const header = createElement("div", { className: "cart-row" });
-  const info = createElement("div");
-  const title = createElement("div", { text: item.title });
-  const price = createElement("div", { className: "helper", text: formatPrice(item.price) });
-  info.append(title, price);
+  const product = createElement("div", { className: "cart-cell cart-product" });
+  const productLabel = createElement("span", { className: "cart-cell-label", text: "Товар" });
+  const previewSrc = item.image || PLACEHOLDER_IMAGE;
+  const preview = createElement("img", {
+    className: "cart-preview",
+    attrs: { src: previewSrc, alt: item.title || "Пицца" },
+  });
+  applyImageFallback(preview);
+  const title = createElement("div", { className: "cart-title", text: item.title });
+  product.append(productLabel, preview, title);
+
+  const price = createElement("div", { className: "cart-cell cart-price" });
+  price.append(
+    createElement("span", { className: "cart-cell-label", text: "Цена" }),
+    createElement("span", { text: formatPrice(item.price) })
+  );
+
+  const qtyCell = createElement("div", { className: "cart-cell cart-qty" });
+  qtyCell.appendChild(createElement("span", { className: "cart-cell-label", text: "Количество" }));
 
   const controls = createElement("div", { className: "qty-controls" });
   const dec = createButton({
@@ -32,18 +48,29 @@ function createCartItemRow(item) {
   });
 
   controls.append(dec, qty, inc);
-  header.append(info, controls);
+  qtyCell.appendChild(controls);
+
+  const lineTotal = item.price * item.qty;
+  const sum = createElement("div", { className: "cart-cell cart-sum" });
+  sum.append(
+    createElement("span", { className: "cart-cell-label", text: "Сумма" }),
+    createElement("span", { text: formatPrice(lineTotal) })
+  );
+
+  header.append(product, price, qtyCell, sum);
 
   const removeButton = createButton({
     label: "Удалить",
     variant: "ghost",
+    className: "cart-remove",
+    ariaLabel: `Удалить ${item.title}`,
     onClick: () => {
       remove(item.id);
       showToast("Позиция удалена", "info");
     },
   });
 
-  row.append(header, removeButton);
+  row.append(removeButton, header);
   return row;
 }
 
@@ -69,7 +96,15 @@ export function renderCartPage({ navigate }) {
       return;
     }
 
-    const list = createElement("div", { className: "list" });
+    const list = createElement("div", { className: "list cart-list" });
+    const listHeader = createElement("div", { className: "cart-header" });
+    listHeader.append(
+      createElement("span", { text: "Товар" }),
+      createElement("span", { text: "Цена" }),
+      createElement("span", { text: "Количество" }),
+      createElement("span", { text: "Сумма" })
+    );
+    content.appendChild(listHeader);
     state.items.forEach((item) => list.appendChild(createCartItemRow(item)));
     content.appendChild(list);
 
@@ -80,6 +115,7 @@ export function renderCartPage({ navigate }) {
     summary.appendChild(
       createButton({
         label: "Оформить заказ",
+        className: "cart-checkout",
         onClick: () => navigate("/checkout"),
       })
     );
