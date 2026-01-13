@@ -4,6 +4,5 @@
 /profile /index.html 200
 /admin /index.html 200
 /admin/login /index.html 200
-/admin/* /index.html 200
 /order-status /index.html 200
 /* /index.html 200
