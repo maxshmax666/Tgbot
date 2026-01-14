@@ -3,6 +3,7 @@ import { fetchMenu } from "../services/menuService.js";
 const state = {
   items: [],
   categories: [],
+  source: "api",
   status: "idle",
   error: null,
 };
@@ -30,6 +31,7 @@ export async function loadMenu() {
     const data = await fetchMenu();
     state.items = data.items;
     state.categories = data.categories;
+    state.source = data.source ?? "api";
     state.status = "loaded";
     notify();
     return data.items;

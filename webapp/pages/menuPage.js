@@ -131,8 +131,8 @@ export function renderMenuPage({ navigate }) {
     if (!state.items.length) {
       content.appendChild(
         createEmptyState({
-          title: "Меню временно пустое",
-          description: "Мы уже обновляем ассортимент. Проверьте чуть позже.",
+          title: "Меню пустое",
+          description: "Добавьте товары в админке.",
         })
       );
       return;

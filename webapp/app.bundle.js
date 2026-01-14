@@ -869,16 +869,28 @@ async function fetchMenu() {
       fetchApiJson("/api/public/products"),
       fetchApiJson("/api/public/categories")
     ]);
-    return parseMenuPayload({
+    const apiMenu = parseMenuPayload({
       items: productsResponse.items ?? productsResponse,
       categories: categoriesResponse.items ?? categoriesResponse
     });
+    if (!apiMenu.items.length) {
+      try {
+        const localMenu = await fetchLocalMenu();
+        if (localMenu.items.length) {
+          return { ...localMenu, source: "local" };
+        }
+      } catch (localError) {
+        console.warn("Local menu fallback failed after empty API payload.", localError);
+      }
+    }
+    return { ...apiMenu, source: "api" };
   } catch (error) {
     if (!isFallbackEligible(error)) {
       throw error;
     }
     try {
-      return await fetchLocalMenu();
+      const localMenu = await fetchLocalMenu();
+      return { ...localMenu, source: "local" };
     } catch (fallbackError) {
       const combinedError = new Error("Menu fetch failed (API and local fallback).");
       combinedError.cause = { api: error, fallback: fallbackError };
@@ -893,6 +905,7 @@ async function fetchMenu() {
 var state2 = {
   items: [],
   categories: [],
+  source: "api",
   status: "idle",
   error: null
 };
@@ -916,6 +929,7 @@ async function loadMenu() {
     const data = await fetchMenu();
     state2.items = data.items;
     state2.categories = data.categories;
+    state2.source = data.source ?? "api";
     state2.status = "loaded";
     notify();
     return data.items;
@@ -1096,8 +1110,8 @@ function renderMenuPage({ navigate: navigate2 }) {
     if (!state3.items.length) {
       content2.appendChild(
         createEmptyState({
-          title: "\u041C\u0435\u043D\u044E \u0432\u0440\u0435\u043C\u0435\u043D\u043D\u043E \u043F\u0443\u0441\u0442\u043E\u0435",
-          description: "\u041C\u044B \u0443\u0436\u0435 \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u0435\u043C \u0430\u0441\u0441\u043E\u0440\u0442\u0438\u043C\u0435\u043D\u0442. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u0447\u0443\u0442\u044C \u043F\u043E\u0437\u0436\u0435."
+          title: "\u041C\u0435\u043D\u044E \u043F\u0443\u0441\u0442\u043E\u0435",
+          description: "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 \u0442\u043E\u0432\u0430\u0440\u044B \u0432 \u0430\u0434\u043C\u0438\u043D\u043A\u0435."
         })
       );
       return;
