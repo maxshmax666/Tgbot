@@ -131,6 +131,15 @@ function updateOrderStatus(orderId, status) {
   items[index] = { ...items[index], status };
   storage.write(STORAGE_KEYS.orders, items);
 }
+function updateOrderStatusFromApi(orderId, status, updatedAt) {
+  if (!orderId || !status) return;
+  updateOrderStatus(orderId, status);
+  setLastOrderStatus({
+    status,
+    order_id: orderId,
+    updated_at: updatedAt
+  });
+}
 function getPendingOrders() {
   const items = storage.read(STORAGE_KEYS.pendingOrders, []);
   return Array.isArray(items) ? items : [];
@@ -2156,6 +2165,10 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
   const root = createElement("section", { className: "list" });
   const content2 = createElement("div");
   root.appendChild(content2);
+  const baseDelay = 2e3;
+  let retryDelay = baseDelay;
+  let retryTimer = null;
+  let transientError = null;
   const resolveQrSrc = (confirmation) => {
     const raw = confirmation?.confirmation_data || confirmation?.confirmation_url;
     if (!raw) return null;
@@ -2186,6 +2199,14 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
         text: status ? STATUS_LABELS2[status.status] || status.status : "\u041D\u0435\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0437\u0430\u043A\u0430\u0437\u0430."
       })
     );
+    if (transientError) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: transientError
+        })
+      );
+    }
     if (latest) {
       panel.appendChild(
         createElement("div", {
@@ -2250,8 +2271,42 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
     );
     content2.appendChild(panel);
   };
+  const poll = async () => {
+    const orders = getOrders();
+    const latest = orders[0];
+    const orderId = latest?.order_id;
+    if (!orderId) return;
+    try {
+      const res = await fetch(`/api/public/orders/${encodeURIComponent(orderId)}`);
+      if (res.status === 404) {
+        transientError = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C, \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u043C \u043F\u043E\u0437\u0436\u0435";
+      } else if (!res.ok) {
+        throw new Error(`Status ${res.status}`);
+      } else {
+        const data = await res.json();
+        updateOrderStatusFromApi(data.order_id, data.status, data.updated_at);
+        transientError = null;
+      }
+    } catch (error) {
+      console.warn("Order status poll failed", error);
+      transientError = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C, \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u043C \u043F\u043E\u0437\u0436\u0435";
+    } finally {
+      render();
+      retryDelay = Math.min(Math.round(retryDelay * 1.6), 3e4);
+      retryTimer = setTimeout(poll, retryDelay);
+    }
+  };
   render();
-  return { element: root };
+  retryTimer = setTimeout(poll, retryDelay);
+  return {
+    element: root,
+    cleanup: () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    }
+  };
 }
 
 // webapp/services/pagesService.js
