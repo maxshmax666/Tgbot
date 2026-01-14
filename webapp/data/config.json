@@ -9,5 +9,8 @@
   "adminPinHash": null,
   "adminTgId": null,
   "promoPickupDiscount": 10,
-  "deliveryZones": []
+  "deliveryZones": [],
+  "deliveryGeoEnabled": false,
+  "deliveryPostalEnabled": false,
+  "defaultDeliveryZoneId": null
 }

@@ -960,7 +960,10 @@ var DEFAULT_CONFIG = {
   adminPinHash: null,
   adminTgId: null,
   promoPickupDiscount: 10,
-  deliveryZones: []
+  deliveryZones: [],
+  deliveryGeoEnabled: false,
+  deliveryPostalEnabled: false,
+  defaultDeliveryZoneId: null
 };
 async function fetchConfig() {
   if (cachedConfig) return cachedConfig;
@@ -1170,12 +1173,6 @@ function renderMenuPage({ navigate: navigate2 }) {
     });
     contacts.append(callLink, chatLink);
     banner.appendChild(contacts);
-    const grid = createElement("div", { className: "menu-grid" });
-    const filtered = state3.items.filter((item) => item.isAvailable !== false).filter((item) => {
-      if (currentFilter === "favorite") return favorites.has(item.id);
-      if (currentFilter === "all") return true;
-      return String(item.categoryId || "") === currentFilter;
-    }).filter((item) => searchValue ? item.title.toLowerCase().includes(searchValue) : true);
     const orders = getOrders();
     const topMap = /* @__PURE__ */ new Map();
     orders.forEach((order) => {
@@ -1185,8 +1182,16 @@ function renderMenuPage({ navigate: navigate2 }) {
     });
     const topIds = Array.from(topMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
     const recommended = state3.items.filter((item) => topIds.includes(item.id));
+    const recommendedIds = new Set(recommended.map((item) => item.id));
+    const showRecommended = recommended.length > 0;
+    const grid = createElement("div", { className: "menu-grid" });
+    const filtered = state3.items.filter((item) => item.isAvailable !== false).filter((item) => {
+      if (currentFilter === "favorite") return favorites.has(item.id);
+      if (currentFilter === "all") return true;
+      return String(item.categoryId || "") === currentFilter;
+    }).filter((item) => searchValue ? item.title.toLowerCase().includes(searchValue) : true).filter((item) => !showRecommended || !recommendedIds.has(item.id));
     content2.append(banner, searchInput, filtersRow);
-    if (recommended.length) {
+    if (showRecommended) {
       const recTitle = createElement("h3", { className: "section-title", text: "\u0422\u043E\u043F \u043F\u0440\u043E\u0434\u0430\u0436" });
       const recGrid = createElement("div", { className: "menu-grid" });
       recommended.forEach((item) => recGrid.appendChild(createMenuCard(item, navigate2, favorites)));
@@ -1335,13 +1340,60 @@ async function preparePayment(order, method) {
   if (!order || !method) {
     return { status: PAYMENT_STATUSES.failed, message: "\u041C\u0435\u0442\u043E\u0434 \u043E\u043F\u043B\u0430\u0442\u044B \u043D\u0435 \u0432\u044B\u0431\u0440\u0430\u043D" };
   }
-  return {
-    status: PAYMENT_STATUSES.pending,
-    method,
-    metadata: {
-      orderId: order.order_id
+  if (method === PAYMENT_METHODS.cash) {
+    return {
+      status: PAYMENT_STATUSES.pending,
+      method,
+      payment_id: null,
+      metadata: {
+        orderId: order.order_id
+      }
+    };
+  }
+  try {
+    const response = await fetch("/api/public/payments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        order_id: order.order_id,
+        method,
+        total: Number(order.total),
+        items: order.items.map((item) => ({
+          id: Number(item.id),
+          qty: Number(item.qty)
+        })),
+        customer: {
+          name: order.customer?.name,
+          phone: order.customer?.phone
+        }
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload?.error?.message || "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F \u043F\u043B\u0430\u0442\u0435\u0436\u0430";
+      throw new Error(message);
     }
-  };
+    return {
+      status: payload.status || PAYMENT_STATUSES.pending,
+      method,
+      payment_id: payload.payment_id,
+      payment_url: payload.payment_url,
+      confirmation: payload.confirmation,
+      metadata: {
+        orderId: order.order_id
+      }
+    };
+  } catch (error) {
+    console.error("Payment create failed", error);
+    return {
+      status: PAYMENT_STATUSES.failed,
+      method,
+      message: error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u043B\u0430\u0442\u0435\u0436",
+      metadata: {
+        orderId: order.order_id
+      }
+    };
+  }
 }
 function getPromoList(storageService) {
   if (!storageService) return [];
@@ -1369,8 +1421,8 @@ function applyPromo(total2, promo) {
 // webapp/pages/checkoutPage.js
 var PAYMENT_OPTIONS = [
   { id: PAYMENT_METHODS.cash, label: "\u041D\u0430\u043B\u0438\u0447\u043D\u044B\u0435", enabled: true },
-  { id: PAYMENT_METHODS.sbp, label: "\u0421\u0411\u041F (QR)", enabled: false },
-  { id: PAYMENT_METHODS.card, label: "\u041A\u0430\u0440\u0442\u0430", enabled: false }
+  { id: PAYMENT_METHODS.sbp, label: "\u0421\u0411\u041F (QR)", enabled: true },
+  { id: PAYMENT_METHODS.card, label: "\u041A\u0430\u0440\u0442\u0430", enabled: true }
 ];
 function renderOrderItems(container2, items) {
   const list = createElement("div", { className: "list" });
@@ -1393,6 +1445,10 @@ function renderCheckoutPage({ navigate: navigate2 }) {
   let config = null;
   let promoApplied = null;
   let deliveryType = "delivery";
+  let geoData = null;
+  let geoConsent = false;
+  let geoStatus = "idle";
+  let geoError = "";
   const renderState = (state3) => {
     clearElement(content2);
     if (!state3.items.length) {
@@ -1483,6 +1539,78 @@ function renderCheckoutPage({ navigate: navigate2 }) {
       className: "input",
       attrs: { type: "text", placeholder: "\u0410\u0434\u0440\u0435\u0441 \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438" }
     });
+    const postalEnabled = Boolean(config?.deliveryPostalEnabled);
+    const geoEnabled = Boolean(config?.deliveryGeoEnabled);
+    const deliveryZoneId = Number.isFinite(Number(config?.defaultDeliveryZoneId)) ? Number(config?.defaultDeliveryZoneId) : null;
+    const postalInput = createElement("input", {
+      className: "input",
+      attrs: { type: "text", placeholder: "\u0418\u043D\u0434\u0435\u043A\u0441" }
+    });
+    const postalHint = createElement("div", {
+      className: "helper",
+      text: "\u0418\u043D\u0434\u0435\u043A\u0441 \u043D\u0443\u0436\u0435\u043D \u0434\u043B\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u0437\u043E\u043D\u044B \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438."
+    });
+    const geoConsentToggle = createElement("label", { className: "panel radio-row" });
+    const geoConsentInput = createElement("input", {
+      attrs: { type: "checkbox" }
+    });
+    geoConsentInput.checked = geoConsent;
+    geoConsentInput.addEventListener("change", () => {
+      geoConsent = geoConsentInput.checked;
+    });
+    geoConsentToggle.append(
+      geoConsentInput,
+      createElement("span", { text: "\u0420\u0430\u0437\u0440\u0435\u0448\u0430\u044E \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435" })
+    );
+    const geoStatusText = createElement("div", {
+      className: "helper",
+      text: geoStatus === "ready" && geoData ? `\u041C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E: ${geoData.lat.toFixed(5)}, ${geoData.lng.toFixed(5)}` : geoStatus === "loading" ? "\u041E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u0435\u043C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435..." : geoStatus === "error" ? geoError || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435." : "\u0413\u0435\u043E\u043B\u043E\u043A\u0430\u0446\u0438\u044F \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0435\u0442\u0441\u044F \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u0437\u043E\u043D\u044B \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438."
+    });
+    const geoButton = createButton({
+      label: "\u041E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435",
+      variant: "secondary",
+      onClick: () => {
+        if (!geoConsent) {
+          geoError = "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435 \u0441\u043E\u0433\u043B\u0430\u0441\u0438\u0435 \u043D\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435 \u0433\u0435\u043E\u043B\u043E\u043A\u0430\u0446\u0438\u0438.";
+          geoStatus = "error";
+          geoStatusText.textContent = geoError;
+          showToast(geoError, "info");
+          return;
+        }
+        if (!navigator?.geolocation) {
+          geoError = "\u0413\u0435\u043E\u043B\u043E\u043A\u0430\u0446\u0438\u044F \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u0430 \u0432 \u044D\u0442\u043E\u043C \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0435.";
+          geoStatus = "error";
+          geoStatusText.textContent = geoError;
+          showToast(geoError, "error");
+          return;
+        }
+        setButtonLoading(geoButton, true);
+        geoStatus = "loading";
+        geoStatusText.textContent = "\u041E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u0435\u043C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435...";
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            geoData = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            geoError = "";
+            geoStatus = "ready";
+            geoStatusText.textContent = `\u041C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E: ${geoData.lat.toFixed(5)}, ${geoData.lng.toFixed(5)}`;
+            setButtonLoading(geoButton, false);
+            showToast("\u041C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0435\u043D\u043E", "success");
+          },
+          (geoErr) => {
+            geoData = null;
+            geoStatus = "error";
+            geoError = geoErr?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435.";
+            geoStatusText.textContent = geoError;
+            setButtonLoading(geoButton, false);
+            showToast(geoError, "error");
+          },
+          { enableHighAccuracy: true, timeout: 1e4, maximumAge: 0 }
+        );
+      }
+    });
     const commentLabel = createElement("label", { className: "helper", text: "\u041A\u043E\u043C\u043C\u0435\u043D\u0442\u0430\u0440\u0438\u0439 \u043A \u0437\u0430\u043A\u0430\u0437\u0443" });
     const commentInput = createElement("textarea", {
       className: "input",
@@ -1559,6 +1687,18 @@ function renderCheckoutPage({ navigate: navigate2 }) {
           error.hidden = false;
           return;
         }
+        const postalCode = postalInput.value.trim();
+        const hasGeo = geoData && Number.isFinite(geoData.lat) && Number.isFinite(geoData.lng);
+        if (deliveryType === "delivery" && postalEnabled && !postalCode) {
+          error.textContent = "\u0423\u043A\u0430\u0436\u0438\u0442\u0435 \u0438\u043D\u0434\u0435\u043A\u0441, \u0447\u0442\u043E\u0431\u044B \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u043E\u043D\u0443 \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438.";
+          error.hidden = false;
+          return;
+        }
+        if (deliveryType === "delivery" && geoEnabled && !hasGeo) {
+          error.textContent = "\u041D\u0443\u0436\u043D\u043E \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u0438\u0442\u044C \u043C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0438 \u0437\u043E\u043D\u044B \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438.";
+          error.hidden = false;
+          return;
+        }
         if (deliveryType === "delivery" && Array.isArray(config?.deliveryZones) && config.deliveryZones.length) {
           const address = addressInput.value.trim().toLowerCase();
           const match = config.deliveryZones.some((zone) => address.includes(String(zone).toLowerCase()));
@@ -1600,7 +1740,10 @@ function renderCheckoutPage({ navigate: navigate2 }) {
           customer: { phone, name: nameInput.value.trim() || void 0 },
           delivery: {
             type: deliveryType,
-            address: deliveryType === "delivery" ? addressInput.value.trim() : void 0
+            address: deliveryType === "delivery" ? addressInput.value.trim() : void 0,
+            postalCode: deliveryType === "delivery" ? postalCode || void 0 : void 0,
+            geo: deliveryType === "delivery" && hasGeo ? { ...geoData } : void 0,
+            zoneId: deliveryType === "delivery" ? deliveryZoneId || void 0 : void 0
           },
           payment: { method: selectedMethod, status: "pending" },
           items: state3.items.map((item) => ({
@@ -1617,12 +1760,32 @@ function renderCheckoutPage({ navigate: navigate2 }) {
         try {
           const payment = await preparePayment(order, selectedMethod);
           order.payment = payment;
+          if (payment.status === "failed") {
+            const status2 = "order:pending_sync";
+            addOrder({ ...order, status: status2 });
+            setLastOrderStatus({
+              status: status2,
+              order_id: order.order_id,
+              request_id: order.request_id || void 0
+            });
+            error.textContent = payment.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u043B\u0430\u0442\u0435\u0436. \u0417\u0430\u043A\u0430\u0437 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E.";
+            error.hidden = false;
+            showToast(error.textContent, "error");
+            navigate2("/order-status");
+            return;
+          }
           const apiPayload = {
             order_id: order.order_id,
             customerName: order.customer.name || "\u0413\u043E\u0441\u0442\u044C",
             phone: order.customer.phone,
             address: order.delivery.address,
             comment: order.comment,
+            payment_id: order.payment.payment_id,
+            payment_status: order.payment.status,
+            payment_method: order.payment.method,
+            deliveryZoneId: deliveryType === "delivery" ? deliveryZoneId || null : null,
+            postalCode: deliveryType === "delivery" ? postalCode || null : null,
+            geo: deliveryType === "delivery" && hasGeo ? { ...geoData } : null,
             items: order.items.map((item) => ({
               ...item,
               id: Number(item.id)
@@ -1640,9 +1803,24 @@ function renderCheckoutPage({ navigate: navigate2 }) {
             if (requestId) {
               order.request_id = requestId;
             }
+            let apiErrorPayload = null;
             if (!apiResponse.ok) {
+              try {
+                apiErrorPayload = await apiResponse.json();
+              } catch (parseError) {
+                apiErrorPayload = null;
+              }
+              const apiReason = apiErrorPayload?.error?.details?.reason;
+              const apiMessage = apiErrorPayload?.error?.message;
+              if (apiReason === "delivery_zone_mismatch") {
+                const message = apiMessage || "\u0410\u0434\u0440\u0435\u0441 \u0432\u043D\u0435 \u0437\u043E\u043D\u044B \u0434\u043E\u0441\u0442\u0430\u0432\u043A\u0438.";
+                error.textContent = message;
+                error.hidden = false;
+                showToast(message, "error");
+                return;
+              }
               pendingSync = true;
-              throw new Error(`API status ${apiResponse.status}`);
+              throw new Error(apiMessage || `API status ${apiResponse.status}`);
             }
           } catch (apiError) {
             pendingSync = true;
@@ -1686,6 +1864,10 @@ function renderCheckoutPage({ navigate: navigate2 }) {
           clear();
           showTelegramAlert("\u0417\u0430\u043A\u0430\u0437 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u0432 \u0431\u043E\u0442 \u2705");
           showToast("\u0417\u0430\u043A\u0430\u0437 \u043F\u0440\u0438\u043D\u044F\u0442, \u043C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F!", "success");
+          if (order.payment?.confirmation?.type === "redirect" && order.payment?.payment_url) {
+            window.location.assign(order.payment.payment_url);
+            return;
+          }
           navigate2("/order-status");
         } catch (err) {
           console.error("Checkout failed", err);
@@ -1714,6 +1896,21 @@ function renderCheckoutPage({ navigate: navigate2 }) {
     );
     if (deliveryType === "delivery") {
       form.append(createElement("label", { className: "helper", text: "\u0410\u0434\u0440\u0435\u0441" }), addressInput);
+      if (postalEnabled) {
+        form.append(
+          createElement("label", { className: "helper", text: "\u0418\u043D\u0434\u0435\u043A\u0441" }),
+          postalInput,
+          postalHint
+        );
+      }
+      if (geoEnabled) {
+        form.append(
+          createElement("label", { className: "helper", text: "\u041C\u0435\u0441\u0442\u043E\u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435" }),
+          geoConsentToggle,
+          geoButton,
+          geoStatusText
+        );
+      }
     }
     summary.append(
       form,
@@ -1959,12 +2156,23 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
   const root = createElement("section", { className: "list" });
   const content2 = createElement("div");
   root.appendChild(content2);
+  const resolveQrSrc = (confirmation) => {
+    const raw = confirmation?.confirmation_data || confirmation?.confirmation_url;
+    if (!raw) return null;
+    if (raw.startsWith("data:")) return raw;
+    if (/^[A-Za-z0-9+/=]+$/.test(raw)) {
+      return `data:image/png;base64,${raw}`;
+    }
+    if (/^https?:\/\//.test(raw)) return raw;
+    return null;
+  };
   const render = () => {
     clearElement(content2);
     const status = getLastOrderStatus();
     const orders = getOrders();
     const latest = orders[0];
     const requestId = latest?.request_id || status?.request_id;
+    const payment = latest?.payment;
     const panel = createElement("div", { className: "panel" });
     panel.appendChild(
       createElement("h2", {
@@ -1986,11 +2194,51 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
         })
       );
     }
+    if (payment?.payment_id) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `\u041F\u043B\u0430\u0442\u0451\u0436: ${payment.payment_id} (${payment.status || "pending"})`
+        })
+      );
+    }
     if (requestId) {
       panel.appendChild(
         createElement("div", {
           className: "helper",
           text: `Request ID: ${requestId}`
+        })
+      );
+    }
+    if (payment?.confirmation?.type === "qr") {
+      const qrSrc = resolveQrSrc(payment.confirmation);
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: "\u0421\u0411\u041F: \u043E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 QR-\u043A\u043E\u0434 \u0434\u043B\u044F \u043E\u043F\u043B\u0430\u0442\u044B."
+        })
+      );
+      if (qrSrc) {
+        panel.appendChild(
+          createElement("img", {
+            attrs: { src: qrSrc, alt: "QR \u0434\u043B\u044F \u043E\u043F\u043B\u0430\u0442\u044B", style: "max-width: 220px; width: 100%;" }
+          })
+        );
+      } else if (payment.payment_url) {
+        panel.appendChild(
+          createElement("a", {
+            className: "helper",
+            text: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0443 \u0434\u043B\u044F \u043E\u043F\u043B\u0430\u0442\u044B",
+            attrs: { href: payment.payment_url, target: "_blank", rel: "noopener noreferrer" }
+          })
+        );
+      }
+    } else if (payment?.payment_url) {
+      panel.appendChild(
+        createElement("a", {
+          className: "helper",
+          text: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u043E\u043F\u043B\u0430\u0442\u0435",
+          attrs: { href: payment.payment_url, target: "_blank", rel: "noopener noreferrer" }
         })
       );
     }

@@ -37,6 +37,10 @@ export function renderCheckoutPage({ navigate }) {
   let config = null;
   let promoApplied = null;
   let deliveryType = "delivery";
+  let geoData = null;
+  let geoConsent = false;
+  let geoStatus = "idle";
+  let geoError = "";
 
   const renderState = (state) => {
     clearElement(content);
@@ -139,6 +143,88 @@ export function renderCheckoutPage({ navigate }) {
       className: "input",
       attrs: { type: "text", placeholder: "Адрес доставки" },
     });
+    const postalEnabled = Boolean(config?.deliveryPostalEnabled);
+    const geoEnabled = Boolean(config?.deliveryGeoEnabled);
+    const deliveryZoneId = Number.isFinite(Number(config?.defaultDeliveryZoneId))
+      ? Number(config?.defaultDeliveryZoneId)
+      : null;
+    const postalInput = createElement("input", {
+      className: "input",
+      attrs: { type: "text", placeholder: "Индекс" },
+    });
+    const postalHint = createElement("div", {
+      className: "helper",
+      text: "Индекс нужен для проверки зоны доставки.",
+    });
+
+    const geoConsentToggle = createElement("label", { className: "panel radio-row" });
+    const geoConsentInput = createElement("input", {
+      attrs: { type: "checkbox" },
+    });
+    geoConsentInput.checked = geoConsent;
+    geoConsentInput.addEventListener("change", () => {
+      geoConsent = geoConsentInput.checked;
+    });
+    geoConsentToggle.append(
+      geoConsentInput,
+      createElement("span", { text: "Разрешаю определить местоположение" })
+    );
+    const geoStatusText = createElement("div", {
+      className: "helper",
+      text:
+        geoStatus === "ready" && geoData
+          ? `Местоположение определено: ${geoData.lat.toFixed(5)}, ${geoData.lng.toFixed(5)}`
+          : geoStatus === "loading"
+            ? "Определяем местоположение..."
+            : geoStatus === "error"
+              ? geoError || "Не удалось определить местоположение."
+              : "Геолокация используется только для проверки зоны доставки.",
+    });
+    const geoButton = createButton({
+      label: "Определить местоположение",
+      variant: "secondary",
+      onClick: () => {
+        if (!geoConsent) {
+          geoError = "Подтвердите согласие на использование геолокации.";
+          geoStatus = "error";
+          geoStatusText.textContent = geoError;
+          showToast(geoError, "info");
+          return;
+        }
+        if (!navigator?.geolocation) {
+          geoError = "Геолокация недоступна в этом браузере.";
+          geoStatus = "error";
+          geoStatusText.textContent = geoError;
+          showToast(geoError, "error");
+          return;
+        }
+        setButtonLoading(geoButton, true);
+        geoStatus = "loading";
+        geoStatusText.textContent = "Определяем местоположение...";
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            geoData = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            geoError = "";
+            geoStatus = "ready";
+            geoStatusText.textContent = `Местоположение определено: ${geoData.lat.toFixed(5)}, ${geoData.lng.toFixed(5)}`;
+            setButtonLoading(geoButton, false);
+            showToast("Местоположение определено", "success");
+          },
+          (geoErr) => {
+            geoData = null;
+            geoStatus = "error";
+            geoError = geoErr?.message || "Не удалось определить местоположение.";
+            geoStatusText.textContent = geoError;
+            setButtonLoading(geoButton, false);
+            showToast(geoError, "error");
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      },
+    });
 
     const commentLabel = createElement("label", { className: "helper", text: "Комментарий к заказу" });
     const commentInput = createElement("textarea", {
@@ -222,6 +308,21 @@ export function renderCheckoutPage({ navigate }) {
           error.hidden = false;
           return;
         }
+        const postalCode = postalInput.value.trim();
+        const hasGeo =
+          geoData &&
+          Number.isFinite(geoData.lat) &&
+          Number.isFinite(geoData.lng);
+        if (deliveryType === "delivery" && postalEnabled && !postalCode) {
+          error.textContent = "Укажите индекс, чтобы проверить зону доставки.";
+          error.hidden = false;
+          return;
+        }
+        if (deliveryType === "delivery" && geoEnabled && !hasGeo) {
+          error.textContent = "Нужно определить местоположение для проверки зоны доставки.";
+          error.hidden = false;
+          return;
+        }
         if (deliveryType === "delivery" && Array.isArray(config?.deliveryZones) && config.deliveryZones.length) {
           const address = addressInput.value.trim().toLowerCase();
           const match = config.deliveryZones.some((zone) => address.includes(String(zone).toLowerCase()));
@@ -266,6 +367,9 @@ export function renderCheckoutPage({ navigate }) {
           delivery: {
             type: deliveryType,
             address: deliveryType === "delivery" ? addressInput.value.trim() : undefined,
+            postalCode: deliveryType === "delivery" ? postalCode || undefined : undefined,
+            geo: deliveryType === "delivery" && hasGeo ? { ...geoData } : undefined,
+            zoneId: deliveryType === "delivery" ? deliveryZoneId || undefined : undefined,
           },
           payment: { method: selectedMethod, status: "pending" },
           items: state.items.map((item) => ({
@@ -306,6 +410,9 @@ export function renderCheckoutPage({ navigate }) {
             payment_id: order.payment.payment_id,
             payment_status: order.payment.status,
             payment_method: order.payment.method,
+            deliveryZoneId: deliveryType === "delivery" ? deliveryZoneId || null : null,
+            postalCode: deliveryType === "delivery" ? postalCode || null : null,
+            geo: deliveryType === "delivery" && hasGeo ? { ...geoData } : null,
             items: order.items.map((item) => ({
               ...item,
               id: Number(item.id),
@@ -323,9 +430,24 @@ export function renderCheckoutPage({ navigate }) {
             if (requestId) {
               order.request_id = requestId;
             }
+            let apiErrorPayload = null;
             if (!apiResponse.ok) {
+              try {
+                apiErrorPayload = await apiResponse.json();
+              } catch (parseError) {
+                apiErrorPayload = null;
+              }
+              const apiReason = apiErrorPayload?.error?.details?.reason;
+              const apiMessage = apiErrorPayload?.error?.message;
+              if (apiReason === "delivery_zone_mismatch") {
+                const message = apiMessage || "Адрес вне зоны доставки.";
+                error.textContent = message;
+                error.hidden = false;
+                showToast(message, "error");
+                return;
+              }
               pendingSync = true;
-              throw new Error(`API status ${apiResponse.status}`);
+              throw new Error(apiMessage || `API status ${apiResponse.status}`);
             }
           } catch (apiError) {
             pendingSync = true;
@@ -402,6 +524,21 @@ export function renderCheckoutPage({ navigate }) {
     );
     if (deliveryType === "delivery") {
       form.append(createElement("label", { className: "helper", text: "Адрес" }), addressInput);
+      if (postalEnabled) {
+        form.append(
+          createElement("label", { className: "helper", text: "Индекс" }),
+          postalInput,
+          postalHint
+        );
+      }
+      if (geoEnabled) {
+        form.append(
+          createElement("label", { className: "helper", text: "Местоположение" }),
+          geoConsentToggle,
+          geoButton,
+          geoStatusText
+        );
+      }
     }
 
     summary.append(
