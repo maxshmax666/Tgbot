@@ -243,7 +243,8 @@ export async function onRequestPost({ env, request }) {
             `UPDATE orders
              SET payment_id = COALESCE(?, payment_id),
                  payment_status = COALESCE(?, payment_status),
-                 payment_method = COALESCE(?, payment_method)
+                 payment_method = COALESCE(?, payment_method),
+                 updated_at = datetime('now')
              WHERE order_id = ?`
           )
           .bind(
@@ -265,8 +266,8 @@ export async function onRequestPost({ env, request }) {
     try {
       const result = await db
         .prepare(
-          `INSERT INTO orders (order_id, created_at, status, customer_name, phone, address, comment, items_json, total, payment_id, payment_status, payment_method)
-           VALUES (?, datetime('now'), 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO orders (order_id, created_at, updated_at, status, customer_name, phone, address, comment, items_json, total, payment_id, payment_status, payment_method)
+           VALUES (?, datetime('now'), datetime('now'), 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           body.order_id,

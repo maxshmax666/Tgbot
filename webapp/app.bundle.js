@@ -123,12 +123,12 @@ function addOrder(order) {
   items.unshift(order);
   storage.write(STORAGE_KEYS.orders, items.slice(0, 50));
 }
-function updateOrderStatus(orderId, status) {
+function updateOrderStatus(orderId, status, updatedAt) {
   if (!orderId) return;
   const items = getOrders();
   const index = items.findIndex((item) => item.order_id === orderId);
   if (index === -1) return;
-  items[index] = { ...items[index], status };
+  items[index] = { ...items[index], status, updated_at: updatedAt || items[index].updated_at };
   storage.write(STORAGE_KEYS.orders, items);
 }
 function getPendingOrders() {
@@ -1170,12 +1170,6 @@ function renderMenuPage({ navigate: navigate2 }) {
     });
     contacts.append(callLink, chatLink);
     banner.appendChild(contacts);
-    const grid = createElement("div", { className: "menu-grid" });
-    const filtered = state3.items.filter((item) => item.isAvailable !== false).filter((item) => {
-      if (currentFilter === "favorite") return favorites.has(item.id);
-      if (currentFilter === "all") return true;
-      return String(item.categoryId || "") === currentFilter;
-    }).filter((item) => searchValue ? item.title.toLowerCase().includes(searchValue) : true);
     const orders = getOrders();
     const topMap = /* @__PURE__ */ new Map();
     orders.forEach((order) => {
@@ -1185,8 +1179,16 @@ function renderMenuPage({ navigate: navigate2 }) {
     });
     const topIds = Array.from(topMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => id);
     const recommended = state3.items.filter((item) => topIds.includes(item.id));
+    const recommendedIds = new Set(recommended.map((item) => item.id));
+    const showRecommended = recommended.length > 0;
+    const grid = createElement("div", { className: "menu-grid" });
+    const filtered = state3.items.filter((item) => item.isAvailable !== false).filter((item) => {
+      if (currentFilter === "favorite") return favorites.has(item.id);
+      if (currentFilter === "all") return true;
+      return String(item.categoryId || "") === currentFilter;
+    }).filter((item) => searchValue ? item.title.toLowerCase().includes(searchValue) : true).filter((item) => !showRecommended || !recommendedIds.has(item.id));
     content2.append(banner, searchInput, filtersRow);
-    if (recommended.length) {
+    if (showRecommended) {
       const recTitle = createElement("h3", { className: "section-title", text: "\u0422\u043E\u043F \u043F\u0440\u043E\u0434\u0430\u0436" });
       const recGrid = createElement("div", { className: "menu-grid" });
       recommended.forEach((item) => recGrid.appendChild(createMenuCard(item, navigate2, favorites)));
@@ -1335,13 +1337,60 @@ async function preparePayment(order, method) {
   if (!order || !method) {
     return { status: PAYMENT_STATUSES.failed, message: "\u041C\u0435\u0442\u043E\u0434 \u043E\u043F\u043B\u0430\u0442\u044B \u043D\u0435 \u0432\u044B\u0431\u0440\u0430\u043D" };
   }
-  return {
-    status: PAYMENT_STATUSES.pending,
-    method,
-    metadata: {
-      orderId: order.order_id
+  if (method === PAYMENT_METHODS.cash) {
+    return {
+      status: PAYMENT_STATUSES.pending,
+      method,
+      payment_id: null,
+      metadata: {
+        orderId: order.order_id
+      }
+    };
+  }
+  try {
+    const response = await fetch("/api/public/payments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        order_id: order.order_id,
+        method,
+        total: Number(order.total),
+        items: order.items.map((item) => ({
+          id: Number(item.id),
+          qty: Number(item.qty)
+        })),
+        customer: {
+          name: order.customer?.name,
+          phone: order.customer?.phone
+        }
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = payload?.error?.message || "\u041E\u0448\u0438\u0431\u043A\u0430 \u0441\u043E\u0437\u0434\u0430\u043D\u0438\u044F \u043F\u043B\u0430\u0442\u0435\u0436\u0430";
+      throw new Error(message);
     }
-  };
+    return {
+      status: payload.status || PAYMENT_STATUSES.pending,
+      method,
+      payment_id: payload.payment_id,
+      payment_url: payload.payment_url,
+      confirmation: payload.confirmation,
+      metadata: {
+        orderId: order.order_id
+      }
+    };
+  } catch (error) {
+    console.error("Payment create failed", error);
+    return {
+      status: PAYMENT_STATUSES.failed,
+      method,
+      message: error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u043B\u0430\u0442\u0435\u0436",
+      metadata: {
+        orderId: order.order_id
+      }
+    };
+  }
 }
 function getPromoList(storageService) {
   if (!storageService) return [];
@@ -1369,8 +1418,8 @@ function applyPromo(total2, promo) {
 // webapp/pages/checkoutPage.js
 var PAYMENT_OPTIONS = [
   { id: PAYMENT_METHODS.cash, label: "\u041D\u0430\u043B\u0438\u0447\u043D\u044B\u0435", enabled: true },
-  { id: PAYMENT_METHODS.sbp, label: "\u0421\u0411\u041F (QR)", enabled: false },
-  { id: PAYMENT_METHODS.card, label: "\u041A\u0430\u0440\u0442\u0430", enabled: false }
+  { id: PAYMENT_METHODS.sbp, label: "\u0421\u0411\u041F (QR)", enabled: true },
+  { id: PAYMENT_METHODS.card, label: "\u041A\u0430\u0440\u0442\u0430", enabled: true }
 ];
 function renderOrderItems(container2, items) {
   const list = createElement("div", { className: "list" });
@@ -1617,12 +1666,29 @@ function renderCheckoutPage({ navigate: navigate2 }) {
         try {
           const payment = await preparePayment(order, selectedMethod);
           order.payment = payment;
+          if (payment.status === "failed") {
+            const status2 = "order:pending_sync";
+            addOrder({ ...order, status: status2 });
+            setLastOrderStatus({
+              status: status2,
+              order_id: order.order_id,
+              request_id: order.request_id || void 0
+            });
+            error.textContent = payment.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u043B\u0430\u0442\u0435\u0436. \u0417\u0430\u043A\u0430\u0437 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E.";
+            error.hidden = false;
+            showToast(error.textContent, "error");
+            navigate2("/order-status");
+            return;
+          }
           const apiPayload = {
             order_id: order.order_id,
             customerName: order.customer.name || "\u0413\u043E\u0441\u0442\u044C",
             phone: order.customer.phone,
             address: order.delivery.address,
             comment: order.comment,
+            payment_id: order.payment.payment_id,
+            payment_status: order.payment.status,
+            payment_method: order.payment.method,
             items: order.items.map((item) => ({
               ...item,
               id: Number(item.id)
@@ -1686,6 +1752,10 @@ function renderCheckoutPage({ navigate: navigate2 }) {
           clear();
           showTelegramAlert("\u0417\u0430\u043A\u0430\u0437 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u0432 \u0431\u043E\u0442 \u2705");
           showToast("\u0417\u0430\u043A\u0430\u0437 \u043F\u0440\u0438\u043D\u044F\u0442, \u043C\u044B \u0441\u043A\u043E\u0440\u043E \u0441\u0432\u044F\u0436\u0435\u043C\u0441\u044F!", "success");
+          if (order.payment?.confirmation?.type === "redirect" && order.payment?.payment_url) {
+            window.location.assign(order.payment.payment_url);
+            return;
+          }
           navigate2("/order-status");
         } catch (err) {
           console.error("Checkout failed", err);
@@ -1959,12 +2029,29 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
   const root = createElement("section", { className: "list" });
   const content2 = createElement("div");
   root.appendChild(content2);
+  let statusError = null;
+  let pollTimeout = null;
+  const minDelayMs = 2e3;
+  const maxDelayMs = 3e4;
+  const delayMultiplier = 1.6;
+  let currentDelayMs = minDelayMs;
+  const resolveQrSrc = (confirmation) => {
+    const raw = confirmation?.confirmation_data || confirmation?.confirmation_url;
+    if (!raw) return null;
+    if (raw.startsWith("data:")) return raw;
+    if (/^[A-Za-z0-9+/=]+$/.test(raw)) {
+      return `data:image/png;base64,${raw}`;
+    }
+    if (/^https?:\/\//.test(raw)) return raw;
+    return null;
+  };
   const render = () => {
     clearElement(content2);
     const status = getLastOrderStatus();
     const orders = getOrders();
     const latest = orders[0];
     const requestId = latest?.request_id || status?.request_id;
+    const payment = latest?.payment;
     const panel = createElement("div", { className: "panel" });
     panel.appendChild(
       createElement("h2", {
@@ -1978,11 +2065,27 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
         text: status ? STATUS_LABELS2[status.status] || status.status : "\u041D\u0435\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0437\u0430\u043A\u0430\u0437\u0430."
       })
     );
+    if (statusError) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: statusError
+        })
+      );
+    }
     if (latest) {
       panel.appendChild(
         createElement("div", {
           className: "helper",
           text: `\u0421\u0443\u043C\u043C\u0430: ${formatPrice(latest.total)}`
+        })
+      );
+    }
+    if (payment?.payment_id) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `\u041F\u043B\u0430\u0442\u0451\u0436: ${payment.payment_id} (${payment.status || "pending"})`
         })
       );
     }
@@ -1994,6 +2097,38 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
         })
       );
     }
+    if (payment?.confirmation?.type === "qr") {
+      const qrSrc = resolveQrSrc(payment.confirmation);
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: "\u0421\u0411\u041F: \u043E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 QR-\u043A\u043E\u0434 \u0434\u043B\u044F \u043E\u043F\u043B\u0430\u0442\u044B."
+        })
+      );
+      if (qrSrc) {
+        panel.appendChild(
+          createElement("img", {
+            attrs: { src: qrSrc, alt: "QR \u0434\u043B\u044F \u043E\u043F\u043B\u0430\u0442\u044B", style: "max-width: 220px; width: 100%;" }
+          })
+        );
+      } else if (payment.payment_url) {
+        panel.appendChild(
+          createElement("a", {
+            className: "helper",
+            text: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0443 \u0434\u043B\u044F \u043E\u043F\u043B\u0430\u0442\u044B",
+            attrs: { href: payment.payment_url, target: "_blank", rel: "noopener noreferrer" }
+          })
+        );
+      }
+    } else if (payment?.payment_url) {
+      panel.appendChild(
+        createElement("a", {
+          className: "helper",
+          text: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u043A \u043E\u043F\u043B\u0430\u0442\u0435",
+          attrs: { href: payment.payment_url, target: "_blank", rel: "noopener noreferrer" }
+        })
+      );
+    }
     panel.appendChild(
       createButton({
         label: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u0432 \u043F\u0440\u043E\u0444\u0438\u043B\u044C",
@@ -2002,8 +2137,62 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
     );
     content2.appendChild(panel);
   };
+  const scheduleNextPoll = () => {
+    pollTimeout = window.setTimeout(async () => {
+      const currentStatus = getLastOrderStatus();
+      const orders = getOrders();
+      const latest = orders[0];
+      const orderId = latest?.order_id || currentStatus?.order_id;
+      if (!orderId) return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        statusError = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C, \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u043C \u043F\u043E\u0437\u0436\u0435.";
+        currentDelayMs = Math.min(maxDelayMs, Math.round(currentDelayMs * delayMultiplier));
+        render();
+        scheduleNextPoll();
+        return;
+      }
+      try {
+        const response = await fetch(`/api/public/orders/${encodeURIComponent(orderId)}`, {
+          cache: "no-store"
+        });
+        if (response.status === 404) {
+          throw new Error("Order not found");
+        }
+        if (!response.ok) {
+          throw new Error(`Order status fetch failed: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data?.status) {
+          updateOrderStatus(orderId, data.status, data.updated_at);
+          setLastOrderStatus({
+            status: data.status,
+            order_id: orderId,
+            request_id: currentStatus?.request_id,
+            updated_at: data.updated_at || void 0
+          });
+        }
+        statusError = null;
+        currentDelayMs = minDelayMs;
+        render();
+      } catch (error) {
+        statusError = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0431\u043D\u043E\u0432\u0438\u0442\u044C, \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u043C \u043F\u043E\u0437\u0436\u0435.";
+        currentDelayMs = Math.min(maxDelayMs, Math.round(currentDelayMs * delayMultiplier));
+        render();
+      } finally {
+        scheduleNextPoll();
+      }
+    }, currentDelayMs);
+  };
   render();
-  return { element: root };
+  scheduleNextPoll();
+  return {
+    element: root,
+    cleanup: () => {
+      if (pollTimeout) {
+        window.clearTimeout(pollTimeout);
+      }
+    }
+  };
 }
 
 // webapp/services/pagesService.js

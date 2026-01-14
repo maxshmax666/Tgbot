@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   status TEXT NOT NULL,
   customer_name TEXT NOT NULL,
   phone TEXT NOT NULL,

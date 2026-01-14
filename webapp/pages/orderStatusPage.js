@@ -1,6 +1,11 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
-import { getLastOrderStatus, getOrders } from "../services/storageService.js";
+import {
+  getLastOrderStatus,
+  getOrders,
+  setLastOrderStatus,
+  updateOrderStatus,
+} from "../services/storageService.js";
 import { formatPrice } from "../services/format.js";
 
 const STATUS_LABELS = {
@@ -15,6 +20,12 @@ export function renderOrderStatusPage({ navigate }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div");
   root.appendChild(content);
+  let statusError = null;
+  let pollTimeout = null;
+  const minDelayMs = 2000;
+  const maxDelayMs = 30000;
+  const delayMultiplier = 1.6;
+  let currentDelayMs = minDelayMs;
 
   const resolveQrSrc = (confirmation) => {
     const raw = confirmation?.confirmation_data || confirmation?.confirmation_url;
@@ -48,6 +59,14 @@ export function renderOrderStatusPage({ navigate }) {
         text: status ? STATUS_LABELS[status.status] || status.status : "Нет активного заказа.",
       })
     );
+    if (statusError) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: statusError,
+        })
+      );
+    }
     if (latest) {
       panel.appendChild(
         createElement("div", {
@@ -114,6 +133,61 @@ export function renderOrderStatusPage({ navigate }) {
     content.appendChild(panel);
   };
 
+  const scheduleNextPoll = () => {
+    pollTimeout = window.setTimeout(async () => {
+      const currentStatus = getLastOrderStatus();
+      const orders = getOrders();
+      const latest = orders[0];
+      const orderId = latest?.order_id || currentStatus?.order_id;
+      if (!orderId) return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) {
+        statusError = "Не удалось обновить, повторим позже.";
+        currentDelayMs = Math.min(maxDelayMs, Math.round(currentDelayMs * delayMultiplier));
+        render();
+        scheduleNextPoll();
+        return;
+      }
+      try {
+        const response = await fetch(`/api/public/orders/${encodeURIComponent(orderId)}`, {
+          cache: "no-store",
+        });
+        if (response.status === 404) {
+          throw new Error("Order not found");
+        }
+        if (!response.ok) {
+          throw new Error(`Order status fetch failed: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data?.status) {
+          updateOrderStatus(orderId, data.status, data.updated_at);
+          setLastOrderStatus({
+            status: data.status,
+            order_id: orderId,
+            request_id: currentStatus?.request_id,
+            updated_at: data.updated_at || undefined,
+          });
+        }
+        statusError = null;
+        currentDelayMs = minDelayMs;
+        render();
+      } catch (error) {
+        statusError = "Не удалось обновить, повторим позже.";
+        currentDelayMs = Math.min(maxDelayMs, Math.round(currentDelayMs * delayMultiplier));
+        render();
+      } finally {
+        scheduleNextPoll();
+      }
+    }, currentDelayMs);
+  };
+
   render();
-  return { element: root };
+  scheduleNextPoll();
+  return {
+    element: root,
+    cleanup: () => {
+      if (pollTimeout) {
+        window.clearTimeout(pollTimeout);
+      }
+    },
+  };
 }
