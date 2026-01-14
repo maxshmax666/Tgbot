@@ -55,7 +55,9 @@ CREATE TABLE IF NOT EXISTS page_blocks (
 CREATE TABLE IF NOT EXISTS orders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   order_id TEXT NOT NULL,
+  request_id TEXT,
   created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
   status TEXT NOT NULL,
   customer_name TEXT NOT NULL,
   phone TEXT NOT NULL,
@@ -69,6 +71,8 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
+CREATE INDEX IF NOT EXISTS idx_orders_request_id ON orders(request_id);
+CREATE INDEX IF NOT EXISTS idx_orders_updated_at ON orders(updated_at);
 
 CREATE TABLE IF NOT EXISTS delivery_zones (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
