@@ -62,7 +62,10 @@ CREATE TABLE IF NOT EXISTS orders (
   address TEXT,
   comment TEXT,
   items_json TEXT NOT NULL,
-  total REAL NOT NULL
+  total REAL NOT NULL,
+  payment_id TEXT,
+  payment_status TEXT,
+  payment_method TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);
