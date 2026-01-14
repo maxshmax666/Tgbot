@@ -1,6 +1,10 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton } from "../ui/button.js";
-import { getLastOrderStatus, getOrders } from "../services/storageService.js";
+import {
+  getLastOrderStatus,
+  getOrders,
+  updateOrderStatusFromApi,
+} from "../services/storageService.js";
 import { formatPrice } from "../services/format.js";
 
 const STATUS_LABELS = {
@@ -15,6 +19,10 @@ export function renderOrderStatusPage({ navigate }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div");
   root.appendChild(content);
+  const baseDelay = 2000;
+  let retryDelay = baseDelay;
+  let retryTimer = null;
+  let transientError = null;
 
   const resolveQrSrc = (confirmation) => {
     const raw = confirmation?.confirmation_data || confirmation?.confirmation_url;
@@ -48,6 +56,14 @@ export function renderOrderStatusPage({ navigate }) {
         text: status ? STATUS_LABELS[status.status] || status.status : "Нет активного заказа.",
       })
     );
+    if (transientError) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: transientError,
+        })
+      );
+    }
     if (latest) {
       panel.appendChild(
         createElement("div", {
@@ -114,6 +130,43 @@ export function renderOrderStatusPage({ navigate }) {
     content.appendChild(panel);
   };
 
+  const poll = async () => {
+    const orders = getOrders();
+    const latest = orders[0];
+    const orderId = latest?.order_id;
+
+    if (!orderId) return;
+
+    try {
+      const res = await fetch(`/api/public/orders/${encodeURIComponent(orderId)}`);
+      if (res.status === 404) {
+        transientError = "Не удалось обновить, повторим позже";
+      } else if (!res.ok) {
+        throw new Error(`Status ${res.status}`);
+      } else {
+        const data = await res.json();
+        updateOrderStatusFromApi(data.order_id, data.status, data.updated_at);
+        transientError = null;
+      }
+    } catch (error) {
+      console.warn("Order status poll failed", error);
+      transientError = "Не удалось обновить, повторим позже";
+    } finally {
+      render();
+      retryDelay = Math.min(Math.round(retryDelay * 1.6), 30000);
+      retryTimer = setTimeout(poll, retryDelay);
+    }
+  };
+
   render();
-  return { element: root };
+  retryTimer = setTimeout(poll, retryDelay);
+  return {
+    element: root,
+    cleanup: () => {
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    },
+  };
 }

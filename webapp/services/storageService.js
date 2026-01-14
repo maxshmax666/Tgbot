@@ -74,6 +74,16 @@ export function updateOrderStatus(orderId, status) {
   storage.write(STORAGE_KEYS.orders, items);
 }
 
+export function updateOrderStatusFromApi(orderId, status, updatedAt) {
+  if (!orderId || !status) return;
+  updateOrderStatus(orderId, status);
+  setLastOrderStatus({
+    status,
+    order_id: orderId,
+    updated_at: updatedAt,
+  });
+}
+
 export function getPendingOrders() {
   const items = storage.read(STORAGE_KEYS.pendingOrders, []);
   return Array.isArray(items) ? items : [];
