@@ -22,7 +22,7 @@ export async function onRequest({ env, request, params }) {
 
     if (request.method === "PATCH") {
       const body = await parseJsonBody(request, statusSchema);
-      await env.DB.prepare("UPDATE orders SET status = ? WHERE id = ?")
+      await env.DB.prepare("UPDATE orders SET status = ?, updated_at = datetime('now') WHERE id = ?")
         .bind(body.status, id)
         .run();
       return json({ ok: true });
