@@ -156,16 +156,28 @@ export async function fetchMenu() {
       fetchApiJson("/api/public/products"),
       fetchApiJson("/api/public/categories"),
     ]);
-    return parseMenuPayload({
+    const apiMenu = parseMenuPayload({
       items: productsResponse.items ?? productsResponse,
       categories: categoriesResponse.items ?? categoriesResponse,
     });
+    if (!apiMenu.items.length) {
+      try {
+        const localMenu = await fetchLocalMenu();
+        if (localMenu.items.length) {
+          return { ...localMenu, source: "local" };
+        }
+      } catch (localError) {
+        console.warn("Local menu fallback failed after empty API payload.", localError);
+      }
+    }
+    return { ...apiMenu, source: "api" };
   } catch (error) {
     if (!isFallbackEligible(error)) {
       throw error;
     }
     try {
-      return await fetchLocalMenu();
+      const localMenu = await fetchLocalMenu();
+      return { ...localMenu, source: "local" };
     } catch (fallbackError) {
       const combinedError = new Error("Menu fetch failed (API and local fallback).");
       combinedError.cause = { api: error, fallback: fallbackError };
