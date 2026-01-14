@@ -14,6 +14,9 @@ const DEFAULT_CONFIG = {
   adminTgId: null,
   promoPickupDiscount: 10,
   deliveryZones: [],
+  deliveryGeoEnabled: false,
+  deliveryPostalEnabled: false,
+  defaultDeliveryZoneId: null,
 };
 
 export async function fetchConfig() {
