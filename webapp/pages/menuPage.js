@@ -195,16 +195,6 @@ export function renderMenuPage({ navigate }) {
     contacts.append(callLink, chatLink);
     banner.appendChild(contacts);
 
-    const grid = createElement("div", { className: "menu-grid" });
-    const filtered = state.items
-      .filter((item) => item.isAvailable !== false)
-      .filter((item) => {
-        if (currentFilter === "favorite") return favorites.has(item.id);
-        if (currentFilter === "all") return true;
-        return String(item.categoryId || "") === currentFilter;
-      })
-      .filter((item) => (searchValue ? item.title.toLowerCase().includes(searchValue) : true));
-
     const orders = getOrders();
     const topMap = new Map();
     orders.forEach((order) => {
@@ -217,9 +207,22 @@ export function renderMenuPage({ navigate }) {
       .slice(0, 3)
       .map(([id]) => id);
     const recommended = state.items.filter((item) => topIds.includes(item.id));
+    const recommendedIds = new Set(recommended.map((item) => item.id));
+    const showRecommended = recommended.length > 0;
+
+    const grid = createElement("div", { className: "menu-grid" });
+    const filtered = state.items
+      .filter((item) => item.isAvailable !== false)
+      .filter((item) => {
+        if (currentFilter === "favorite") return favorites.has(item.id);
+        if (currentFilter === "all") return true;
+        return String(item.categoryId || "") === currentFilter;
+      })
+      .filter((item) => (searchValue ? item.title.toLowerCase().includes(searchValue) : true))
+      .filter((item) => !showRecommended || !recommendedIds.has(item.id));
 
     content.append(banner, searchInput, filtersRow);
-    if (recommended.length) {
+    if (showRecommended) {
       const recTitle = createElement("h3", { className: "section-title", text: "Топ продаж" });
       const recGrid = createElement("div", { className: "menu-grid" });
       recommended.forEach((item) => recGrid.appendChild(createMenuCard(item, navigate, favorites)));
