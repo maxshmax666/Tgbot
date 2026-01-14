@@ -168,6 +168,47 @@ function Login({ onLogin, onNavigate }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [healthStatus, setHealthStatus] = useState("loading");
+  const [missingEnv, setMissingEnv] = useState([]);
+  const [healthError, setHealthError] = useState("");
+
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+
+    const loadHealth = async () => {
+      try {
+        const response = await fetch("/api/health", {
+          signal: controller.signal,
+          headers: { accept: "application/json" },
+        });
+        if (!response.ok) {
+          throw new Error(`Health check failed (${response.status})`);
+        }
+        const payload = await response.json();
+        const missing = Array.isArray(payload?.missing)
+          ? payload.missing.filter((item) => typeof item === "string")
+          : [];
+        if (isActive) {
+          setMissingEnv(missing);
+          setHealthStatus("ready");
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        if (isActive) {
+          setHealthError(err?.message || "Не удалось проверить переменные окружения.");
+          setHealthStatus("error");
+        }
+      }
+    };
+
+    loadHealth();
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -190,6 +231,10 @@ function Login({ onLogin, onNavigate }) {
     }
   };
 
+  if (healthStatus === "loading") {
+    return <LoadingScreen label="Проверяем конфигурацию админки…" />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
       <form onSubmit={handleSubmit} className="bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4">
@@ -200,6 +245,23 @@ function Login({ onLogin, onNavigate }) {
           <code className="text-slate-300">ADMIN_PASSWORD_HASH</code> или{" "}
           <code className="text-slate-300">ADMIN_PASSWORD</code> (локально). Минимум 6 символов.
         </p>
+        {healthStatus === "error" && (
+          <p className="text-amber-400 text-xs whitespace-pre-line">
+            Не удалось проверить переменные окружения. {healthError}
+          </p>
+        )}
+        {missingEnv.length > 0 && (
+          <div className="rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200">
+            <p className="font-medium">Не заданы переменные окружения:</p>
+            <ul className="list-disc list-inside text-xs text-amber-100 mt-2">
+              {missingEnv.map((name) => (
+                <li key={name}>
+                  <code>{name}</code>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <Field label="Password">
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
