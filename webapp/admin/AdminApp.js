@@ -18,21 +18,138 @@ import { adminApi } from "../services/adminApi.js";
 import { resolveMediaUrl } from "../services/mediaBase.js";
 import { confirmPopup } from "../services/telegramService.js";
 
+const RU = {
+  nav: {
+    dashboard: "Обзор",
+    products: "Товары",
+    categories: "Категории",
+    orders: "Заказы",
+    media: "Медиа",
+    pages: "Страницы",
+  },
+  blocks: {
+    hero: "Первый экран",
+    banner: "Баннер",
+    text: "Текст",
+    gallery: "Галерея",
+    productsGrid: "Сетка товаров",
+  },
+  buttons: {
+    retry: "Повторить",
+    signIn: "Войти",
+    signingIn: "Входим…",
+    create: "Создать",
+    save: "Сохранить",
+    delete: "Удалить",
+    edit: "Редактировать",
+    upload: "Загрузить",
+    use: "Выбрать",
+    close: "Закрыть",
+    addUrl: "Добавить URL",
+    remove: "Удалить",
+    reset: "Сбросить",
+    logout: "Выйти",
+    viewPublicPage: "Открыть публичную страницу",
+  },
+  labels: {
+    password: "Пароль",
+    title: "Название",
+    sort: "Сортировка",
+    active: "Активность",
+    statusActive: "Активен",
+    statusInactive: "Неактивен",
+    yes: "Да",
+    no: "Нет",
+    description: "Описание",
+    price: "Цена",
+    category: "Категория",
+    featured: "Рекомендуемый",
+    images: "Изображения",
+    imagesComma: "Изображения (URL через запятую)",
+    content: "Контент",
+    buttonLabel: "Текст кнопки",
+    buttonLink: "Ссылка кнопки",
+    subtitle: "Подзаголовок",
+    text: "Текст",
+    slug: "Slug",
+  },
+  headings: {
+    adminLogin: "Вход в админку",
+    newCategory: "Новая категория",
+    categories: "Категории",
+    mediaLibrary: "Медиатека",
+    productEditor: "Редактор товара",
+    products: "Товары",
+    orders: "Заказы",
+    orderDetails: "Заказ",
+    newPage: "Новая страница",
+    pages: "Страницы",
+    pageBuilder: "Конструктор страницы",
+    dashboard: "Добро пожаловать",
+    adminPanel: "Админ-панель",
+    blocks: "Блоки",
+    canvas: "Полотно",
+    properties: "Свойства",
+  },
+  messages: {
+    adminLoginHint: "Введите пароль администратора.",
+    adminPasswordInfoPrefix: "Пароль задаётся переменными окружения",
+    adminPasswordInfoSuffix: "(локально). Минимум 6 символов.",
+    envCheckFailed: "Не удалось проверить переменные окружения.",
+    missingEnv: "Не заданы переменные окружения:",
+    envNotConfiguredPrefix: "ENV не настроены",
+    loginFailed: "Не удалось войти.",
+    loginErrorFallback: "Не удалось авторизоваться. Проверьте пароль и настройки API.",
+    healthCheckFailed: (status) => `Проверка конфигурации не удалась (${status}).`,
+    loading: "Загрузка…",
+    loadingAdminConfig: "Проверяем конфигурацию админки…",
+    loadingAdminAccess: "Проверяем доступ к админке…",
+    errorLoadingAdmin: "Ошибка загрузки админки",
+    errorLoadingUi: "Произошла ошибка в интерфейсе админки. Проверьте консоль и настройки окружения.",
+    unknownError: "Неизвестная ошибка",
+    adminApiUnavailable: "Не удалось подключиться к админ API. Проверьте переменные окружения и логи билда.",
+    selectOrder: "Выберите заказ, чтобы посмотреть детали.",
+    selectBlock: "Выберите блок для редактирования.",
+    useSidebar: "Используйте меню слева, чтобы управлять каталогом, заказами, медиа и страницами.",
+    noCategory: "Без категории",
+    imageUrlPrompt: "URL изображения",
+    visible: "Показывать",
+  },
+  confirm: {
+    deleteCategory: "Удалить категорию?",
+    deleteProduct: "Удалить товар?",
+    deleteFile: "Удалить файл?",
+    deleteBlock: "Удалить блок?",
+    deletePage: "Удалить страницу?",
+  },
+  validation: {
+    passwordMin: (min) => `Пароль минимум ${min} символов`,
+    passwordRequired: "Пароль обязателен",
+    invalidValue: "Некорректное значение",
+  },
+  orderStatus: {
+    new: "Новый",
+    preparing: "Готовится",
+    delivering: "Доставка",
+    done: "Выполнен",
+  },
+};
+
 const BLOCK_TYPES = [
-  { type: "hero", label: "Hero", defaultProps: { title: "", subtitle: "", buttonLabel: "", buttonLink: "" } },
-  { type: "banner", label: "Banner", defaultProps: { text: "" } },
-  { type: "text", label: "Text", defaultProps: { text: "" } },
-  { type: "gallery", label: "Gallery", defaultProps: { title: "", images: [] } },
-  { type: "products-grid", label: "Products Grid", defaultProps: { title: "", items: [] } },
+  { type: "hero", label: RU.blocks.hero, defaultProps: { title: "", subtitle: "", buttonLabel: "", buttonLink: "" } },
+  { type: "banner", label: RU.blocks.banner, defaultProps: { text: "" } },
+  { type: "text", label: RU.blocks.text, defaultProps: { text: "" } },
+  { type: "gallery", label: RU.blocks.gallery, defaultProps: { title: "", images: [] } },
+  { type: "products-grid", label: RU.blocks.productsGrid, defaultProps: { title: "", items: [] } },
 ];
 
 const navItems = [
-  { id: "dashboard", label: "Overview" },
-  { id: "products", label: "Products" },
-  { id: "categories", label: "Categories" },
-  { id: "orders", label: "Orders" },
-  { id: "media", label: "Media" },
-  { id: "pages", label: "Pages" },
+  { id: "dashboard", label: RU.nav.dashboard },
+  { id: "products", label: RU.nav.products },
+  { id: "categories", label: RU.nav.categories },
+  { id: "orders", label: RU.nav.orders },
+  { id: "media", label: RU.nav.media },
+  { id: "pages", label: RU.nav.pages },
 ];
 
 function Button({ children, variant = "primary", ...props }) {
@@ -99,12 +216,12 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
           <div className="bg-slate-900 rounded-xl p-6 max-w-lg w-full space-y-3">
-            <h2 className="text-lg font-semibold">Ошибка загрузки</h2>
+            <h2 className="text-lg font-semibold">{RU.messages.errorLoadingAdmin}</h2>
             <p className="text-sm text-slate-400">
-              Произошла ошибка в интерфейсе админки. Проверьте консоль и настройки окружения.
+              {RU.messages.errorLoadingUi}
             </p>
             <pre className="text-xs text-rose-300 whitespace-pre-wrap break-words">
-              {this.state.error?.message || "Unknown error"}
+              {this.state.error?.message || RU.messages.unknownError}
             </pre>
           </div>
         </div>
@@ -115,7 +232,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function LoadingScreen({ label = "Загрузка…" }) {
+function LoadingScreen({ label = RU.messages.loading }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
       <div className="bg-slate-900 rounded-xl p-6 w-full max-w-md text-center space-y-3">
@@ -138,7 +255,7 @@ function ErrorState({ title, message, details, onRetry }) {
           </pre>
         )}
         {onRetry && (
-          <Button onClick={onRetry}>Повторить</Button>
+          <Button onClick={onRetry}>{RU.buttons.retry}</Button>
         )}
       </div>
     </div>
@@ -152,13 +269,13 @@ function formatZodIssues(details) {
       if (!issue || typeof issue !== "object") return null;
       const path = Array.isArray(issue.path) ? issue.path.join(".") : "";
       if (path === "password" && issue.code === "too_small" && typeof issue.minimum === "number") {
-        return `Пароль минимум ${issue.minimum} символов`;
+        return RU.validation.passwordMin(issue.minimum);
       }
       if (path === "password" && issue.code === "invalid_type") {
-        return "Пароль обязателен";
+        return RU.validation.passwordRequired;
       }
       if (issue.message) return path ? `${path}: ${issue.message}` : issue.message;
-      return path ? `${path}: Некорректное значение` : "Некорректное значение";
+      return path ? `${path}: ${RU.validation.invalidValue}` : RU.validation.invalidValue;
     })
     .filter(Boolean);
   return lines.length ? lines.join("\n") : null;
@@ -183,7 +300,7 @@ function Login({ onLogin, onNavigate }) {
           headers: { accept: "application/json" },
         });
         if (!response.ok) {
-          throw new Error(`Health check failed (${response.status})`);
+          throw new Error(RU.messages.healthCheckFailed(response.status));
         }
         const payload = await response.json();
         const missing = Array.isArray(payload?.missing)
@@ -196,7 +313,7 @@ function Login({ onLogin, onNavigate }) {
       } catch (err) {
         if (controller.signal.aborted) return;
         if (isActive) {
-          setHealthError(err?.message || "Не удалось проверить переменные окружения.");
+          setHealthError(err?.message || RU.messages.envCheckFailed);
           setHealthStatus("error");
         }
       }
@@ -223,8 +340,8 @@ function Login({ onLogin, onNavigate }) {
     } catch (err) {
       const zodMessage = formatZodIssues(err?.details);
       const envMessage =
-        err?.status === 500 && typeof err?.message === "string" && err.message.startsWith("ENV не настроены");
-      const fallbackMessage = err?.message || "Login failed";
+        err?.status === 500 && typeof err?.message === "string" && err.message.startsWith(RU.messages.envNotConfiguredPrefix);
+      const fallbackMessage = err?.message || RU.messages.loginFailed;
       setError(envMessage ? err.message : zodMessage || fallbackMessage);
     } finally {
       setLoading(false);
@@ -232,27 +349,28 @@ function Login({ onLogin, onNavigate }) {
   };
 
   if (healthStatus === "loading") {
-    return <LoadingScreen label="Проверяем конфигурацию админки…" />;
+    return <LoadingScreen label={RU.messages.loadingAdminConfig} />;
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
       <form onSubmit={handleSubmit} className="bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4">
-        <h1 className="text-xl font-semibold">Admin Login</h1>
-        <p className="text-sm text-slate-400">Введите пароль администратора.</p>
+        <h1 className="text-xl font-semibold">{RU.headings.adminLogin}</h1>
+        <p className="text-sm text-slate-400">{RU.messages.adminLoginHint}</p>
         <p className="text-xs text-slate-500">
-          Пароль задаётся переменными окружения{" "}
+          {RU.messages.adminPasswordInfoPrefix}{" "}
           <code className="text-slate-300">ADMIN_PASSWORD_HASH</code> или{" "}
-          <code className="text-slate-300">ADMIN_PASSWORD</code> (локально). Минимум 6 символов.
+          <code className="text-slate-300">ADMIN_PASSWORD</code>{" "}
+          {RU.messages.adminPasswordInfoSuffix}
         </p>
         {healthStatus === "error" && (
           <p className="text-amber-400 text-xs whitespace-pre-line">
-            Не удалось проверить переменные окружения. {healthError}
+            {RU.messages.envCheckFailed} {healthError}
           </p>
         )}
         {missingEnv.length > 0 && (
           <div className="rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200">
-            <p className="font-medium">Не заданы переменные окружения:</p>
+            <p className="font-medium">{RU.messages.missingEnv}</p>
             <ul className="list-disc list-inside text-xs text-amber-100 mt-2">
               {missingEnv.map((name) => (
                 <li key={name}>
@@ -262,12 +380,12 @@ function Login({ onLogin, onNavigate }) {
             </ul>
           </div>
         )}
-        <Field label="Password">
+        <Field label={RU.labels.password}>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
         {error && <p className="text-rose-400 text-sm whitespace-pre-line">{error}</p>}
         <Button type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? RU.buttons.signingIn : RU.buttons.signIn}
         </Button>
       </form>
     </div>
@@ -307,7 +425,7 @@ function CategoriesView() {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = await confirmPopup({ message: "Удалить категорию?" });
+    const confirmed = await confirmPopup({ message: RU.confirm.deleteCategory });
     if (!confirmed) return;
     await adminApi.deleteCategory(id);
     await load();
@@ -316,25 +434,25 @@ function CategoriesView() {
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 rounded-xl p-6 space-y-4">
-        <h2 className="text-lg font-semibold">New category</h2>
+        <h2 className="text-lg font-semibold">{RU.headings.newCategory}</h2>
         <div className="grid md:grid-cols-3 gap-4">
-          <Field label="Title">
+          <Field label={RU.labels.title}>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
-          <Field label="Sort">
+          <Field label={RU.labels.sort}>
             <Input type="number" value={sort} onChange={(e) => setSort(e.target.value)} />
           </Field>
-          <Field label="Active">
+          <Field label={RU.labels.active}>
             <Select value={isActive ? "yes" : "no"} onChange={(e) => setIsActive(e.target.value === "yes")}>
-              <option value="yes">Active</option>
-              <option value="no">Inactive</option>
+              <option value="yes">{RU.labels.statusActive}</option>
+              <option value="no">{RU.labels.statusInactive}</option>
             </Select>
           </Field>
         </div>
-        <Button onClick={handleCreate} disabled={!title.trim()}>Create</Button>
+        <Button onClick={handleCreate} disabled={!title.trim()}>{RU.buttons.create}</Button>
       </div>
       <div className="bg-slate-900 rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Categories</h2>
+        <h2 className="text-lg font-semibold mb-4">{RU.headings.categories}</h2>
         <div className="space-y-3">
           {items.map((item) => (
             <div key={item.id} className="grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3">
@@ -351,12 +469,12 @@ function CategoriesView() {
                 value={item.is_active ? "yes" : "no"}
                 onChange={(e) => setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, is_active: e.target.value === "yes" ? 1 : 0 } : row)))}
               >
-                <option value="yes">Active</option>
-                <option value="no">Inactive</option>
+                <option value="yes">{RU.labels.statusActive}</option>
+                <option value="no">{RU.labels.statusInactive}</option>
               </Select>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => handleUpdate(item)}>Save</Button>
-                <Button variant="danger" onClick={() => handleDelete(item.id)}>Delete</Button>
+                <Button variant="secondary" onClick={() => handleUpdate(item)}>{RU.buttons.save}</Button>
+                <Button variant="danger" onClick={() => handleDelete(item.id)}>{RU.buttons.delete}</Button>
               </div>
             </div>
           ))}
@@ -387,7 +505,7 @@ function MediaLibrary({ onSelect, onClose }) {
   };
 
   const handleDelete = async (key) => {
-    const confirmed = await confirmPopup({ message: "Удалить файл?" });
+    const confirmed = await confirmPopup({ message: RU.confirm.deleteFile });
     if (!confirmed) return;
     await adminApi.deleteMedia(key);
     await load();
@@ -397,12 +515,12 @@ function MediaLibrary({ onSelect, onClose }) {
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="bg-slate-900 rounded-xl p-6 w-full max-w-4xl space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Media library</h3>
-          <Button variant="ghost" onClick={onClose}>Close</Button>
+          <h3 className="text-lg font-semibold">{RU.headings.mediaLibrary}</h3>
+          <Button variant="ghost" onClick={onClose}>{RU.buttons.close}</Button>
         </div>
         <div className="flex gap-3 items-center">
           <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-          <Button onClick={handleUpload} disabled={!file}>Upload</Button>
+          <Button onClick={handleUpload} disabled={!file}>{RU.buttons.upload}</Button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[400px] overflow-auto">
           {items.map((item) => (
@@ -413,8 +531,8 @@ function MediaLibrary({ onSelect, onClose }) {
                 className="w-full h-28 object-cover rounded-md"
               />
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => onSelect(item.url)}>Use</Button>
-                <Button variant="danger" onClick={() => handleDelete(item.key)}>Delete</Button>
+                <Button variant="secondary" onClick={() => onSelect(item.url)}>{RU.buttons.use}</Button>
+                <Button variant="danger" onClick={() => handleDelete(item.key)}>{RU.buttons.delete}</Button>
               </div>
             </div>
           ))}
@@ -492,7 +610,7 @@ function ProductsView() {
   };
 
   const handleDelete = async (id) => {
-    const confirmed = await confirmPopup({ message: "Удалить товар?" });
+    const confirmed = await confirmPopup({ message: RU.confirm.deleteProduct });
     if (!confirmed) return;
     await adminApi.deleteProduct(id);
     await load();
@@ -510,65 +628,65 @@ function ProductsView() {
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 rounded-xl p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Product editor</h2>
+        <h2 className="text-lg font-semibold">{RU.headings.productEditor}</h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Title">
+          <Field label={RU.labels.title}>
             <Input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
           </Field>
-          <Field label="Price">
+          <Field label={RU.labels.price}>
             <Input type="number" value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} />
           </Field>
-          <Field label="Category">
+          <Field label={RU.labels.category}>
             <Select value={form.categoryId} onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}>
-              <option value="">Без категории</option>
+              <option value="">{RU.messages.noCategory}</option>
               {categories.map((cat) => (
                 <option key={cat.id} value={cat.id}>{cat.title}</option>
               ))}
             </Select>
           </Field>
-          <Field label="Sort">
+          <Field label={RU.labels.sort}>
             <Input type="number" value={form.sort} onChange={(e) => setForm((prev) => ({ ...prev, sort: e.target.value }))} />
           </Field>
-          <Field label="Active">
+          <Field label={RU.labels.active}>
             <Select value={form.isActive ? "yes" : "no"} onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" }))}>
-              <option value="yes">Active</option>
-              <option value="no">Inactive</option>
+              <option value="yes">{RU.labels.statusActive}</option>
+              <option value="no">{RU.labels.statusInactive}</option>
             </Select>
           </Field>
-          <Field label="Featured">
+          <Field label={RU.labels.featured}>
             <Select value={form.isFeatured ? "yes" : "no"} onChange={(e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" }))}>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
+              <option value="yes">{RU.labels.yes}</option>
+              <option value="no">{RU.labels.no}</option>
             </Select>
           </Field>
         </div>
-        <Field label="Description">
+        <Field label={RU.labels.description}>
           <Textarea rows={4} value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} />
         </Field>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-slate-400 text-sm">Images</span>
+            <span className="text-slate-400 text-sm">{RU.labels.images}</span>
             <div className="flex gap-2">
-              <Button variant="secondary" onClick={() => setMediaOpen(true)}>Media library</Button>
-              <Button variant="secondary" onClick={() => addImage(window.prompt("Image URL") || "")}>Add URL</Button>
+              <Button variant="secondary" onClick={() => setMediaOpen(true)}>{RU.headings.mediaLibrary}</Button>
+              <Button variant="secondary" onClick={() => addImage(window.prompt(RU.messages.imageUrlPrompt) || "")}>{RU.buttons.addUrl}</Button>
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {form.images.map((url, index) => (
               <div key={`${url}-${index}`} className="border border-slate-800 rounded-lg p-2 space-y-2">
             <img src={resolveMediaUrl(url)} alt="" className="w-full h-24 object-cover rounded-md" />
-                <Button variant="danger" onClick={() => removeImage(index)}>Remove</Button>
+                <Button variant="danger" onClick={() => removeImage(index)}>{RU.buttons.remove}</Button>
               </div>
             ))}
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleSubmit} disabled={!form.title.trim()}>Save</Button>
-          <Button variant="ghost" onClick={resetForm}>Reset</Button>
+          <Button onClick={handleSubmit} disabled={!form.title.trim()}>{RU.buttons.save}</Button>
+          <Button variant="ghost" onClick={resetForm}>{RU.buttons.reset}</Button>
         </div>
       </div>
       <div className="bg-slate-900 rounded-xl p-6">
-        <h2 className="text-lg font-semibold mb-4">Products</h2>
+        <h2 className="text-lg font-semibold mb-4">{RU.headings.products}</h2>
         <div className="space-y-3">
           {products.map((product) => (
             <div key={product.id} className="border border-slate-800 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -577,8 +695,8 @@ function ProductsView() {
                 <div className="text-sm text-slate-400">{product.price} ₽</div>
               </div>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => handleEdit(product)}>Edit</Button>
-                <Button variant="danger" onClick={() => handleDelete(product.id)}>Delete</Button>
+                <Button variant="secondary" onClick={() => handleEdit(product)}>{RU.buttons.edit}</Button>
+                <Button variant="danger" onClick={() => handleDelete(product.id)}>{RU.buttons.delete}</Button>
               </div>
             </div>
           ))}
@@ -600,6 +718,7 @@ function ProductsView() {
 function OrdersView() {
   const [orders, setOrders] = useState([]);
   const [selected, setSelected] = useState(null);
+  const getStatusLabel = (status) => RU.orderStatus[status] || status;
 
   const load = async () => {
     const data = await adminApi.listOrders();
@@ -626,7 +745,7 @@ function OrdersView() {
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       <div className="bg-slate-900 rounded-xl p-6 space-y-3">
-        <h2 className="text-lg font-semibold">Orders</h2>
+        <h2 className="text-lg font-semibold">{RU.headings.orders}</h2>
         {orders.map((order) => (
           <button
             key={order.id}
@@ -634,17 +753,17 @@ function OrdersView() {
             onClick={() => handleSelect(order)}
           >
             <div className="font-medium">#{order.id} • {order.customer_name}</div>
-            <div className="text-sm text-slate-400">{order.status} • {order.total} ₽</div>
+            <div className="text-sm text-slate-400">{getStatusLabel(order.status)} • {order.total} ₽</div>
           </button>
         ))}
       </div>
       <div className="bg-slate-900 rounded-xl p-6 lg:col-span-2">
         {!selected ? (
-          <p className="text-slate-400">Select an order to view details.</p>
+          <p className="text-slate-400">{RU.messages.selectOrder}</p>
         ) : (
           <div className="space-y-4">
             <div>
-              <h3 className="text-lg font-semibold">Order #{selected.id}</h3>
+              <h3 className="text-lg font-semibold">{RU.headings.orderDetails} #{selected.id}</h3>
               <p className="text-sm text-slate-400">{selected.customer_name} • {selected.phone}</p>
               <p className="text-sm text-slate-400">{selected.address}</p>
             </div>
@@ -659,7 +778,7 @@ function OrdersView() {
             <div className="flex gap-2 flex-wrap">
               {["new", "preparing", "delivering", "done"].map((status) => (
                 <Button key={status} variant={selected.status === status ? "secondary" : "ghost"} onClick={() => updateStatus(status)}>
-                  {status}
+                  {getStatusLabel(status)}
                 </Button>
               ))}
             </div>
@@ -724,7 +843,7 @@ function ProductsGridEditor({ block, products, onChange }) {
                         checked={item.visible !== false}
                         onChange={() => toggleVisibility(item.id)}
                       />
-                      Visible
+                      {RU.messages.visible}
                     </label>
                   </div>
                 </SortableItem>
@@ -741,6 +860,7 @@ function PageBuilder({ page, onRefresh }) {
   const [blocks, setBlocks] = useState([]);
   const [selected, setSelected] = useState(null);
   const [products, setProducts] = useState([]);
+  const getBlockLabel = (type) => BLOCK_TYPES.find((item) => item.type === type)?.label || type;
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -795,7 +915,7 @@ function PageBuilder({ page, onRefresh }) {
 
   const deleteSelected = async () => {
     if (!selected) return;
-    const confirmed = await confirmPopup({ message: "Удалить блок?" });
+    const confirmed = await confirmPopup({ message: RU.confirm.deleteBlock });
     if (!confirmed) return;
     await adminApi.deletePageBlock(selected.id);
     const updated = blocks.filter((block) => block.id !== selected.id);
@@ -807,7 +927,7 @@ function PageBuilder({ page, onRefresh }) {
   return (
     <div className="grid lg:grid-cols-[240px_1fr_320px] gap-6">
       <div className="bg-slate-900 rounded-xl p-4 space-y-3">
-        <h3 className="text-sm text-slate-400">Blocks</h3>
+        <h3 className="text-sm text-slate-400">{RU.headings.blocks}</h3>
         {BLOCK_TYPES.map((block) => (
           <Button key={block.type} variant="secondary" onClick={() => handleAddBlock(block.type)}>
             + {block.label}
@@ -815,7 +935,7 @@ function PageBuilder({ page, onRefresh }) {
         ))}
       </div>
       <div className="bg-slate-900 rounded-xl p-4">
-        <h3 className="text-sm text-slate-400 mb-3">Canvas</h3>
+        <h3 className="text-sm text-slate-400 mb-3">{RU.headings.canvas}</h3>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={blocks.map((block) => block.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-3">
@@ -825,8 +945,8 @@ function PageBuilder({ page, onRefresh }) {
                     className={`w-full text-left border border-slate-800 rounded-lg p-3 ${selected?.id === block.id ? "bg-slate-800" : ""}`}
                     onClick={() => setSelected(block)}
                   >
-                    <div className="text-sm font-medium">{block.type}</div>
-                    <div className="text-xs text-slate-400">Sort: {block.sort}</div>
+                    <div className="text-sm font-medium">{getBlockLabel(block.type)}</div>
+                    <div className="text-xs text-slate-400">{RU.labels.sort}: {block.sort}</div>
                   </button>
                 </SortableItem>
               ))}
@@ -835,44 +955,44 @@ function PageBuilder({ page, onRefresh }) {
         </DndContext>
       </div>
       <div className="bg-slate-900 rounded-xl p-4 space-y-4">
-        <h3 className="text-sm text-slate-400">Properties</h3>
+        <h3 className="text-sm text-slate-400">{RU.headings.properties}</h3>
         {!selected ? (
-          <p className="text-slate-500 text-sm">Select a block to edit.</p>
+          <p className="text-slate-500 text-sm">{RU.messages.selectBlock}</p>
         ) : (
           <div className="space-y-3">
-            <div className="text-sm font-medium">{selected.type}</div>
+            <div className="text-sm font-medium">{getBlockLabel(selected.type)}</div>
             {selected.type === "hero" && (
               <>
-                <Field label="Title">
+                <Field label={RU.labels.title}>
                   <Input value={selected.props.title || ""} onChange={(e) => updateSelectedProps({ ...selected.props, title: e.target.value })} />
                 </Field>
-                <Field label="Subtitle">
+                <Field label={RU.labels.subtitle}>
                   <Textarea value={selected.props.subtitle || ""} onChange={(e) => updateSelectedProps({ ...selected.props, subtitle: e.target.value })} />
                 </Field>
-                <Field label="Button label">
+                <Field label={RU.labels.buttonLabel}>
                   <Input value={selected.props.buttonLabel || ""} onChange={(e) => updateSelectedProps({ ...selected.props, buttonLabel: e.target.value })} />
                 </Field>
-                <Field label="Button link">
+                <Field label={RU.labels.buttonLink}>
                   <Input value={selected.props.buttonLink || ""} onChange={(e) => updateSelectedProps({ ...selected.props, buttonLink: e.target.value })} />
                 </Field>
               </>
             )}
             {selected.type === "banner" && (
-              <Field label="Text">
+              <Field label={RU.labels.text}>
                 <Textarea value={selected.props.text || ""} onChange={(e) => updateSelectedProps({ ...selected.props, text: e.target.value })} />
               </Field>
             )}
             {selected.type === "text" && (
-              <Field label="Content">
+              <Field label={RU.labels.content}>
                 <Textarea value={selected.props.text || ""} onChange={(e) => updateSelectedProps({ ...selected.props, text: e.target.value })} />
               </Field>
             )}
             {selected.type === "gallery" && (
               <>
-                <Field label="Title">
+                <Field label={RU.labels.title}>
                   <Input value={selected.props.title || ""} onChange={(e) => updateSelectedProps({ ...selected.props, title: e.target.value })} />
                 </Field>
-                <Field label="Images (comma separated URLs)">
+                <Field label={RU.labels.imagesComma}>
                   <Textarea
                     value={(selected.props.images || []).join(", ")}
                     onChange={(e) => updateSelectedProps({ ...selected.props, images: e.target.value.split(",").map((url) => url.trim()).filter(Boolean) })}
@@ -882,7 +1002,7 @@ function PageBuilder({ page, onRefresh }) {
             )}
             {selected.type === "products-grid" && (
               <>
-                <Field label="Title">
+                <Field label={RU.labels.title}>
                   <Input value={selected.props.title || ""} onChange={(e) => updateSelectedProps({ ...selected.props, title: e.target.value })} />
                 </Field>
                 <ProductsGridEditor
@@ -893,8 +1013,8 @@ function PageBuilder({ page, onRefresh }) {
               </>
             )}
             <div className="flex gap-2">
-              <Button onClick={saveSelected}>Save</Button>
-              <Button variant="danger" onClick={deleteSelected}>Delete</Button>
+              <Button onClick={saveSelected}>{RU.buttons.save}</Button>
+              <Button variant="danger" onClick={deleteSelected}>{RU.buttons.delete}</Button>
             </div>
           </div>
         )}
@@ -930,7 +1050,7 @@ function PagesView() {
   };
 
   const handleDelete = async (page) => {
-    const confirmed = await confirmPopup({ message: "Удалить страницу?" });
+    const confirmed = await confirmPopup({ message: RU.confirm.deletePage });
     if (!confirmed) return;
     await adminApi.deletePage(page.id);
     setSelectedPage(null);
@@ -940,27 +1060,27 @@ function PagesView() {
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 rounded-xl p-6 space-y-4">
-        <h2 className="text-lg font-semibold">New page</h2>
+        <h2 className="text-lg font-semibold">{RU.headings.newPage}</h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <Field label="Slug">
+          <Field label={RU.labels.slug}>
             <Input value={slug} onChange={(e) => setSlug(e.target.value)} />
           </Field>
-          <Field label="Title">
+          <Field label={RU.labels.title}>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
         </div>
-        <Button onClick={handleCreate} disabled={!slug || !title}>Create</Button>
+        <Button onClick={handleCreate} disabled={!slug || !title}>{RU.buttons.create}</Button>
       </div>
       <div className="bg-slate-900 rounded-xl p-6 space-y-4">
-        <h2 className="text-lg font-semibold">Pages</h2>
+        <h2 className="text-lg font-semibold">{RU.headings.pages}</h2>
         <div className="grid md:grid-cols-3 gap-3">
           {pages.map((page) => (
             <div key={page.id} className={`border border-slate-800 rounded-lg p-3 space-y-2 ${selectedPage?.id === page.id ? "bg-slate-800" : ""}`}>
               <div className="font-medium">{page.title}</div>
               <div className="text-xs text-slate-400">/{page.slug}</div>
               <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => handleSelect(page)}>Edit</Button>
-                <Button variant="danger" onClick={() => handleDelete(page)}>Delete</Button>
+                <Button variant="secondary" onClick={() => handleSelect(page)}>{RU.buttons.edit}</Button>
+                <Button variant="danger" onClick={() => handleDelete(page)}>{RU.buttons.delete}</Button>
               </div>
             </div>
           ))}
@@ -970,7 +1090,7 @@ function PagesView() {
         <div className="bg-slate-900 rounded-xl p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold">Page builder</h3>
+              <h3 className="text-lg font-semibold">{RU.headings.pageBuilder}</h3>
               <p className="text-sm text-slate-400">/{selectedPage.slug}</p>
             </div>
             <a
@@ -979,7 +1099,7 @@ function PagesView() {
               target="_blank"
               rel="noreferrer"
             >
-              View public page
+              {RU.buttons.viewPublicPage}
             </a>
           </div>
           <PageBuilder page={selectedPage} onRefresh={load} />
@@ -1003,7 +1123,7 @@ function MediaView() {
 
   return (
     <div className="bg-slate-900 rounded-xl p-6 space-y-4">
-      <h2 className="text-lg font-semibold">Media library</h2>
+      <h2 className="text-lg font-semibold">{RU.headings.mediaLibrary}</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {items.map((item) => (
           <div key={item.key} className="border border-slate-800 rounded-lg p-2">
@@ -1023,8 +1143,8 @@ function MediaView() {
 function Dashboard() {
   return (
     <div className="bg-slate-900 rounded-xl p-6">
-      <h2 className="text-lg font-semibold">Welcome</h2>
-      <p className="text-slate-400">Use the sidebar to manage catalog, orders, media and pages.</p>
+      <h2 className="text-lg font-semibold">{RU.headings.dashboard}</h2>
+      <p className="text-slate-400">{RU.messages.useSidebar}</p>
     </div>
   );
 }
@@ -1053,7 +1173,7 @@ function AdminLayout({ user, onLogout }) {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
       <aside className="w-64 bg-slate-900 p-6 flex flex-col gap-6">
         <div>
-          <h1 className="text-xl font-semibold">Admin Panel</h1>
+          <h1 className="text-xl font-semibold">{RU.headings.adminPanel}</h1>
           <p className="text-xs text-slate-400">{user.email}</p>
         </div>
         <nav className="space-y-2">
@@ -1067,7 +1187,7 @@ function AdminLayout({ user, onLogout }) {
             </button>
           ))}
         </nav>
-        <Button variant="ghost" onClick={onLogout}>Logout</Button>
+        <Button variant="ghost" onClick={onLogout}>{RU.buttons.logout}</Button>
       </aside>
       <main className="flex-1 p-8 overflow-auto">
         {content}
@@ -1119,7 +1239,7 @@ function AdminApp({ navigate, initialPath }) {
   const handleLogin = async (password) => {
     const data = await adminApi.login(password);
     if (!data) {
-      const error = new Error("Не удалось авторизоваться. Проверьте пароль и настройки API.");
+      const error = new Error(RU.messages.loginErrorFallback);
       error.status = 401;
       throw error;
     }
@@ -1139,15 +1259,15 @@ function AdminApp({ navigate, initialPath }) {
   const isLoginRoute = (initialPath || window.location.pathname).startsWith("/admin/login");
 
   if (status === "loading") {
-    return <LoadingScreen label="Проверяем доступ к админке…" />;
+    return <LoadingScreen label={RU.messages.loadingAdminAccess} />;
   }
 
   if (status === "error") {
     const errorMessage =
-      error?.message || "Не удалось подключиться к админ API. Проверьте переменные окружения и логи билда.";
+      error?.message || RU.messages.adminApiUnavailable;
     return (
       <ErrorState
-        title="Ошибка загрузки админки"
+        title={RU.messages.errorLoadingAdmin}
         message={errorMessage}
         details={error?.details ? JSON.stringify(error.details, null, 2) : error?.message}
         onRetry={fetchSession}
