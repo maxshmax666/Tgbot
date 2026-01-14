@@ -16,12 +16,24 @@ export function renderOrderStatusPage({ navigate }) {
   const content = createElement("div");
   root.appendChild(content);
 
+  const resolveQrSrc = (confirmation) => {
+    const raw = confirmation?.confirmation_data || confirmation?.confirmation_url;
+    if (!raw) return null;
+    if (raw.startsWith("data:")) return raw;
+    if (/^[A-Za-z0-9+/=]+$/.test(raw)) {
+      return `data:image/png;base64,${raw}`;
+    }
+    if (/^https?:\/\//.test(raw)) return raw;
+    return null;
+  };
+
   const render = () => {
     clearElement(content);
     const status = getLastOrderStatus();
     const orders = getOrders();
     const latest = orders[0];
     const requestId = latest?.request_id || status?.request_id;
+    const payment = latest?.payment;
 
     const panel = createElement("div", { className: "panel" });
     panel.appendChild(
@@ -44,11 +56,51 @@ export function renderOrderStatusPage({ navigate }) {
         })
       );
     }
+    if (payment?.payment_id) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `Платёж: ${payment.payment_id} (${payment.status || "pending"})`,
+        })
+      );
+    }
     if (requestId) {
       panel.appendChild(
         createElement("div", {
           className: "helper",
           text: `Request ID: ${requestId}`,
+        })
+      );
+    }
+    if (payment?.confirmation?.type === "qr") {
+      const qrSrc = resolveQrSrc(payment.confirmation);
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: "СБП: отсканируйте QR-код для оплаты.",
+        })
+      );
+      if (qrSrc) {
+        panel.appendChild(
+          createElement("img", {
+            attrs: { src: qrSrc, alt: "QR для оплаты", style: "max-width: 220px; width: 100%;" },
+          })
+        );
+      } else if (payment.payment_url) {
+        panel.appendChild(
+          createElement("a", {
+            className: "helper",
+            text: "Открыть ссылку для оплаты",
+            attrs: { href: payment.payment_url, target: "_blank", rel: "noopener noreferrer" },
+          })
+        );
+      }
+    } else if (payment?.payment_url) {
+      panel.appendChild(
+        createElement("a", {
+          className: "helper",
+          text: "Перейти к оплате",
+          attrs: { href: payment.payment_url, target: "_blank", rel: "noopener noreferrer" },
         })
       );
     }

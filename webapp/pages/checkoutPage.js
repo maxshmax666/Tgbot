@@ -10,8 +10,8 @@ import { showToast } from "../ui/toast.js";
 
 const PAYMENT_OPTIONS = [
   { id: PAYMENT_METHODS.cash, label: "Наличные", enabled: true },
-  { id: PAYMENT_METHODS.sbp, label: "СБП (QR)", enabled: false },
-  { id: PAYMENT_METHODS.card, label: "Карта", enabled: false },
+  { id: PAYMENT_METHODS.sbp, label: "СБП (QR)", enabled: true },
+  { id: PAYMENT_METHODS.card, label: "Карта", enabled: true },
 ];
 
 function renderOrderItems(container, items) {
@@ -283,12 +283,29 @@ export function renderCheckoutPage({ navigate }) {
         try {
           const payment = await preparePayment(order, selectedMethod);
           order.payment = payment;
+          if (payment.status === "failed") {
+            const status = "order:pending_sync";
+            addOrder({ ...order, status });
+            setLastOrderStatus({
+              status,
+              order_id: order.order_id,
+              request_id: order.request_id || undefined,
+            });
+            error.textContent = payment.message || "Не удалось создать платеж. Заказ сохранён локально.";
+            error.hidden = false;
+            showToast(error.textContent, "error");
+            navigate("/order-status");
+            return;
+          }
           const apiPayload = {
             order_id: order.order_id,
             customerName: order.customer.name || "Гость",
             phone: order.customer.phone,
             address: order.delivery.address,
             comment: order.comment,
+            payment_id: order.payment.payment_id,
+            payment_status: order.payment.status,
+            payment_method: order.payment.method,
             items: order.items.map((item) => ({
               ...item,
               id: Number(item.id),
@@ -352,6 +369,10 @@ export function renderCheckoutPage({ navigate }) {
           clear();
           showTelegramAlert("Заказ отправлен в бот ✅");
           showToast("Заказ принят, мы скоро свяжемся!", "success");
+          if (order.payment?.confirmation?.type === "redirect" && order.payment?.payment_url) {
+            window.location.assign(order.payment.payment_url);
+            return;
+          }
           navigate("/order-status");
         } catch (err) {
           console.error("Checkout failed", err);

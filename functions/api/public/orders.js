@@ -16,6 +16,9 @@ const orderSchema = z.object({
     .optional()
     .nullable(),
   comment: z.string().optional().nullable(),
+  payment_id: z.string().min(1).optional().nullable(),
+  payment_status: z.string().min(1).optional().nullable(),
+  payment_method: z.string().min(1).optional().nullable(),
   items: z.array(
     z.object({
       id: z.number().int().positive(),
@@ -234,6 +237,23 @@ export async function onRequestPost({ env, request }) {
       .first();
 
     if (existingOrder) {
+      if (body.payment_id || body.payment_status || body.payment_method) {
+        await db
+          .prepare(
+            `UPDATE orders
+             SET payment_id = COALESCE(?, payment_id),
+                 payment_status = COALESCE(?, payment_status),
+                 payment_method = COALESCE(?, payment_method)
+             WHERE order_id = ?`
+          )
+          .bind(
+            body.payment_id || null,
+            body.payment_status || null,
+            body.payment_method || null,
+            body.order_id
+          )
+          .run();
+      }
       logEvent("info", { message: "order_exists", status: existingOrder.status });
       return json(
         { id: existingOrder.id, status: existingOrder.status, order_id: body.order_id },
@@ -245,8 +265,8 @@ export async function onRequestPost({ env, request }) {
     try {
       const result = await db
         .prepare(
-          `INSERT INTO orders (order_id, created_at, status, customer_name, phone, address, comment, items_json, total)
-           VALUES (?, datetime('now'), 'new', ?, ?, ?, ?, ?, ?)`
+          `INSERT INTO orders (order_id, created_at, status, customer_name, phone, address, comment, items_json, total, payment_id, payment_status, payment_method)
+           VALUES (?, datetime('now'), 'new', ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           body.order_id,
@@ -255,7 +275,10 @@ export async function onRequestPost({ env, request }) {
           body.address || null,
           body.comment || null,
           JSON.stringify(normalizedItems),
-          computedTotal
+          computedTotal,
+          body.payment_id || null,
+          body.payment_status || null,
+          body.payment_method || null
         )
         .run();
 
