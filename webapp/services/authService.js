@@ -1,4 +1,5 @@
 import { storage, STORAGE_KEYS } from "./storageService.js";
+import { isTelegram } from "./telegramService.js";
 
 const scriptCache = new Map();
 
@@ -34,6 +35,24 @@ const loadScriptOnce = (src) => {
   });
   scriptCache.set(src, promise);
   return promise;
+};
+
+const getGlobal = (path) => {
+  return path.split(".").reduce((acc, key) => acc?.[key], window);
+};
+
+const waitForGlobal = (path, timeout = 4000, interval = 50) => {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (getGlobal(path)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const tick = () => {
+      if (getGlobal(path)) return resolve(true);
+      if (Date.now() - start >= timeout) return resolve(false);
+      setTimeout(tick, interval);
+    };
+    tick();
+  });
 };
 
 export function getAuthConfig() {
@@ -150,8 +169,7 @@ export function renderTelegramLogin(container, { botUsername, onSuccess, onError
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "Telegram login failed");
 
-      setAuthState?.(data); // if your service has it
-      saveSession?.(data);  // if your service has it
+      setAuthState({ provider: "telegram", ...data });
       // fallback: minimal store
       if (!localStorage.getItem("auth:token") && data.token) localStorage.setItem("auth:token", data.token);
       if (!localStorage.getItem("auth:user") && data.user) localStorage.setItem("auth:user", JSON.stringify(data.user));
@@ -173,7 +191,7 @@ export function renderTelegramLogin(container, { botUsername, onSuccess, onError
 }
 
 export async function renderGoogleLogin(container, { clientId, onSuccess, onError } = {}) {
-  await waitFor?.(() => !!window.google?.accounts?.id, 4000);
+  await waitForGlobal("google.accounts.id", 4000);
 
   const wrap = document.createElement("div");
   wrap.style.display = "flex";
@@ -215,8 +233,7 @@ export async function renderGoogleLogin(container, { clientId, onSuccess, onErro
           const data = await res.json();
           if (!res.ok || !data?.ok) throw new Error(data?.error || "Google login failed");
 
-          setAuthState?.(data);
-          saveSession?.(data);
+          setAuthState({ provider: "google", ...data });
           if (!localStorage.getItem("auth:token") && data.token) localStorage.setItem("auth:token", data.token);
           if (!localStorage.getItem("auth:user") && data.user) localStorage.setItem("auth:user", JSON.stringify(data.user));
           if (!localStorage.getItem("auth:provider") && data.provider) localStorage.setItem("auth:provider", data.provider);
