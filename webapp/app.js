@@ -28,8 +28,8 @@ const navItems = [
   { label: "Админ", path: "/admin" },
 ];
 const appShell = createAppShell({
-  title: "Pizza Tagil",
-  subtitle: "Мини App для заказа пиццы без лишних шагов.",
+  title: "Пиццерия Тагил",
+  subtitle: "Мини‑приложение для заказа пиццы без лишних шагов.",
   navItems,
   onNavigate: (path) => navigate(path),
 });

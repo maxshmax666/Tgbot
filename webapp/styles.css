@@ -1,3 +1,13 @@
+@font-face {
+  font-family: "BrandDisplay";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    url("assets/fonts/BrandDisplay.woff2") format("woff2"),
+    url("assets/fonts/BrandDisplay.woff") format("woff");
+}
+
 :root {
   color-scheme: light dark;
   font-family: "Inter", system-ui, -apple-system, sans-serif;
@@ -99,9 +109,10 @@ body.admin-mode #app {
 
 .title {
   margin: 0;
-  font-size: 26px;
+  font-family: "BrandDisplay", "Inter", system-ui, sans-serif;
+  font-size: 28px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
