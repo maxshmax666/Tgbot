@@ -123,21 +123,25 @@ function addOrder(order) {
   items.unshift(order);
   storage.write(STORAGE_KEYS.orders, items.slice(0, 50));
 }
-function updateOrderStatus(orderId, status) {
+function updateOrderStatus(orderId, status, updatedAt) {
   if (!orderId) return;
   const items = getOrders();
   const index = items.findIndex((item) => item.order_id === orderId);
   if (index === -1) return;
-  items[index] = { ...items[index], status };
+  items[index] = {
+    ...items[index],
+    status,
+    ...updatedAt ? { updated_at: updatedAt } : {}
+  };
   storage.write(STORAGE_KEYS.orders, items);
 }
 function updateOrderStatusFromApi(orderId, status, updatedAt) {
   if (!orderId || !status) return;
-  updateOrderStatus(orderId, status);
+  updateOrderStatus(orderId, status, updatedAt);
   setLastOrderStatus({
     status,
     order_id: orderId,
-    updated_at: updatedAt
+    updated_at: updatedAt || void 0
   });
 }
 function getPendingOrders() {
@@ -865,7 +869,7 @@ async function fetchApiJson(url) {
   }
   if (!response.ok) {
     const httpError = new Error(`HTTP ${response.status} for ${url}`);
-    httpError.isFallback = response.status >= 500;
+    httpError.isFallback = response.status >= 500 || response.status === 404;
     httpError.status = response.status;
     httpError.cause = response;
     throw httpError;
@@ -2161,6 +2165,19 @@ var STATUS_LABELS2 = {
   "order:pending_sync": "\u041E\u0436\u0438\u0434\u0430\u0435\u0442 \u0441\u0438\u043D\u0445\u0440\u043E\u043D\u0438\u0437\u0430\u0446\u0438\u0438",
   "order:error": "\u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0438"
 };
+var formatUpdatedAt = (updatedAt) => {
+  if (!updatedAt) return null;
+  const date = new Date(updatedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const diffMs = Math.max(0, Date.now() - date.getTime());
+  const minutes = Math.floor(diffMs / 6e4);
+  if (minutes <= 0) return "\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E \u0442\u043E\u043B\u044C\u043A\u043E \u0447\u0442\u043E";
+  if (minutes < 60) return `\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E ${minutes} \u043C\u0438\u043D \u043D\u0430\u0437\u0430\u0434`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E ${hours} \u0447 \u043D\u0430\u0437\u0430\u0434`;
+  const days = Math.floor(hours / 24);
+  return `\u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u043E ${days} \u0434\u043D \u043D\u0430\u0437\u0430\u0434`;
+};
 function renderOrderStatusPage({ navigate: navigate2 }) {
   const root = createElement("section", { className: "list" });
   const content2 = createElement("div");
@@ -2199,6 +2216,15 @@ function renderOrderStatusPage({ navigate: navigate2 }) {
         text: status ? STATUS_LABELS2[status.status] || status.status : "\u041D\u0435\u0442 \u0430\u043A\u0442\u0438\u0432\u043D\u043E\u0433\u043E \u0437\u0430\u043A\u0430\u0437\u0430."
       })
     );
+    const updatedAtLabel = formatUpdatedAt(status?.updated_at || latest?.updated_at);
+    if (updatedAtLabel) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: updatedAtLabel
+        })
+      );
+    }
     if (transientError) {
       panel.appendChild(
         createElement("div", {
@@ -2449,8 +2475,10 @@ function createNav({ items, onNavigate, location = "top" }) {
 }
 function createTopBar({ title, subtitle, navItems: navItems2, onNavigate }) {
   const header = createElement("header", { className: "header" });
-  header.appendChild(createElement("h1", { className: "title", text: title }));
-  header.appendChild(createElement("p", { className: "subtitle", text: subtitle }));
+  const heading = createElement("h1", { className: "title", text: title });
+  const badge = createElement("div", { className: "brand-badge", text: "\u0414\u0440\u043E\u0432\u044F\u043D\u0430\u044F \u043F\u0435\u0447\u044C \u2022 45 \u043C\u0438\u043D\u0443\u0442" });
+  const subtitleText = createElement("p", { className: "subtitle", text: subtitle });
+  header.append(heading, badge, subtitleText);
   const nav = createNav({ items: navItems2, onNavigate, location: "top" });
   const element = createElement("div", { className: "top-bar" });
   element.append(header, nav.element);
@@ -2526,8 +2554,8 @@ var navItems = [
   { label: "\u0410\u0434\u043C\u0438\u043D", path: "/admin" }
 ];
 var appShell = createAppShell({
-  title: "Pizza Tagil",
-  subtitle: "\u041C\u0438\u043D\u0438 App \u0434\u043B\u044F \u0437\u0430\u043A\u0430\u0437\u0430 \u043F\u0438\u0446\u0446\u044B \u0431\u0435\u0437 \u043B\u0438\u0448\u043D\u0438\u0445 \u0448\u0430\u0433\u043E\u0432.",
+  title: "\u041F\u0438\u0446\u0446\u0435\u0440\u0438\u044F \u0422\u0430\u0433\u0438\u043B",
+  subtitle: "\u041C\u0438\u043D\u0438\u2011\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F \u0437\u0430\u043A\u0430\u0437\u0430 \u043F\u0438\u0446\u0446\u044B \u0431\u0435\u0437 \u043B\u0438\u0448\u043D\u0438\u0445 \u0448\u0430\u0433\u043E\u0432.",
   navItems,
   onNavigate: (path) => navigate(path)
 });

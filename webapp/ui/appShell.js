@@ -24,8 +24,10 @@ function createNav({ items, onNavigate, location = "top" }) {
 
 export function createTopBar({ title, subtitle, navItems, onNavigate }) {
   const header = createElement("header", { className: "header" });
-  header.appendChild(createElement("h1", { className: "title", text: title }));
-  header.appendChild(createElement("p", { className: "subtitle", text: subtitle }));
+  const heading = createElement("h1", { className: "title", text: title });
+  const badge = createElement("div", { className: "brand-badge", text: "Дровяная печь • 45 минут" });
+  const subtitleText = createElement("p", { className: "subtitle", text: subtitle });
+  header.append(heading, badge, subtitleText);
 
   const nav = createNav({ items: navItems, onNavigate, location: "top" });
 
