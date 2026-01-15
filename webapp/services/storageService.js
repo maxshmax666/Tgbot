@@ -80,7 +80,7 @@ export function updateOrderStatusFromApi(orderId, status, updatedAt) {
   setLastOrderStatus({
     status,
     order_id: orderId,
-    updated_at: updatedAt,
+    updated_at: updatedAt || undefined,
   });
 }
 

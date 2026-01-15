@@ -15,6 +15,20 @@ const STATUS_LABELS = {
   "order:error": "Ошибка отправки",
 };
 
+const formatUpdatedAt = (updatedAt) => {
+  if (!updatedAt) return null;
+  const date = new Date(updatedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  const diffMs = Math.max(0, Date.now() - date.getTime());
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes <= 0) return "обновлено только что";
+  if (minutes < 60) return `обновлено ${minutes} мин назад`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `обновлено ${hours} ч назад`;
+  const days = Math.floor(hours / 24);
+  return `обновлено ${days} дн назад`;
+};
+
 export function renderOrderStatusPage({ navigate }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div");
@@ -56,6 +70,15 @@ export function renderOrderStatusPage({ navigate }) {
         text: status ? STATUS_LABELS[status.status] || status.status : "Нет активного заказа.",
       })
     );
+    const updatedAtLabel = formatUpdatedAt(status?.updated_at);
+    if (updatedAtLabel) {
+      panel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: updatedAtLabel,
+        })
+      );
+    }
     if (transientError) {
       panel.appendChild(
         createElement("div", {
