@@ -70,7 +70,7 @@ export function renderOrderStatusPage({ navigate }) {
         text: status ? STATUS_LABELS[status.status] || status.status : "Нет активного заказа.",
       })
     );
-    const updatedAtLabel = formatUpdatedAt(status?.updated_at);
+    const updatedAtLabel = formatUpdatedAt(status?.updated_at || latest?.updated_at);
     if (updatedAtLabel) {
       panel.appendChild(
         createElement("div", {

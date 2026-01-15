@@ -65,18 +65,22 @@ export function addOrder(order) {
   storage.write(STORAGE_KEYS.orders, items.slice(0, 50));
 }
 
-export function updateOrderStatus(orderId, status) {
+export function updateOrderStatus(orderId, status, updatedAt) {
   if (!orderId) return;
   const items = getOrders();
   const index = items.findIndex((item) => item.order_id === orderId);
   if (index === -1) return;
-  items[index] = { ...items[index], status };
+  items[index] = {
+    ...items[index],
+    status,
+    ...(updatedAt ? { updated_at: updatedAt } : {}),
+  };
   storage.write(STORAGE_KEYS.orders, items);
 }
 
 export function updateOrderStatusFromApi(orderId, status, updatedAt) {
   if (!orderId || !status) return;
-  updateOrderStatus(orderId, status);
+  updateOrderStatus(orderId, status, updatedAt);
   setLastOrderStatus({
     status,
     order_id: orderId,
