@@ -203,6 +203,13 @@ input:focus-visible {
   margin-right: 8px;
 }
 
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
 .helper {
   color: var(--muted);
   font-size: 13px;

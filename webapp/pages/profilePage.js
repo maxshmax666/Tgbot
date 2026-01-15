@@ -3,8 +3,15 @@ import { createButton } from "../ui/button.js";
 import { formatPrice } from "../services/format.js";
 import { getOrders, getFavorites } from "../services/storageService.js";
 import { setState } from "../store/cartStore.js";
-import { sendData, showTelegramAlert } from "../services/telegramService.js";
+import { sendData, showTelegramAlert, getUser, isTelegram } from "../services/telegramService.js";
 import { showToast } from "../ui/toast.js";
+import {
+  clearAuthState,
+  getAuthConfig,
+  getAuthState,
+  renderGoogleLogin,
+  renderTelegramLogin,
+} from "../services/authService.js";
 
 function computeStats(orders) {
   const totalOrders = orders.length;
@@ -35,12 +42,127 @@ export function renderProfilePage({ navigate }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div");
   root.appendChild(content);
+  const authConfig = getAuthConfig();
+  let cleanupAuth = null;
 
   const render = () => {
+    if (cleanupAuth) {
+      cleanupAuth();
+      cleanupAuth = null;
+    }
     clearElement(content);
     const orders = getOrders();
     const favorites = getFavorites();
     const stats = computeStats(orders);
+    const telegramUser = getUser();
+    const storedAuth = getAuthState();
+    const isMiniApp = isTelegram();
+    const user = isMiniApp ? telegramUser : storedAuth?.user;
+    const provider = isMiniApp ? "telegram-webapp" : storedAuth?.provider;
+
+    if (!user && !isMiniApp) {
+      const authPanel = createElement("div", { className: "panel" });
+      authPanel.appendChild(createElement("h2", { className: "title", text: "Вход" }));
+      authPanel.appendChild(
+        createElement("p", {
+          className: "helper",
+          text: "Авторизация нужна, чтобы сохранить профиль между устройствами.",
+        })
+      );
+
+      const telegramWrap = createElement("div", { className: "auth-actions" });
+      const googleWrap = createElement("div", { className: "auth-actions" });
+
+      const cleanupFns = [];
+
+      if (authConfig.telegramBotUsername) {
+        authPanel.appendChild(
+          createElement("div", { className: "section-title", text: "Telegram" })
+        );
+        authPanel.appendChild(telegramWrap);
+        const telegramCleanup = renderTelegramLogin(telegramWrap, {
+          botUsername: authConfig.telegramBotUsername,
+          onSuccess: () => {
+            showToast("Вход через Telegram выполнен", "success");
+            render();
+          },
+          onError: (error) => {
+            showToast(error?.message || "Не удалось войти через Telegram", "error");
+          },
+        });
+        cleanupFns.push(telegramCleanup);
+      } else {
+        authPanel.appendChild(
+          createElement("p", {
+            className: "helper",
+            text: "Добавьте PUBLIC_AUTH_CONFIG.telegramBotUsername в auth-config.js.",
+          })
+        );
+      }
+
+      if (authConfig.googleClientId) {
+        authPanel.appendChild(
+          createElement("div", { className: "section-title", text: "Google" })
+        );
+        authPanel.appendChild(googleWrap);
+        renderGoogleLogin(googleWrap, {
+          clientId: authConfig.googleClientId,
+          onSuccess: () => {
+            showToast("Вход через Google выполнен", "success");
+            render();
+          },
+          onError: (error) => {
+            showToast(error?.message || "Не удалось войти через Google", "error");
+          },
+        })
+          .then((googleCleanup) => cleanupFns.push(googleCleanup))
+          .catch((error) => {
+            showToast(error?.message || "Google login недоступен", "error");
+          });
+      } else {
+        authPanel.appendChild(
+          createElement("p", {
+            className: "helper",
+            text: "Добавьте PUBLIC_AUTH_CONFIG.googleClientId в auth-config.js.",
+          })
+        );
+      }
+
+      cleanupAuth = () => cleanupFns.forEach((fn) => fn?.());
+
+      content.appendChild(authPanel);
+    }
+
+    if (user) {
+      const userPanel = createElement("div", { className: "panel" });
+      userPanel.appendChild(createElement("h2", { className: "title", text: "Профиль" }));
+      const displayName =
+        user.first_name || user.name || user.username || user.email || `User ${user.id || ""}`;
+      userPanel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `Провайдер: ${provider || "—"}`,
+        })
+      );
+      userPanel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `Имя: ${displayName}`,
+        })
+      );
+      if (!isMiniApp) {
+        const logout = createButton({
+          label: "Выйти",
+          variant: "secondary",
+          onClick: () => {
+            clearAuthState();
+            render();
+          },
+        });
+        userPanel.appendChild(logout);
+      }
+      content.appendChild(userPanel);
+    }
 
     const summary = createElement("div", { className: "panel" });
     summary.appendChild(createElement("h2", { className: "title", text: "Профиль" }));
