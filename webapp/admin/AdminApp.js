@@ -53,6 +53,7 @@ const RU = {
     reset: "Сбросить",
     logout: "Выйти",
     viewPublicPage: "Открыть публичную страницу",
+    generateName: "Сгенерировать название",
   },
   labels: {
     password: "Пароль",
@@ -126,6 +127,10 @@ const RU = {
     imageUrlPrompt: "URL изображения",
     visible: "Показывать",
     noIngredients: "Ингредиенты ещё не заведены.",
+    nameSuggesting: "Генерируем варианты…",
+    nameSuggestFailed: "Не удалось получить варианты названия.",
+    nameSuggestions: "Варианты названия",
+    nameSuggestionsEmpty: "Варианты названия не найдены.",
   },
   confirm: {
     deleteCategory: "Удалить категорию?",
@@ -713,6 +718,9 @@ function ProductsView() {
     ingredients: [],
   });
   const [mediaOpen, setMediaOpen] = useState(false);
+  const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [nameSuggesting, setNameSuggesting] = useState(false);
+  const [nameError, setNameError] = useState("");
 
   const load = async () => {
     const [productsData, categoriesData, ingredientsData] = await Promise.all([
@@ -742,6 +750,8 @@ function ProductsView() {
       images: [],
       ingredients: [],
     });
+    setNameSuggestions([]);
+    setNameError("");
   };
 
   const handleSubmit = async () => {
@@ -770,6 +780,42 @@ function ProductsView() {
     await load();
   };
 
+  const ingredientTitleMap = useMemo(
+    () => new Map(ingredients.map((item) => [String(item.id), item.title])),
+    [ingredients]
+  );
+
+  const categoryTitleMap = useMemo(
+    () => new Map(categories.map((item) => [String(item.id), item.title])),
+    [categories]
+  );
+
+  const handleSuggestName = useCallback(async () => {
+    setNameSuggesting(true);
+    setNameError("");
+    try {
+      const ingredientNames = form.ingredients
+        .map((item) => ingredientTitleMap.get(String(item.ingredientId)))
+        .filter(Boolean);
+      const categoryTitle = categoryTitleMap.get(String(form.categoryId)) || "";
+      const suggestions = await adminApi.suggestProductName({
+        titleHint: form.title?.trim() || null,
+        description: form.description?.trim() || null,
+        ingredients: ingredientNames,
+        category: categoryTitle,
+        images: form.images,
+      });
+      setNameSuggestions(suggestions);
+      if (!suggestions.length) {
+        setNameError(RU.messages.nameSuggestionsEmpty);
+      }
+    } catch (error) {
+      setNameError(error?.message || RU.messages.nameSuggestFailed);
+    } finally {
+      setNameSuggesting(false);
+    }
+  }, [categoryTitleMap, form, ingredientTitleMap]);
+
   const handleEdit = (product) => {
     setForm({
       id: product.id,
@@ -787,6 +833,8 @@ function ProductsView() {
           qtyGrams: String(item.qty_grams),
         })) || [],
     });
+    setNameSuggestions([]);
+    setNameError("");
   };
 
   const handleDelete = async (id) => {
@@ -834,7 +882,32 @@ function ProductsView() {
         <h2 className="text-lg font-semibold">{RU.headings.productEditor}</h2>
         <div className="grid md:grid-cols-2 gap-4">
           <Field label={RU.labels.title}>
-            <Input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
+            <div className="flex gap-2">
+              <Input value={form.title} onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))} />
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={handleSuggestName}
+                disabled={nameSuggesting}
+              >
+                {nameSuggesting ? RU.messages.nameSuggesting : RU.buttons.generateName}
+              </Button>
+            </div>
+            {nameError && <span className="text-xs text-rose-400">{nameError}</span>}
+            {nameSuggestions.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {nameSuggestions.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                    onClick={() => setForm((prev) => ({ ...prev, title: suggestion }))}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
           </Field>
           <Field label={RU.labels.price}>
             <Input type="number" value={form.price} onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))} />
