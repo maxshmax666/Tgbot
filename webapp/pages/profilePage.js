@@ -9,6 +9,9 @@ import {
   clearAuthState,
   getAuthConfig,
   getAuthState,
+  loginWithEmail,
+  registerWithEmail,
+  requestPasswordReset,
   renderGoogleLogin,
   renderTelegramLogin,
 } from "../services/authService.js";
@@ -72,6 +75,7 @@ export function renderProfilePage({ navigate }) {
 
       const telegramWrap = createElement("div", { className: "auth-actions" });
       const googleWrap = createElement("div", { className: "auth-actions" });
+      const emailWrap = createElement("div", { className: "auth-actions" });
 
       const cleanupFns = [];
 
@@ -127,6 +131,73 @@ export function renderProfilePage({ navigate }) {
           })
         );
       }
+
+      authPanel.appendChild(createElement("div", { className: "section-title", text: "Email" }));
+      const emailInput = createElement("input", {
+        className: "input",
+        attrs: { type: "email", placeholder: "Email" },
+      });
+      const passwordInput = createElement("input", {
+        className: "input",
+        attrs: { type: "password", placeholder: "Пароль (мин. 8 символов)" },
+      });
+      const emailActions = createElement("div", { className: "auth-actions" });
+      const loginButton = createButton({
+        label: "Войти",
+        onClick: async () => {
+          try {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            if (!email || !password) {
+              showToast("Укажите email и пароль", "info");
+              return;
+            }
+            await loginWithEmail({ email, password });
+            showToast("Вход по email выполнен", "success");
+            render();
+          } catch (error) {
+            showToast(error?.message || "Не удалось войти", "error");
+          }
+        },
+      });
+      const registerButton = createButton({
+        label: "Зарегистрироваться",
+        variant: "secondary",
+        onClick: async () => {
+          try {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            if (!email || !password) {
+              showToast("Укажите email и пароль", "info");
+              return;
+            }
+            await registerWithEmail({ email, password });
+            showToast("Письмо с подтверждением отправлено", "success");
+          } catch (error) {
+            showToast(error?.message || "Не удалось зарегистрироваться", "error");
+          }
+        },
+      });
+      const resetButton = createButton({
+        label: "Сбросить пароль",
+        variant: "ghost",
+        onClick: async () => {
+          try {
+            const email = emailInput.value.trim();
+            if (!email) {
+              showToast("Укажите email для сброса", "info");
+              return;
+            }
+            await requestPasswordReset(email);
+            showToast("Ссылка для сброса отправлена на почту", "success");
+          } catch (error) {
+            showToast(error?.message || "Не удалось отправить ссылку", "error");
+          }
+        },
+      });
+      emailActions.append(loginButton, registerButton, resetButton);
+      emailWrap.append(emailInput, passwordInput, emailActions);
+      authPanel.appendChild(emailWrap);
 
       cleanupAuth = () => cleanupFns.forEach((fn) => fn?.());
 

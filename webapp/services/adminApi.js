@@ -36,10 +36,10 @@ async function request(path, options = {}) {
 }
 
 export const adminApi = {
-  async login(password) {
+  async login(email, password) {
     const data = await request("/api/admin/auth/login", {
       method: "POST",
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ email, password }),
     });
     return data.user;
   },
@@ -60,6 +60,24 @@ export const adminApi = {
   },
   deleteCategory(id) {
     return request(`/api/admin/categories/${id}`, { method: "DELETE" });
+  },
+  listIngredients() {
+    return request("/api/admin/ingredients").then((data) => data.items || []);
+  },
+  createIngredient(payload) {
+    return request("/api/admin/ingredients", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updateIngredient(id, payload) {
+    return request(`/api/admin/ingredients/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deleteIngredient(id) {
+    return request(`/api/admin/ingredients/${id}`, { method: "DELETE" });
+  },
+  listInventory() {
+    return request("/api/admin/inventory").then((data) => data.items || []);
+  },
+  updateInventory(id, payload) {
+    return request(`/api/admin/inventory/${id}`, { method: "PUT", body: JSON.stringify(payload) });
   },
   listProducts() {
     return request("/api/admin/products").then((data) => data.items || []);

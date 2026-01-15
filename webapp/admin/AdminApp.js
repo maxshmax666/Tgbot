@@ -23,6 +23,8 @@ const RU = {
     dashboard: "Обзор",
     products: "Товары",
     categories: "Категории",
+    ingredients: "Ингредиенты",
+    inventory: "Склад",
     orders: "Заказы",
     media: "Медиа",
     pages: "Страницы",
@@ -46,6 +48,7 @@ const RU = {
     use: "Выбрать",
     close: "Закрыть",
     addUrl: "Добавить URL",
+    addIngredient: "Добавить ингредиент",
     remove: "Удалить",
     reset: "Сбросить",
     logout: "Выйти",
@@ -53,6 +56,7 @@ const RU = {
   },
   labels: {
     password: "Пароль",
+    email: "Email",
     title: "Название",
     sort: "Сортировка",
     active: "Активность",
@@ -72,9 +76,16 @@ const RU = {
     subtitle: "Подзаголовок",
     text: "Текст",
     slug: "Slug",
+    ingredient: "Ингредиент",
+    ingredients: "Состав (граммы)",
+    qtyGrams: "Граммы на пиццу",
+    unit: "Ед.",
+    available: "Остаток (г)",
   },
   headings: {
     adminLogin: "Вход в админку",
+    ingredients: "Ингредиенты",
+    inventory: "Склад и остатки",
     newCategory: "Новая категория",
     categories: "Категории",
     mediaLibrary: "Медиатека",
@@ -92,9 +103,9 @@ const RU = {
     properties: "Свойства",
   },
   messages: {
-    adminLoginHint: "Введите пароль администратора.",
-    adminPasswordInfoPrefix: "Пароль задаётся переменными окружения",
-    adminPasswordInfoSuffix: "(локально). Минимум 6 символов.",
+    adminLoginHint: "Введите email владельца и пароль.",
+    adminPasswordInfoPrefix: "Owner создаётся через ENV",
+    adminPasswordInfoSuffix: "(локально). Минимум 8 символов.",
     envCheckFailed: "Не удалось проверить переменные окружения.",
     missingEnv: "Не заданы переменные окружения:",
     envNotConfiguredPrefix: "ENV не настроены",
@@ -114,10 +125,12 @@ const RU = {
     noCategory: "Без категории",
     imageUrlPrompt: "URL изображения",
     visible: "Показывать",
+    noIngredients: "Ингредиенты ещё не заведены.",
   },
   confirm: {
     deleteCategory: "Удалить категорию?",
     deleteProduct: "Удалить товар?",
+    deleteIngredient: "Удалить ингредиент?",
     deleteFile: "Удалить файл?",
     deleteBlock: "Удалить блок?",
     deletePage: "Удалить страницу?",
@@ -147,6 +160,8 @@ const navItems = [
   { id: "dashboard", label: RU.nav.dashboard },
   { id: "products", label: RU.nav.products },
   { id: "categories", label: RU.nav.categories },
+  { id: "ingredients", label: RU.nav.ingredients },
+  { id: "inventory", label: RU.nav.inventory },
   { id: "orders", label: RU.nav.orders },
   { id: "media", label: RU.nav.media },
   { id: "pages", label: RU.nav.pages },
@@ -282,6 +297,7 @@ function formatZodIssues(details) {
 }
 
 function Login({ onLogin, onNavigate }) {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -332,7 +348,7 @@ function Login({ onLogin, onNavigate }) {
     setError("");
     setLoading(true);
     try {
-      const user = await onLogin(password);
+      const user = await onLogin({ email, password });
       if (onNavigate) {
         onNavigate("/admin");
       }
@@ -359,8 +375,9 @@ function Login({ onLogin, onNavigate }) {
         <p className="text-sm text-slate-400">{RU.messages.adminLoginHint}</p>
         <p className="text-xs text-slate-500">
           {RU.messages.adminPasswordInfoPrefix}{" "}
-          <code className="text-slate-300">ADMIN_PASSWORD_HASH</code> или{" "}
-          <code className="text-slate-300">ADMIN_PASSWORD</code>{" "}
+          <code className="text-slate-300">ADMIN_OWNER_EMAIL</code>,{" "}
+          <code className="text-slate-300">ADMIN_OWNER_PASSWORD_HASH</code> или{" "}
+          <code className="text-slate-300">ADMIN_OWNER_PASSWORD</code>{" "}
           {RU.messages.adminPasswordInfoSuffix}
         </p>
         {healthStatus === "error" && (
@@ -380,6 +397,9 @@ function Login({ onLogin, onNavigate }) {
             </ul>
           </div>
         )}
+        <Field label={RU.labels.email}>
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </Field>
         <Field label={RU.labels.password}>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </Field>
@@ -484,6 +504,140 @@ function CategoriesView() {
   );
 }
 
+function IngredientsView() {
+  const [items, setItems] = useState([]);
+  const [title, setTitle] = useState("");
+  const [isActive, setIsActive] = useState(true);
+
+  const load = async () => {
+    const data = await adminApi.listIngredients();
+    setItems(data);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleCreate = async () => {
+    await adminApi.createIngredient({ title, unit: "g", isActive });
+    setTitle("");
+    setIsActive(true);
+    await load();
+  };
+
+  const handleUpdate = async (item) => {
+    await adminApi.updateIngredient(item.id, {
+      title: item.title,
+      unit: item.unit || "g",
+      isActive: item.is_active === 1,
+    });
+    await load();
+  };
+
+  const handleDelete = async (id) => {
+    const confirmed = await confirmPopup({ message: RU.confirm.deleteIngredient });
+    if (!confirmed) return;
+    await adminApi.deleteIngredient(id);
+    await load();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 rounded-xl p-6 space-y-4">
+        <h2 className="text-lg font-semibold">{RU.headings.ingredients}</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          <Field label={RU.labels.title}>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+          </Field>
+          <Field label={RU.labels.active}>
+            <Select value={isActive ? "yes" : "no"} onChange={(e) => setIsActive(e.target.value === "yes")}>
+              <option value="yes">{RU.labels.statusActive}</option>
+              <option value="no">{RU.labels.statusInactive}</option>
+            </Select>
+          </Field>
+          <Field label={RU.labels.unit}>
+            <Input value="g" disabled />
+          </Field>
+        </div>
+        <Button onClick={handleCreate} disabled={!title.trim()}>{RU.buttons.create}</Button>
+      </div>
+      <div className="bg-slate-900 rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4">{RU.headings.ingredients}</h2>
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item.id} className="grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3">
+              <Input
+                value={item.title}
+                onChange={(e) => setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, title: e.target.value } : row)))}
+              />
+              <Input value={item.unit || "g"} disabled />
+              <Select
+                value={item.is_active ? "yes" : "no"}
+                onChange={(e) => setItems((prev) => prev.map((row) => (row.id === item.id ? { ...row, is_active: e.target.value === "yes" ? 1 : 0 } : row)))}
+              >
+                <option value="yes">{RU.labels.statusActive}</option>
+                <option value="no">{RU.labels.statusInactive}</option>
+              </Select>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => handleUpdate(item)}>{RU.buttons.save}</Button>
+                <Button variant="danger" onClick={() => handleDelete(item.id)}>{RU.buttons.delete}</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InventoryView() {
+  const [items, setItems] = useState([]);
+
+  const load = async () => {
+    const data = await adminApi.listInventory();
+    setItems(data);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleUpdate = async (item) => {
+    await adminApi.updateInventory(item.id, { qtyAvailable: Number(item.qty_available || 0) });
+    await load();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-slate-900 rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-4">{RU.headings.inventory}</h2>
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item.id} className="grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3">
+              <div className="text-sm">{item.title}</div>
+              <Input value={item.unit || "g"} disabled />
+              <Input
+                type="number"
+                min="0"
+                step="0.1"
+                value={item.qty_available}
+                onChange={(e) =>
+                  setItems((prev) =>
+                    prev.map((row) =>
+                      row.id === item.id ? { ...row, qty_available: e.target.value } : row
+                    )
+                  )
+                }
+              />
+              <Button variant="secondary" onClick={() => handleUpdate(item)}>{RU.buttons.save}</Button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MediaLibrary({ onSelect, onClose }) {
   const [items, setItems] = useState([]);
   const [file, setFile] = useState(null);
@@ -545,6 +699,7 @@ function MediaLibrary({ onSelect, onClose }) {
 function ProductsView() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
   const [form, setForm] = useState({
     id: null,
     title: "",
@@ -555,16 +710,19 @@ function ProductsView() {
     isFeatured: false,
     sort: 0,
     images: [],
+    ingredients: [],
   });
   const [mediaOpen, setMediaOpen] = useState(false);
 
   const load = async () => {
-    const [productsData, categoriesData] = await Promise.all([
+    const [productsData, categoriesData, ingredientsData] = await Promise.all([
       adminApi.listProducts(),
       adminApi.listCategories(),
+      adminApi.listIngredients(),
     ]);
     setProducts(productsData);
     setCategories(categoriesData);
+    setIngredients(ingredientsData);
   };
 
   useEffect(() => {
@@ -572,7 +730,18 @@ function ProductsView() {
   }, []);
 
   const resetForm = () => {
-    setForm({ id: null, title: "", description: "", price: 0, categoryId: "", isActive: true, isFeatured: false, sort: 0, images: [] });
+    setForm({
+      id: null,
+      title: "",
+      description: "",
+      price: 0,
+      categoryId: "",
+      isActive: true,
+      isFeatured: false,
+      sort: 0,
+      images: [],
+      ingredients: [],
+    });
   };
 
   const handleSubmit = async () => {
@@ -585,6 +754,12 @@ function ProductsView() {
       isFeatured: form.isFeatured,
       sort: Number(form.sort),
       images: form.images.map((url, index) => ({ url, sort: index })),
+      ingredients: form.ingredients
+        .filter((item) => item.ingredientId && item.qtyGrams)
+        .map((item) => ({
+          ingredientId: Number(item.ingredientId),
+          qtyGrams: Number(item.qtyGrams),
+        })),
     };
     if (form.id) {
       await adminApi.updateProduct(form.id, payload);
@@ -606,6 +781,11 @@ function ProductsView() {
       isFeatured: product.is_featured === 1,
       sort: product.sort,
       images: product.images?.map((img) => img.url) || [],
+      ingredients:
+        product.ingredients?.map((item) => ({
+          ingredientId: String(item.ingredient_id),
+          qtyGrams: String(item.qty_grams),
+        })) || [],
     });
   };
 
@@ -623,6 +803,29 @@ function ProductsView() {
 
   const removeImage = (index) => {
     setForm((prev) => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  };
+
+  const addIngredient = () => {
+    setForm((prev) => ({
+      ...prev,
+      ingredients: [...prev.ingredients, { ingredientId: "", qtyGrams: "" }],
+    }));
+  };
+
+  const updateIngredient = (index, field, value) => {
+    setForm((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.map((item, i) =>
+        i === index ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const removeIngredient = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((_, i) => i !== index),
+    }));
   };
 
   return (
@@ -663,6 +866,39 @@ function ProductsView() {
         <Field label={RU.labels.description}>
           <Textarea rows={4} value={form.description} onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))} />
         </Field>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-400 text-sm">{RU.labels.ingredients}</span>
+            <Button variant="secondary" onClick={addIngredient}>{RU.buttons.addIngredient}</Button>
+          </div>
+          {ingredients.length === 0 && (
+            <p className="text-xs text-slate-500">{RU.messages.noIngredients}</p>
+          )}
+          <div className="space-y-2">
+            {form.ingredients.map((item, index) => (
+              <div key={`ingredient-${index}`} className="grid md:grid-cols-3 gap-3 items-center">
+                <Select
+                  value={item.ingredientId}
+                  onChange={(e) => updateIngredient(index, "ingredientId", e.target.value)}
+                >
+                  <option value="">{RU.labels.ingredient}</option>
+                  {ingredients.map((ingredient) => (
+                    <option key={ingredient.id} value={ingredient.id}>{ingredient.title}</option>
+                  ))}
+                </Select>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={item.qtyGrams}
+                  onChange={(e) => updateIngredient(index, "qtyGrams", e.target.value)}
+                  placeholder={RU.labels.qtyGrams}
+                />
+                <Button variant="danger" onClick={() => removeIngredient(index)}>{RU.buttons.remove}</Button>
+              </div>
+            ))}
+          </div>
+        </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-slate-400 text-sm">{RU.labels.images}</span>
@@ -1158,6 +1394,10 @@ function AdminLayout({ user, onLogout }) {
         return <ProductsView />;
       case "categories":
         return <CategoriesView />;
+      case "ingredients":
+        return <IngredientsView />;
+      case "inventory":
+        return <InventoryView />;
       case "orders":
         return <OrdersView />;
       case "media":
@@ -1236,8 +1476,8 @@ function AdminApp({ navigate, initialPath }) {
     fetchSession();
   }, [fetchSession]);
 
-  const handleLogin = async (password) => {
-    const data = await adminApi.login(password);
+  const handleLogin = async ({ email, password }) => {
+    const data = await adminApi.login(email, password);
     if (!data) {
       const error = new Error(RU.messages.loginErrorFallback);
       error.status = 401;

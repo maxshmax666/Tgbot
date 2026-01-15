@@ -34,6 +34,63 @@ const normalizeMoney = (value) => Math.round(value * 100) / 100;
 const normalizeText = (value) => (value ? String(value).trim().toLowerCase() : "");
 const normalizePostalCode = (value) => normalizeText(value).replace(/\s+/g, "");
 
+const loadProductIngredients = async (db, productIds) => {
+  if (!productIds.length) return [];
+  const placeholders = productIds.map(() => "?").join(", ");
+  try {
+    const result = await db
+      .prepare(
+        `SELECT pi.product_id,
+                pi.ingredient_id,
+                pi.qty_grams,
+                i.title,
+                COALESCE(inv.qty_available, 0) AS qty_available
+         FROM product_ingredients pi
+         JOIN ingredients i ON i.id = pi.ingredient_id AND i.is_active = 1
+         LEFT JOIN inventory inv ON inv.ingredient_id = pi.ingredient_id
+         WHERE pi.product_id IN (${placeholders})
+         ORDER BY i.title ASC`
+      )
+      .bind(...productIds)
+      .all();
+    return result.results || [];
+  } catch (err) {
+    if (String(err?.message || "").includes("no such table")) {
+      return [];
+    }
+    throw err;
+  }
+};
+
+const computeIngredientRequirements = (items, ingredientRows) => {
+  const ingredientMap = new Map();
+  ingredientRows.forEach((row) => {
+    if (!ingredientMap.has(row.product_id)) ingredientMap.set(row.product_id, []);
+    ingredientMap.get(row.product_id).push(row);
+  });
+
+  const required = new Map();
+  items.forEach((item) => {
+    const recipe = ingredientMap.get(item.id) || [];
+    recipe.forEach((ingredient) => {
+      const qty = Number(ingredient.qty_grams) * Number(item.qty);
+      if (!required.has(ingredient.ingredient_id)) {
+        required.set(ingredient.ingredient_id, {
+          ingredientId: ingredient.ingredient_id,
+          title: ingredient.title,
+          required: 0,
+          available: Number(ingredient.qty_available) || 0,
+        });
+      }
+      const entry = required.get(ingredient.ingredient_id);
+      entry.required += qty;
+      entry.available = Number(ingredient.qty_available) || 0;
+    });
+  });
+
+  return Array.from(required.values());
+};
+
 const toRadians = (value) => (value * Math.PI) / 180;
 const distanceMeters = (a, b) => {
   const earthRadius = 6371000;
@@ -268,6 +325,45 @@ export async function onRequestPost({ env, request }) {
         200,
         { "x-request-id": requestId }
       );
+    }
+
+    const ingredientRows = await loadProductIngredients(db, productIds);
+    if (ingredientRows.length) {
+      const requirements = computeIngredientRequirements(normalizedItems, ingredientRows);
+      const insufficient = requirements.filter((item) => item.required > item.available);
+      if (insufficient.length) {
+        throw new RequestError(409, "Недостаточно ингредиентов", {
+          items: insufficient.map((item) => ({
+            ingredientId: item.ingredientId,
+            title: item.title,
+            required: item.required,
+            available: item.available,
+          })),
+        });
+      }
+
+      for (const item of requirements) {
+        const update = await db
+          .prepare(
+            `UPDATE inventory
+             SET qty_available = qty_available - ?, updated_at = datetime('now')
+             WHERE ingredient_id = ? AND qty_available >= ?`
+          )
+          .bind(item.required, item.ingredientId, item.required)
+          .run();
+        if (!update.meta?.changes) {
+          throw new RequestError(409, "Недостаточно ингредиентов", {
+            items: [
+              {
+                ingredientId: item.ingredientId,
+                title: item.title,
+                required: item.required,
+                available: item.available,
+              },
+            ],
+          });
+        }
+      }
     }
 
     try {

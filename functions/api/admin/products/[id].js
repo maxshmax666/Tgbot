@@ -6,6 +6,11 @@ const imageSchema = z.object({
   sort: z.number().int().nonnegative().default(0),
 });
 
+const ingredientSchema = z.object({
+  ingredientId: z.number().int().positive(),
+  qtyGrams: z.number().positive(),
+});
+
 const productSchema = z.object({
   categoryId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1),
@@ -15,6 +20,7 @@ const productSchema = z.object({
   isFeatured: z.boolean().default(false),
   sort: z.number().int().nonnegative().default(0),
   images: z.array(imageSchema).default([]),
+  ingredients: z.array(ingredientSchema).default([]),
 });
 
 export async function onRequest({ env, request, params }) {
@@ -34,7 +40,22 @@ export async function onRequest({ env, request, params }) {
       )
         .bind(id)
         .all();
-      return json({ item: { ...product, images: imagesResult.results || [] } });
+      const ingredientsResult = await env.DB.prepare(
+        `SELECT pi.product_id, pi.ingredient_id, pi.qty_grams, i.title, i.unit
+         FROM product_ingredients pi
+         JOIN ingredients i ON i.id = pi.ingredient_id
+         WHERE pi.product_id = ?
+         ORDER BY i.title ASC`
+      )
+        .bind(id)
+        .all();
+      return json({
+        item: {
+          ...product,
+          images: imagesResult.results || [],
+          ingredients: ingredientsResult.results || [],
+        },
+      });
     }
 
     if (request.method === "PUT") {
@@ -65,11 +86,21 @@ export async function onRequest({ env, request, params }) {
           await stmt.bind(id, image.url, image.sort).run();
         }
       }
+      await env.DB.prepare("DELETE FROM product_ingredients WHERE product_id = ?").bind(id).run();
+      if (body.ingredients.length) {
+        const stmt = env.DB.prepare(
+          "INSERT INTO product_ingredients (product_id, ingredient_id, qty_grams) VALUES (?, ?, ?)"
+        );
+        for (const ingredient of body.ingredients) {
+          await stmt.bind(id, ingredient.ingredientId, ingredient.qtyGrams).run();
+        }
+      }
       return json({ ok: true });
     }
 
     if (request.method === "DELETE") {
       await env.DB.prepare("DELETE FROM product_images WHERE product_id = ?").bind(id).run();
+      await env.DB.prepare("DELETE FROM product_ingredients WHERE product_id = ?").bind(id).run();
       await env.DB.prepare("DELETE FROM products WHERE id = ?").bind(id).run();
       return json({ ok: true });
     }
