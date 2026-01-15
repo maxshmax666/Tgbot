@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   adminConfig: "pt_admin_config_v1",
   adminPromos: "pt_admin_promos_v1",
   lastOrderStatus: "pt_last_order_status_v1",
+  userAuth: "pt_user_auth_v1",
 };
 
 export const storage = {

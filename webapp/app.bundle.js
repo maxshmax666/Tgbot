@@ -79,7 +79,8 @@ var STORAGE_KEYS = {
   adminMenu: "pt_admin_menu_v1",
   adminConfig: "pt_admin_config_v1",
   adminPromos: "pt_admin_promos_v1",
-  lastOrderStatus: "pt_last_order_status_v1"
+  lastOrderStatus: "pt_last_order_status_v1",
+  userAuth: "pt_user_auth_v1"
 };
 var storage = {
   read(key, fallback) {
@@ -2021,6 +2022,130 @@ function renderPizzaPage({ navigate: navigate2, params }) {
   return { element: root, cleanup: unsubscribe };
 }
 
+// webapp/services/authService.js
+var scriptCache = /* @__PURE__ */ new Map();
+var DEFAULT_CONFIG2 = {
+  telegramBotUsername: "",
+  googleClientId: ""
+};
+var getConfig = () => {
+  if (typeof window === "undefined") return { ...DEFAULT_CONFIG2 };
+  return { ...DEFAULT_CONFIG2, ...window.PUBLIC_AUTH_CONFIG || {} };
+};
+var parseResponse = async (response) => {
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.error?.message || "Auth failed";
+    const details = payload?.error?.details;
+    throw new Error(details ? `${message}: ${JSON.stringify(details)}` : message);
+  }
+  return payload;
+};
+var loadScriptOnce = (src) => {
+  if (scriptCache.has(src)) return scriptCache.get(src);
+  const promise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+  });
+  scriptCache.set(src, promise);
+  return promise;
+};
+function getAuthConfig() {
+  return getConfig();
+}
+function getAuthState() {
+  return storage.read(STORAGE_KEYS.userAuth, null);
+}
+function setAuthState(payload) {
+  storage.write(STORAGE_KEYS.userAuth, payload);
+}
+function clearAuthState() {
+  storage.remove(STORAGE_KEYS.userAuth);
+}
+async function loginWithTelegram(authData) {
+  const response = await fetch("/api/public/auth/telegram", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(authData)
+  });
+  const payload = await parseResponse(response);
+  setAuthState({ provider: "telegram", ...payload });
+  return payload;
+}
+async function loginWithGoogle(credential) {
+  const response = await fetch("/api/public/auth/google", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ credential })
+  });
+  const payload = await parseResponse(response);
+  setAuthState({ provider: "google", ...payload });
+  return payload;
+}
+function renderTelegramLogin(container2, { botUsername, onSuccess, onError }) {
+  if (!botUsername) {
+    throw new Error("Telegram bot username is missing");
+  }
+  const callbackName = `onTelegramAuth_${Math.random().toString(36).slice(2)}`;
+  window[callbackName] = async (user) => {
+    try {
+      const payload = await loginWithTelegram(user);
+      onSuccess?.(payload);
+    } catch (error) {
+      onError?.(error);
+    }
+  };
+  container2.innerHTML = "";
+  const script = document.createElement("script");
+  script.src = "https://telegram.org/js/telegram-widget.js?22";
+  script.async = true;
+  script.dataset.telegramLogin = botUsername;
+  script.dataset.size = "large";
+  script.dataset.userpic = "true";
+  script.dataset.requestAccess = "write";
+  script.dataset.onauth = `${callbackName}(user)`;
+  container2.appendChild(script);
+  return () => {
+    delete window[callbackName];
+    container2.innerHTML = "";
+  };
+}
+async function renderGoogleLogin(container2, { clientId, onSuccess, onError }) {
+  if (!clientId) {
+    throw new Error("Google client ID is missing");
+  }
+  await loadScriptOnce("https://accounts.google.com/gsi/client");
+  if (!window.google?.accounts?.id) {
+    throw new Error("Google Identity Services unavailable");
+  }
+  window.google.accounts.id.initialize({
+    client_id: clientId,
+    ux_mode: "popup",
+    callback: async (response) => {
+      try {
+        const payload = await loginWithGoogle(response.credential);
+        onSuccess?.(payload);
+      } catch (error) {
+        onError?.(error);
+      }
+    }
+  });
+  container2.innerHTML = "";
+  window.google.accounts.id.renderButton(container2, {
+    theme: "outline",
+    size: "large",
+    text: "continue_with",
+    shape: "pill"
+  });
+  return () => {
+    container2.innerHTML = "";
+  };
+}
+
 // webapp/pages/profilePage.js
 function computeStats(orders) {
   const totalOrders = orders.length;
@@ -2048,11 +2173,115 @@ function renderProfilePage({ navigate: navigate2 }) {
   const root = createElement("section", { className: "list" });
   const content2 = createElement("div");
   root.appendChild(content2);
+  const authConfig = getAuthConfig();
+  let cleanupAuth = null;
   const render = () => {
+    if (cleanupAuth) {
+      cleanupAuth();
+      cleanupAuth = null;
+    }
     clearElement(content2);
     const orders = getOrders();
     const favorites = getFavorites();
     const stats = computeStats(orders);
+    const telegramUser = getUser();
+    const storedAuth = getAuthState();
+    const isMiniApp = isTelegram();
+    const user = isMiniApp ? telegramUser : storedAuth?.user;
+    const provider = isMiniApp ? "telegram-webapp" : storedAuth?.provider;
+    if (!user && !isMiniApp) {
+      const authPanel = createElement("div", { className: "panel" });
+      authPanel.appendChild(createElement("h2", { className: "title", text: "\u0412\u0445\u043E\u0434" }));
+      authPanel.appendChild(
+        createElement("p", {
+          className: "helper",
+          text: "\u0410\u0432\u0442\u043E\u0440\u0438\u0437\u0430\u0446\u0438\u044F \u043D\u0443\u0436\u043D\u0430, \u0447\u0442\u043E\u0431\u044B \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043C\u0435\u0436\u0434\u0443 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u0430\u043C\u0438."
+        })
+      );
+      const telegramWrap = createElement("div", { className: "auth-actions" });
+      const googleWrap = createElement("div", { className: "auth-actions" });
+      const cleanupFns = [];
+      if (authConfig.telegramBotUsername) {
+        authPanel.appendChild(
+          createElement("div", { className: "section-title", text: "Telegram" })
+        );
+        authPanel.appendChild(telegramWrap);
+        const telegramCleanup = renderTelegramLogin(telegramWrap, {
+          botUsername: authConfig.telegramBotUsername,
+          onSuccess: () => {
+            showToast("\u0412\u0445\u043E\u0434 \u0447\u0435\u0440\u0435\u0437 Telegram \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D", "success");
+            render();
+          },
+          onError: (error) => {
+            showToast(error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 Telegram", "error");
+          }
+        });
+        cleanupFns.push(telegramCleanup);
+      } else {
+        authPanel.appendChild(
+          createElement("p", {
+            className: "helper",
+            text: "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 PUBLIC_AUTH_CONFIG.telegramBotUsername \u0432 auth-config.js."
+          })
+        );
+      }
+      if (authConfig.googleClientId) {
+        authPanel.appendChild(
+          createElement("div", { className: "section-title", text: "Google" })
+        );
+        authPanel.appendChild(googleWrap);
+        renderGoogleLogin(googleWrap, {
+          clientId: authConfig.googleClientId,
+          onSuccess: () => {
+            showToast("\u0412\u0445\u043E\u0434 \u0447\u0435\u0440\u0435\u0437 Google \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D", "success");
+            render();
+          },
+          onError: (error) => {
+            showToast(error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0439\u0442\u0438 \u0447\u0435\u0440\u0435\u0437 Google", "error");
+          }
+        }).then((googleCleanup) => cleanupFns.push(googleCleanup)).catch((error) => {
+          showToast(error?.message || "Google login \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D", "error");
+        });
+      } else {
+        authPanel.appendChild(
+          createElement("p", {
+            className: "helper",
+            text: "\u0414\u043E\u0431\u0430\u0432\u044C\u0442\u0435 PUBLIC_AUTH_CONFIG.googleClientId \u0432 auth-config.js."
+          })
+        );
+      }
+      cleanupAuth = () => cleanupFns.forEach((fn) => fn?.());
+      content2.appendChild(authPanel);
+    }
+    if (user) {
+      const userPanel = createElement("div", { className: "panel" });
+      userPanel.appendChild(createElement("h2", { className: "title", text: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C" }));
+      const displayName = user.first_name || user.name || user.username || user.email || `User ${user.id || ""}`;
+      userPanel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `\u041F\u0440\u043E\u0432\u0430\u0439\u0434\u0435\u0440: ${provider || "\u2014"}`
+        })
+      );
+      userPanel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `\u0418\u043C\u044F: ${displayName}`
+        })
+      );
+      if (!isMiniApp) {
+        const logout = createButton({
+          label: "\u0412\u044B\u0439\u0442\u0438",
+          variant: "secondary",
+          onClick: () => {
+            clearAuthState();
+            render();
+          }
+        });
+        userPanel.appendChild(logout);
+      }
+      content2.appendChild(userPanel);
+    }
     const summary = createElement("div", { className: "panel" });
     summary.appendChild(createElement("h2", { className: "title", text: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C" }));
     summary.appendChild(createElement("div", { className: "helper", text: `\u0417\u0430\u043A\u0430\u0437\u043E\u0432: ${stats.totalOrders}` }));

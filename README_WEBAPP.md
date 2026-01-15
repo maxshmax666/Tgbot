@@ -52,6 +52,25 @@ python -m bot.main
    ```
 3. Откройте `http://localhost:8788/admin` или `/admin/login`.
 
+## Авторизация пользователей (Telegram + Google)
+
+WebApp внутри Telegram получает пользователя автоматически. Для обычного браузера
+нужна внешняя авторизация:
+
+1. Заполните `webapp/auth-config.js`:
+   ```js
+   window.PUBLIC_AUTH_CONFIG = {
+     telegramBotUsername: "ваш_бот",
+     googleClientId: "ваш_google_client_id",
+   };
+   ```
+2. Добавьте переменные окружения для Pages Functions:
+   - `BOT_TOKEN` — токен Telegram бота (для проверки подписи Login Widget).
+   - `GOOGLE_CLIENT_ID` — OAuth Client ID (Google Identity Services).
+   - `JWT_SECRET` — секрет для подписи сессионного JWT.
+
+После этого на странице `/profile` появятся кнопки входа через Telegram и Google.
+
 ### Медиа без R2
 
 Картинки раздаются статически из `webapp/assets`. При необходимости укажите
