@@ -63,7 +63,7 @@ export function renderProfilePage({ navigate }) {
     const user = isMiniApp ? telegramUser : storedAuth?.user;
     const provider = isMiniApp ? "telegram-webapp" : storedAuth?.provider;
 
-    if (!user && !isMiniApp) {
+    if (!user) {
       const authPanel = createElement("div", { className: "panel" });
       authPanel.appendChild(createElement("h2", { className: "title", text: "Вход" }));
       authPanel.appendChild(
