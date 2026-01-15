@@ -9,7 +9,7 @@ export async function onRequestGet({ env, request }) {
       throw new RequestError(401, "Unauthorized");
     }
     const user = await db
-      .prepare("SELECT id, email, role FROM users WHERE id = ? AND role = 'owner' LIMIT 1")
+      .prepare("SELECT id, email, role FROM users WHERE id = ? AND role IN ('owner', 'admin') LIMIT 1")
       .bind(id)
       .first();
     if (!user) {

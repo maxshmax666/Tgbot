@@ -1,8 +1,8 @@
-import { json, handleError, ensureOwner } from "../../_utils.js";
+import { json, handleError, ensureAdmin } from "../../_utils.js";
 
 export async function onRequestDelete({ env, request, params }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
     return json(
       {
         ok: false,

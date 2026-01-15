@@ -1,8 +1,8 @@
-import { json, handleError, ensureOwner } from "../../_utils.js";
+import { json, handleError, ensureAdmin } from "../../_utils.js";
 
 export async function onRequest({ env, request }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
 
     if (request.method === "GET") {
       const result = await env.DB.prepare(

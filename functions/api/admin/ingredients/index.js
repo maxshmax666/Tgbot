@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, ensureOwner } from "../../_utils.js";
+import { json, handleError, parseJsonBody, ensureAdmin } from "../../_utils.js";
 
 const ingredientSchema = z.object({
   title: z.string().min(1),
@@ -9,7 +9,7 @@ const ingredientSchema = z.object({
 
 export async function onRequest({ env, request }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
 
     if (request.method === "GET") {
       const result = await env.DB.prepare(

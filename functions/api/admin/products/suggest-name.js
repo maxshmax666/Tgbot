@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  ensureOwner,
+  ensureAdmin,
   getRequestId,
   handleError,
   json,
@@ -171,7 +171,7 @@ function buildSuggestions({ bases, tokens }) {
 export async function onRequest({ env, request }) {
   const requestId = getRequestId(request);
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
     if (request.method !== "POST") {
       return json({ error: { message: "Method not allowed" } }, 405);
     }

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, ensureOwner, idSchema } from "../../_utils.js";
+import { json, handleError, parseJsonBody, ensureAdmin, idSchema } from "../../_utils.js";
 
 const inventorySchema = z.object({
   qtyAvailable: z.number().min(0),
@@ -7,7 +7,7 @@ const inventorySchema = z.object({
 
 export async function onRequest({ env, request, params }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
     const id = idSchema.parse(params.id);
 
     if (request.method === "PUT") {

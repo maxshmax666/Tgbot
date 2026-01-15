@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, ensureOwner } from "../../_utils.js";
+import { json, handleError, parseJsonBody, ensureAdmin } from "../../_utils.js";
 
 const imageSchema = z.object({
   url: z.string().url(),
@@ -29,7 +29,7 @@ function normalizeImages(images) {
 
 export async function onRequest({ env, request }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
 
     if (request.method === "GET") {
       const productsResult = await env.DB.prepare(

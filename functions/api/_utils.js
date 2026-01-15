@@ -3,6 +3,12 @@ import { z } from "zod";
 
 const textEncoder = new TextEncoder();
 
+export const ROLES = Object.freeze({
+  owner: "owner",
+  admin: "admin",
+  user: "user",
+});
+
 export function json(data, status = 200, headers = {}) {
   const responseHeaders = new Headers({
     "content-type": "application/json; charset=utf-8",
@@ -64,14 +70,23 @@ export function getRequestId(request) {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export async function ensureOwner(request, env, payload) {
+export async function ensureRole(request, env, roles, payload) {
   requireDb(env);
   const authPayload = payload ?? (request ? await requireAuth(request, env) : null);
   if (!authPayload) throw new RequestError(401, "Unauthorized");
-  if (authPayload.role !== "owner") {
+  const allowed = Array.isArray(roles) ? roles : [roles];
+  if (!allowed.includes(authPayload.role)) {
     throw new RequestError(403, "Forbidden");
   }
   return authPayload;
+}
+
+export async function ensureOwner(request, env, payload) {
+  return ensureRole(request, env, ROLES.owner, payload);
+}
+
+export async function ensureAdmin(request, env, payload) {
+  return ensureRole(request, env, [ROLES.owner, ROLES.admin], payload);
 }
 
 export async function createToken(payload, env) {

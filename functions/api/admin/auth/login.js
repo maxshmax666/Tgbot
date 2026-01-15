@@ -35,7 +35,7 @@ export async function onRequestPost({ env, request }) {
       .bind(body.email)
       .first();
 
-    if (!user || user.role !== "owner") {
+    if (!user || !["owner", "admin"].includes(user.role)) {
       await registerRateLimitFailure({ db, key: limiter.key, existing: limiter.existing, now: limiter.now, windowSize: limiter.windowSize });
       throw new RequestError(401, "Неверный email или пароль");
     }
