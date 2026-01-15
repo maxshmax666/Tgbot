@@ -142,7 +142,7 @@ async function fetchApiJson(url) {
   }
   if (!response.ok) {
     const httpError = new Error(`HTTP ${response.status} for ${url}`);
-    httpError.isFallback = response.status >= 500;
+    httpError.isFallback = response.status >= 500 || response.status === 404;
     httpError.status = response.status;
     httpError.cause = response;
     throw httpError;
