@@ -62,8 +62,23 @@ export function renderProfilePage({ navigate }) {
     const isMiniApp = isTelegram();
     const user = isMiniApp ? telegramUser : storedAuth?.user;
     const provider = isMiniApp ? "telegram-webapp" : storedAuth?.provider;
+    // DEBUG_AUTH_PANEL
+    try {
+      const dbg = createElement("pre", {
+        className: "panel",
+        text:
+          "DEBUG AUTH\n" +
+          "isMiniApp: " + String(isMiniApp) + "\n" +
+          "telegramUser: " + JSON.stringify(telegramUser || null) + "\n" +
+          "storedAuth: " + JSON.stringify(storedAuth || null) + "\n" +
+          "computed user: " + JSON.stringify(user || null) + "\n" +
+          "provider: " + String(provider || "") + "\n",
+      });
+      content.appendChild(dbg);
+    } catch (e) {}
 
-    if (!user && !isMiniApp) {
+
+    if (!user) {
       const authPanel = createElement("div", { className: "panel" });
       authPanel.appendChild(createElement("h2", { className: "title", text: "Вход" }));
       authPanel.appendChild(
@@ -195,7 +210,22 @@ export function renderProfilePage({ navigate }) {
           }
         },
       });
-      emailActions.append(loginButton, registerButton, resetButton);
+            const clearSessionButton = createButton({
+        label: "Сбросить авторизацию",
+        variant: "ghost",
+        onClick: () => {
+          try { clearAuthState(); } catch {}
+          try {
+            localStorage.removeItem("auth:token");
+            localStorage.removeItem("auth:user");
+            localStorage.removeItem("auth:provider");
+          } catch {}
+          showToast("Сессия очищена", "success");
+          render();
+        },
+      });
+
+      emailActions.append(loginButton, registerButton, resetButton, clearSessionButton);
       emailWrap.append(emailInput, passwordInput, emailActions);
       authPanel.appendChild(emailWrap);
 
