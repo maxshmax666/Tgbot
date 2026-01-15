@@ -109,6 +109,12 @@ var adminApi = {
   deleteProduct(id) {
     return request(`/api/admin/products/${id}`, { method: "DELETE" });
   },
+  suggestProductName(payload) {
+    return request("/api/admin/products/suggest-name", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }).then((data) => data.items || []);
+  },
   listOrders() {
     return request("/api/admin/orders").then((data) => data.items || []);
   },
@@ -352,7 +358,8 @@ var RU = {
     remove: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C",
     reset: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C",
     logout: "\u0412\u044B\u0439\u0442\u0438",
-    viewPublicPage: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u0443\u044E \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443"
+    viewPublicPage: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043F\u0443\u0431\u043B\u0438\u0447\u043D\u0443\u044E \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443",
+    generateName: "\u0421\u0433\u0435\u043D\u0435\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u0435"
   },
   labels: {
     password: "\u041F\u0430\u0440\u043E\u043B\u044C",
@@ -425,7 +432,11 @@ var RU = {
     noCategory: "\u0411\u0435\u0437 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u0438",
     imageUrlPrompt: "URL \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F",
     visible: "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C",
-    noIngredients: "\u0418\u043D\u0433\u0440\u0435\u0434\u0438\u0435\u043D\u0442\u044B \u0435\u0449\u0451 \u043D\u0435 \u0437\u0430\u0432\u0435\u0434\u0435\u043D\u044B."
+    noIngredients: "\u0418\u043D\u0433\u0440\u0435\u0434\u0438\u0435\u043D\u0442\u044B \u0435\u0449\u0451 \u043D\u0435 \u0437\u0430\u0432\u0435\u0434\u0435\u043D\u044B.",
+    nameSuggesting: "\u0413\u0435\u043D\u0435\u0440\u0438\u0440\u0443\u0435\u043C \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B\u2026",
+    nameSuggestFailed: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u043B\u0443\u0447\u0438\u0442\u044C \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F.",
+    nameSuggestions: "\u0412\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F",
+    nameSuggestionsEmpty: "\u0412\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u043D\u0430\u0437\u0432\u0430\u043D\u0438\u044F \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B."
   },
   confirm: {
     deleteCategory: "\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044E?",
@@ -784,6 +795,9 @@ function ProductsView() {
     ingredients: []
   });
   const [mediaOpen, setMediaOpen] = useState2(false);
+  const [nameSuggestions, setNameSuggestions] = useState2([]);
+  const [nameSuggesting, setNameSuggesting] = useState2(false);
+  const [nameError, setNameError] = useState2("");
   const load = async () => {
     const [productsData, categoriesData, ingredientsData] = await Promise.all([
       adminApi.listProducts(),
@@ -810,6 +824,8 @@ function ProductsView() {
       images: [],
       ingredients: []
     });
+    setNameSuggestions([]);
+    setNameError("");
   };
   const handleSubmit = async () => {
     const payload = {
@@ -834,6 +850,37 @@ function ProductsView() {
     resetForm();
     await load();
   };
+  const ingredientTitleMap = useMemo(
+    () => new Map(ingredients.map((item) => [String(item.id), item.title])),
+    [ingredients]
+  );
+  const categoryTitleMap = useMemo(
+    () => new Map(categories.map((item) => [String(item.id), item.title])),
+    [categories]
+  );
+  const handleSuggestName = useCallback(async () => {
+    setNameSuggesting(true);
+    setNameError("");
+    try {
+      const ingredientNames = form.ingredients.map((item) => ingredientTitleMap.get(String(item.ingredientId))).filter(Boolean);
+      const categoryTitle = categoryTitleMap.get(String(form.categoryId)) || "";
+      const suggestions = await adminApi.suggestProductName({
+        titleHint: form.title?.trim() || null,
+        description: form.description?.trim() || null,
+        ingredients: ingredientNames,
+        category: categoryTitle,
+        images: form.images
+      });
+      setNameSuggestions(suggestions);
+      if (!suggestions.length) {
+        setNameError(RU.messages.nameSuggestionsEmpty);
+      }
+    } catch (error) {
+      setNameError(error?.message || RU.messages.nameSuggestFailed);
+    } finally {
+      setNameSuggesting(false);
+    }
+  }, [categoryTitleMap, form, ingredientTitleMap]);
   const handleEdit = (product) => {
     setForm({
       id: product.id,
@@ -850,6 +897,8 @@ function ProductsView() {
         qtyGrams: String(item.qty_grams)
       })) || []
     });
+    setNameSuggestions([]);
+    setNameError("");
   };
   const handleDelete = async (id) => {
     const confirmed = await confirmPopup({ message: RU.confirm.deleteProduct });
@@ -884,7 +933,25 @@ function ProductsView() {
       ingredients: prev.ingredients.filter((_, i) => i !== index)
     }));
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.productEditor), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: form.title, onChange: (e) => setForm((prev) => ({ ...prev, title: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.price }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: form.price, onChange: (e) => setForm((prev) => ({ ...prev, price: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.category }, /* @__PURE__ */ React2.createElement(Select, { value: form.categoryId, onChange: (e) => setForm((prev) => ({ ...prev, categoryId: e.target.value })) }, /* @__PURE__ */ React2.createElement("option", { value: "" }, RU.messages.noCategory), categories.map((cat) => /* @__PURE__ */ React2.createElement("option", { key: cat.id, value: cat.id }, cat.title)))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.sort }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: form.sort, onChange: (e) => setForm((prev) => ({ ...prev, sort: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React2.createElement(Select, { value: form.isActive ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" })) }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.featured }, /* @__PURE__ */ React2.createElement(Select, { value: form.isFeatured ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" })) }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.yes), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.no)))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.description }, /* @__PURE__ */ React2.createElement(Textarea, { rows: 4, value: form.description, onChange: (e) => setForm((prev) => ({ ...prev, description: e.target.value })) })), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React2.createElement("span", { className: "text-slate-400 text-sm" }, RU.labels.ingredients), /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: addIngredient }, RU.buttons.addIngredient)), ingredients.length === 0 && /* @__PURE__ */ React2.createElement("p", { className: "text-xs text-slate-500" }, RU.messages.noIngredients), /* @__PURE__ */ React2.createElement("div", { className: "space-y-2" }, form.ingredients.map((item, index) => /* @__PURE__ */ React2.createElement("div", { key: `ingredient-${index}`, className: "grid md:grid-cols-3 gap-3 items-center" }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.productEditor), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Input, { value: form.title, onChange: (e) => setForm((prev) => ({ ...prev, title: e.target.value })) }), /* @__PURE__ */ React2.createElement(
+    Button,
+    {
+      variant: "secondary",
+      type: "button",
+      onClick: handleSuggestName,
+      disabled: nameSuggesting
+    },
+    nameSuggesting ? RU.messages.nameSuggesting : RU.buttons.generateName
+  )), nameError && /* @__PURE__ */ React2.createElement("span", { className: "text-xs text-rose-400" }, nameError), nameSuggestions.length > 0 && /* @__PURE__ */ React2.createElement("div", { className: "flex flex-wrap gap-2" }, nameSuggestions.map((suggestion) => /* @__PURE__ */ React2.createElement(
+    "button",
+    {
+      key: suggestion,
+      type: "button",
+      className: "rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200 hover:bg-slate-800",
+      onClick: () => setForm((prev) => ({ ...prev, title: suggestion }))
+    },
+    suggestion
+  )))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.price }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: form.price, onChange: (e) => setForm((prev) => ({ ...prev, price: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.category }, /* @__PURE__ */ React2.createElement(Select, { value: form.categoryId, onChange: (e) => setForm((prev) => ({ ...prev, categoryId: e.target.value })) }, /* @__PURE__ */ React2.createElement("option", { value: "" }, RU.messages.noCategory), categories.map((cat) => /* @__PURE__ */ React2.createElement("option", { key: cat.id, value: cat.id }, cat.title)))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.sort }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: form.sort, onChange: (e) => setForm((prev) => ({ ...prev, sort: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React2.createElement(Select, { value: form.isActive ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" })) }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.featured }, /* @__PURE__ */ React2.createElement(Select, { value: form.isFeatured ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" })) }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.yes), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.no)))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.description }, /* @__PURE__ */ React2.createElement(Textarea, { rows: 4, value: form.description, onChange: (e) => setForm((prev) => ({ ...prev, description: e.target.value })) })), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React2.createElement("span", { className: "text-slate-400 text-sm" }, RU.labels.ingredients), /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: addIngredient }, RU.buttons.addIngredient)), ingredients.length === 0 && /* @__PURE__ */ React2.createElement("p", { className: "text-xs text-slate-500" }, RU.messages.noIngredients), /* @__PURE__ */ React2.createElement("div", { className: "space-y-2" }, form.ingredients.map((item, index) => /* @__PURE__ */ React2.createElement("div", { key: `ingredient-${index}`, className: "grid md:grid-cols-3 gap-3 items-center" }, /* @__PURE__ */ React2.createElement(
     Select,
     {
       value: item.ingredientId,

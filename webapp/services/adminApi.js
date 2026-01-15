@@ -91,6 +91,12 @@ export const adminApi = {
   deleteProduct(id) {
     return request(`/api/admin/products/${id}`, { method: "DELETE" });
   },
+  suggestProductName(payload) {
+    return request("/api/admin/products/suggest-name", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }).then((data) => data.items || []);
+  },
   listOrders() {
     return request("/api/admin/orders").then((data) => data.items || []);
   },
