@@ -83,3 +83,7 @@ export function showTelegramConfirm(message, title="Подтвердите", okT
   }
   return Promise.resolve(Boolean(confirm(String(message ?? ""))));
 }
+
+export function confirmPopup({ message, title = "Подтвердите", okText = "OK", cancelText = "Отмена" }) {
+  return showTelegramConfirm(message, title, okText, cancelText);
+}
