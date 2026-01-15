@@ -6,6 +6,11 @@ const imageSchema = z.object({
   sort: z.number().int().nonnegative().default(0),
 });
 
+const ingredientSchema = z.object({
+  ingredientId: z.number().int().positive(),
+  qtyGrams: z.number().positive(),
+});
+
 const productSchema = z.object({
   categoryId: z.number().int().positive().nullable().optional(),
   title: z.string().min(1),
@@ -15,6 +20,7 @@ const productSchema = z.object({
   isFeatured: z.boolean().default(false),
   sort: z.number().int().nonnegative().default(0),
   images: z.array(imageSchema).default([]),
+  ingredients: z.array(ingredientSchema).default([]),
 });
 
 function normalizeImages(images) {
@@ -46,9 +52,25 @@ export async function onRequest({ env, request }) {
         imageMap.get(img.product_id).push(img);
       });
 
+      const ingredientsResult = await env.DB.prepare(
+        `SELECT pi.product_id, pi.ingredient_id, pi.qty_grams, i.title, i.unit
+         FROM product_ingredients pi
+         JOIN ingredients i ON i.id = pi.ingredient_id
+         WHERE pi.product_id IN (${placeholders})
+         ORDER BY i.title ASC`
+      )
+        .bind(...ids)
+        .all();
+      const ingredientMap = new Map();
+      (ingredientsResult.results || []).forEach((row) => {
+        if (!ingredientMap.has(row.product_id)) ingredientMap.set(row.product_id, []);
+        ingredientMap.get(row.product_id).push(row);
+      });
+
       const items = products.map((product) => ({
         ...product,
         images: normalizeImages(imageMap.get(product.id) || []),
+        ingredients: ingredientMap.get(product.id) || [],
       }));
       return json({ items });
     }
@@ -77,6 +99,14 @@ export async function onRequest({ env, request }) {
         );
         for (const image of body.images) {
           await stmt.bind(productId, image.url, image.sort).run();
+        }
+      }
+      if (body.ingredients.length) {
+        const stmt = env.DB.prepare(
+          "INSERT INTO product_ingredients (product_id, ingredient_id, qty_grams) VALUES (?, ?, ?)"
+        );
+        for (const ingredient of body.ingredients) {
+          await stmt.bind(productId, ingredient.ingredientId, ingredient.qtyGrams).run();
         }
       }
       return json({ id: productId }, 201);

@@ -74,6 +74,44 @@ export async function loginWithGoogle(credential) {
   return payload;
 }
 
+export async function registerWithEmail({ email, password }) {
+  const response = await fetch("/api/public/auth/email-register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  return parseResponse(response);
+}
+
+export async function loginWithEmail({ email, password }) {
+  const response = await fetch("/api/public/auth/email-login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = await parseResponse(response);
+  setAuthState({ provider: "email", ...payload });
+  return payload;
+}
+
+export async function requestPasswordReset(email) {
+  const response = await fetch("/api/public/auth/password-reset/request", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  return parseResponse(response);
+}
+
+export async function confirmPasswordReset({ token, password }) {
+  const response = await fetch("/api/public/auth/password-reset/confirm", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token, password }),
+  });
+  return parseResponse(response);
+}
+
 export function renderTelegramLogin(container, { botUsername, onSuccess, onError }) {
   if (!botUsername) {
     throw new Error("Telegram bot username is missing");

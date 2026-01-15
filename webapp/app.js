@@ -8,6 +8,8 @@ import { renderProfilePage } from "./pages/profilePage.js";
 import { renderAdminPage } from "./pages/adminPage.js";
 import { renderOrderStatusPage } from "./pages/orderStatusPage.js";
 import { renderDynamicPage } from "./pages/dynamicPage.js";
+import { renderResetPasswordPage } from "./pages/resetPasswordPage.js";
+import { renderVerifyEmailPage } from "./pages/verifyEmailPage.js";
 import { createElement, clearElement } from "./ui/dom.js";
 import { createAppShell } from "./ui/appShell.js";
 import { setButtonCurrent } from "./ui/button.js";
@@ -25,7 +27,6 @@ const navItems = [
   { label: "Корзина", path: "/cart" },
   { label: "Оформить", path: "/checkout" },
   { label: "Профиль", path: "/profile" },
-  { label: "Админ", path: "/admin" },
 ];
 const appShell = createAppShell({
   title: "Пиццерия Тагил",
@@ -42,6 +43,8 @@ const routes = [
   { path: /^\/cart\/?$/, render: renderCartPage },
   { path: /^\/checkout\/?$/, render: renderCheckoutPage },
   { path: /^\/profile\/?$/, render: renderProfilePage },
+  { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
+  { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
   { path: /^\/admin\/login\/?$/, render: renderAdminPage },
   { path: /^\/admin\/?$/, render: renderAdminPage },
   { path: /^\/order-status\/?$/, render: renderOrderStatusPage },

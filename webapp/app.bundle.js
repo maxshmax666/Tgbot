@@ -2086,6 +2086,40 @@ async function loginWithGoogle(credential) {
   setAuthState({ provider: "google", ...payload });
   return payload;
 }
+async function registerWithEmail({ email, password }) {
+  const response = await fetch("/api/public/auth/email-register", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  return parseResponse(response);
+}
+async function loginWithEmail({ email, password }) {
+  const response = await fetch("/api/public/auth/email-login", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  const payload = await parseResponse(response);
+  setAuthState({ provider: "email", ...payload });
+  return payload;
+}
+async function requestPasswordReset(email) {
+  const response = await fetch("/api/public/auth/password-reset/request", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email })
+  });
+  return parseResponse(response);
+}
+async function confirmPasswordReset({ token, password }) {
+  const response = await fetch("/api/public/auth/password-reset/confirm", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token, password })
+  });
+  return parseResponse(response);
+}
 function renderTelegramLogin(container2, { botUsername, onSuccess, onError }) {
   if (!botUsername) {
     throw new Error("Telegram bot username is missing");
@@ -2200,6 +2234,7 @@ function renderProfilePage({ navigate: navigate2 }) {
       );
       const telegramWrap = createElement("div", { className: "auth-actions" });
       const googleWrap = createElement("div", { className: "auth-actions" });
+      const emailWrap = createElement("div", { className: "auth-actions" });
       const cleanupFns = [];
       if (authConfig.telegramBotUsername) {
         authPanel.appendChild(
@@ -2250,6 +2285,72 @@ function renderProfilePage({ navigate: navigate2 }) {
           })
         );
       }
+      authPanel.appendChild(createElement("div", { className: "section-title", text: "Email" }));
+      const emailInput = createElement("input", {
+        className: "input",
+        attrs: { type: "email", placeholder: "Email" }
+      });
+      const passwordInput = createElement("input", {
+        className: "input",
+        attrs: { type: "password", placeholder: "\u041F\u0430\u0440\u043E\u043B\u044C (\u043C\u0438\u043D. 8 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432)" }
+      });
+      const emailActions = createElement("div", { className: "auth-actions" });
+      const loginButton = createButton({
+        label: "\u0412\u043E\u0439\u0442\u0438",
+        onClick: async () => {
+          try {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            if (!email || !password) {
+              showToast("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 email \u0438 \u043F\u0430\u0440\u043E\u043B\u044C", "info");
+              return;
+            }
+            await loginWithEmail({ email, password });
+            showToast("\u0412\u0445\u043E\u0434 \u043F\u043E email \u0432\u044B\u043F\u043E\u043B\u043D\u0435\u043D", "success");
+            render();
+          } catch (error) {
+            showToast(error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0439\u0442\u0438", "error");
+          }
+        }
+      });
+      const registerButton = createButton({
+        label: "\u0417\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u044F",
+        variant: "secondary",
+        onClick: async () => {
+          try {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            if (!email || !password) {
+              showToast("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 email \u0438 \u043F\u0430\u0440\u043E\u043B\u044C", "info");
+              return;
+            }
+            await registerWithEmail({ email, password });
+            showToast("\u041F\u0438\u0441\u044C\u043C\u043E \u0441 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435\u043C \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E", "success");
+          } catch (error) {
+            showToast(error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C\u0441\u044F", "error");
+          }
+        }
+      });
+      const resetButton = createButton({
+        label: "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C",
+        variant: "ghost",
+        onClick: async () => {
+          try {
+            const email = emailInput.value.trim();
+            if (!email) {
+              showToast("\u0423\u043A\u0430\u0436\u0438\u0442\u0435 email \u0434\u043B\u044F \u0441\u0431\u0440\u043E\u0441\u0430", "info");
+              return;
+            }
+            await requestPasswordReset(email);
+            showToast("\u0421\u0441\u044B\u043B\u043A\u0430 \u0434\u043B\u044F \u0441\u0431\u0440\u043E\u0441\u0430 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0430 \u043D\u0430 \u043F\u043E\u0447\u0442\u0443", "success");
+          } catch (error) {
+            showToast(error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0443", "error");
+          }
+        }
+      });
+      emailActions.append(loginButton, registerButton, resetButton);
+      emailWrap.append(emailInput, passwordInput, emailActions);
+      authPanel.appendChild(emailWrap);
       cleanupAuth = () => cleanupFns.forEach((fn) => fn?.());
       content2.appendChild(authPanel);
     }
@@ -2360,6 +2461,151 @@ function renderProfilePage({ navigate: navigate2 }) {
   return { element: root };
 }
 
+// webapp/services/adminApi.js
+async function request(path, options = {}) {
+  const headers = new Headers(options.headers || {});
+  if (options.body && !headers.has("content-type") && !(options.body instanceof FormData)) {
+    headers.set("content-type", "application/json");
+  }
+  let response;
+  try {
+    response = await fetch(path, { ...options, headers, credentials: "include" });
+  } catch (error) {
+    const networkError = new Error("\u0421\u0435\u0440\u0432\u0435\u0440 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435, \u0447\u0442\u043E /api \u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D.");
+    networkError.status = 0;
+    networkError.details = error instanceof Error ? error.message : String(error);
+    throw networkError;
+  }
+  const contentType = response.headers.get("content-type");
+  if (!contentType?.includes("application/json")) {
+    const error = new Error("Admin API \u043D\u0435 \u043E\u0442\u0432\u0435\u0447\u0430\u0435\u0442 JSON (\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u043D\u0435 \u0437\u0430\u0434\u0435\u043F\u043B\u043E\u0435\u043D\u044B Functions /api)");
+    error.status = response.status;
+    throw error;
+  }
+  const payload = await response.json().catch(() => null);
+  if (payload == null) {
+    const error = new Error("Admin API \u0432\u0435\u0440\u043D\u0443\u043B \u043F\u0443\u0441\u0442\u043E\u0439 \u043E\u0442\u0432\u0435\u0442");
+    error.status = response.status;
+    throw error;
+  }
+  if (!response.ok) {
+    const message = payload?.error?.message || "Request failed";
+    const details = payload?.error?.details;
+    const error = new Error(message);
+    error.details = details;
+    error.status = response.status;
+    throw error;
+  }
+  return payload;
+}
+var adminApi = {
+  async login(email, password) {
+    const data = await request("/api/admin/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+    return data.user;
+  },
+  logout() {
+    return request("/api/admin/auth/logout", { method: "POST" });
+  },
+  me() {
+    return request("/api/admin/me").then((data) => data?.user ?? null);
+  },
+  listCategories() {
+    return request("/api/admin/categories").then((data) => data.items || []);
+  },
+  createCategory(payload) {
+    return request("/api/admin/categories", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updateCategory(id, payload) {
+    return request(`/api/admin/categories/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deleteCategory(id) {
+    return request(`/api/admin/categories/${id}`, { method: "DELETE" });
+  },
+  listIngredients() {
+    return request("/api/admin/ingredients").then((data) => data.items || []);
+  },
+  createIngredient(payload) {
+    return request("/api/admin/ingredients", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updateIngredient(id, payload) {
+    return request(`/api/admin/ingredients/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deleteIngredient(id) {
+    return request(`/api/admin/ingredients/${id}`, { method: "DELETE" });
+  },
+  listInventory() {
+    return request("/api/admin/inventory").then((data) => data.items || []);
+  },
+  updateInventory(id, payload) {
+    return request(`/api/admin/inventory/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  listProducts() {
+    return request("/api/admin/products").then((data) => data.items || []);
+  },
+  createProduct(payload) {
+    return request("/api/admin/products", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updateProduct(id, payload) {
+    return request(`/api/admin/products/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deleteProduct(id) {
+    return request(`/api/admin/products/${id}`, { method: "DELETE" });
+  },
+  listOrders() {
+    return request("/api/admin/orders").then((data) => data.items || []);
+  },
+  getOrder(id) {
+    return request(`/api/admin/orders/${id}`).then((data) => data.item);
+  },
+  updateOrderStatus(id, status) {
+    return request(`/api/admin/orders/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+  },
+  listPages() {
+    return request("/api/admin/pages").then((data) => data.items || []);
+  },
+  createPage(payload) {
+    return request("/api/admin/pages", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updatePage(id, payload) {
+    return request(`/api/admin/pages/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deletePage(id) {
+    return request(`/api/admin/pages/${id}`, { method: "DELETE" });
+  },
+  listPageBlocks(pageId) {
+    return request(`/api/admin/page-blocks?page_id=${pageId}`).then((data) => data.items || []);
+  },
+  createPageBlock(payload) {
+    return request("/api/admin/page-blocks", { method: "POST", body: JSON.stringify(payload) });
+  },
+  updatePageBlock(id, payload) {
+    return request(`/api/admin/page-blocks/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+  deletePageBlock(id) {
+    return request(`/api/admin/page-blocks/${id}`, { method: "DELETE" });
+  },
+  reorderPageBlocks(pageId, orderedIds) {
+    return request("/api/admin/page-blocks/reorder", {
+      method: "POST",
+      body: JSON.stringify({ pageId, orderedIds })
+    });
+  },
+  uploadMedia(file) {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/api/admin/upload", { method: "POST", body: form });
+  },
+  listMedia() {
+    return request("/api/admin/media").then((data) => data.items || []);
+  },
+  deleteMedia(key) {
+    return request(`/api/admin/media/${encodeURIComponent(key)}`, { method: "DELETE" });
+  }
+};
+
 // webapp/pages/adminPage.js
 function renderAdminPage() {
   const root = createElement("section", { className: "min-h-screen" });
@@ -2371,15 +2617,29 @@ function renderAdminPage() {
   root.appendChild(placeholder);
   root.appendChild(mount);
   let cleanup2 = null;
-  import("/admin/AdminApp.bundle.js").then((module) => {
-    placeholder.remove();
-    cleanup2 = module.mountAdminApp(mount, {
-      navigate: window.appNavigate,
-      initialPath: window.location.pathname
+  const path = window.location.pathname;
+  const isLoginRoute = path.startsWith("/admin/login");
+  const boot = async () => {
+    if (!isLoginRoute) {
+      try {
+        await adminApi.me();
+      } catch (err) {
+        placeholder.textContent = "\u041D\u0435\u0442 \u0434\u043E\u0441\u0442\u0443\u043F\u0430 \u043A \u0430\u0434\u043C\u0438\u043D\u043A\u0435. \u041F\u0435\u0440\u0435\u043D\u0430\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C \u043D\u0430 \u0432\u0445\u043E\u0434\u2026";
+        window.appNavigate?.("/admin/login");
+        return;
+      }
+    }
+    import("/admin/AdminApp.bundle.js").then((module) => {
+      placeholder.remove();
+      cleanup2 = module.mountAdminApp(mount, {
+        navigate: window.appNavigate,
+        initialPath: window.location.pathname
+      });
+    }).catch((error) => {
+      placeholder.textContent = `\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438 \u0430\u0434\u043C\u0438\u043D\u043A\u0438: ${error.message}`;
     });
-  }).catch((error) => {
-    placeholder.textContent = `\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438 \u0430\u0434\u043C\u0438\u043D\u043A\u0438: ${error.message}`;
-  });
+  };
+  boot();
   return {
     element: root,
     cleanup: () => cleanup2?.()
@@ -2681,6 +2941,74 @@ function renderDynamicPage({ params }) {
   return { element: root };
 }
 
+// webapp/pages/resetPasswordPage.js
+function renderResetPasswordPage() {
+  const root = createElement("section", { className: "list" });
+  const panel = createElement("div", { className: "panel" });
+  panel.appendChild(createElement("h2", { className: "title", text: "\u0421\u0431\u0440\u043E\u0441 \u043F\u0430\u0440\u043E\u043B\u044F" }));
+  const token = new URLSearchParams(window.location.search).get("token") || "";
+  if (!token) {
+    panel.appendChild(createElement("p", { className: "helper", text: "\u0422\u043E\u043A\u0435\u043D \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D." }));
+    root.appendChild(panel);
+    return { element: root };
+  }
+  const passwordInput = createElement("input", {
+    className: "input",
+    attrs: { type: "password", placeholder: "\u041D\u043E\u0432\u044B\u0439 \u043F\u0430\u0440\u043E\u043B\u044C (\u043C\u0438\u043D. 8 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432)" }
+  });
+  const button = createButton({
+    label: "\u0421\u043E\u0445\u0440\u0430\u043D\u0438\u0442\u044C",
+    onClick: async () => {
+      const password = passwordInput.value;
+      if (!password || password.length < 8) {
+        showToast("\u041F\u0430\u0440\u043E\u043B\u044C \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043D\u0435 \u043A\u043E\u0440\u043E\u0447\u0435 8 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432", "info");
+        return;
+      }
+      try {
+        await confirmPasswordReset({ token, password });
+        showToast("\u041F\u0430\u0440\u043E\u043B\u044C \u043E\u0431\u043D\u043E\u0432\u043B\u0451\u043D", "success");
+      } catch (error) {
+        showToast(error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0441\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u0430\u0440\u043E\u043B\u044C", "error");
+      }
+    }
+  });
+  panel.append(passwordInput, button);
+  root.appendChild(panel);
+  return { element: root };
+}
+
+// webapp/pages/verifyEmailPage.js
+function renderVerifyEmailPage() {
+  const root = createElement("section", { className: "list" });
+  const panel = createElement("div", { className: "panel" });
+  panel.appendChild(createElement("h2", { className: "title", text: "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435 email" }));
+  const status = createElement("p", { className: "helper", text: "\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u0441\u0441\u044B\u043B\u043A\u0443\u2026" });
+  panel.appendChild(status);
+  root.appendChild(panel);
+  const token = new URLSearchParams(window.location.search).get("token") || "";
+  if (!token) {
+    status.textContent = "\u0422\u043E\u043A\u0435\u043D \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D.";
+    return { element: root };
+  }
+  fetch("/api/public/auth/email-verify", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token })
+  }).then(async (response) => {
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = payload?.error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C email";
+      throw new Error(message);
+    }
+    status.textContent = "Email \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D. \u041C\u043E\u0436\u043D\u043E \u0432\u0445\u043E\u0434\u0438\u0442\u044C.";
+    showToast("Email \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0451\u043D", "success");
+  }).catch((error) => {
+    status.textContent = error?.message || "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044C email";
+    showToast(status.textContent, "error");
+  });
+  return { element: root };
+}
+
 // webapp/ui/appShell.js
 function createNav({ items, onNavigate, location = "top" }) {
   const nav = createElement("nav", {
@@ -2779,8 +3107,7 @@ var navItems = [
   { label: "\u041C\u0435\u043D\u044E", path: "/menu" },
   { label: "\u041A\u043E\u0440\u0437\u0438\u043D\u0430", path: "/cart" },
   { label: "\u041E\u0444\u043E\u0440\u043C\u0438\u0442\u044C", path: "/checkout" },
-  { label: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C", path: "/profile" },
-  { label: "\u0410\u0434\u043C\u0438\u043D", path: "/admin" }
+  { label: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C", path: "/profile" }
 ];
 var appShell = createAppShell({
   title: "\u041F\u0438\u0446\u0446\u0435\u0440\u0438\u044F \u0422\u0430\u0433\u0438\u043B",
@@ -2795,6 +3122,8 @@ var routes = [
   { path: /^\/cart\/?$/, render: renderCartPage },
   { path: /^\/checkout\/?$/, render: renderCheckoutPage },
   { path: /^\/profile\/?$/, render: renderProfilePage },
+  { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
+  { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
   { path: /^\/admin\/login\/?$/, render: renderAdminPage },
   { path: /^\/admin\/?$/, render: renderAdminPage },
   { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
