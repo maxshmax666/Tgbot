@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, ensureOwner } from "../../_utils.js";
+import { json, handleError, parseJsonBody, ensureAdmin } from "../../_utils.js";
 
 const reorderSchema = z.object({
   pageId: z.number().int().positive(),
@@ -8,7 +8,7 @@ const reorderSchema = z.object({
 
 export async function onRequestPost({ env, request }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
     const body = await parseJsonBody(request, reorderSchema);
     const stmt = env.DB.prepare(
       "UPDATE page_blocks SET sort = ?, updated_at = datetime('now') WHERE id = ? AND page_id = ?"

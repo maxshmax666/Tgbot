@@ -44,7 +44,7 @@ export async function onRequestPost({ env, request }) {
       const result = await db
         .prepare(
           `INSERT INTO users (email, password_hash, role, created_at)
-           VALUES (?, ?, 'customer', datetime('now'))`
+           VALUES (?, ?, 'user', datetime('now'))`
         )
         .bind(email, passwordHash)
         .run();

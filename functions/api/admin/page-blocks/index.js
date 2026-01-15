@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { json, handleError, parseJsonBody, ensureOwner } from "../../_utils.js";
+import { json, handleError, parseJsonBody, ensureAdmin } from "../../_utils.js";
 
 const blockSchema = z.object({
   pageId: z.number().int().positive(),
@@ -10,7 +10,7 @@ const blockSchema = z.object({
 
 export async function onRequest({ env, request }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
 
     if (request.method === "GET") {
       const url = new URL(request.url);

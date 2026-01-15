@@ -1,4 +1,4 @@
-import { json, handleError, ensureOwner } from "../../_utils.js";
+import { json, handleError, ensureAdmin } from "../../_utils.js";
 
 async function loadStaticMedia(request) {
   try {
@@ -23,7 +23,7 @@ async function loadStaticMedia(request) {
 
 export async function onRequestGet({ env, request }) {
   try {
-    await ensureOwner(request, env);
+    await ensureAdmin(request, env);
     const result = await env.DB.prepare(
       "SELECT id, key, url, created_at, meta_json FROM media ORDER BY created_at DESC, id DESC"
     ).all();
