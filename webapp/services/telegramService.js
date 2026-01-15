@@ -1,9 +1,5 @@
-// webapp/services/telegramService.js
 // Clean Telegram WebApp helpers (no React/JSX)
-
-function getWebApp() {
-  return window.Telegram?.WebApp || null;
-}
+function getWebApp() { return window.Telegram?.WebApp || null; }
 
 export function isTelegram() {
   const wa = getWebApp();
@@ -43,9 +39,7 @@ export function sendData(payload) {
     const data = typeof payload === "string" ? payload : JSON.stringify(payload);
     wa.sendData(data);
     return true;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
 export function showTelegramAlert(message, title = "Сообщение") {
@@ -63,13 +57,10 @@ export function showTelegramAlert(message, title = "Сообщение") {
       }
     });
   }
-  return new Promise((resolve) => {
-    try { alert(String(message ?? "")); } catch {}
-    resolve();
-  });
+  return new Promise((resolve) => { try { alert(String(message ?? "")); } catch {} resolve(); });
 }
 
-export function showTelegramConfirm(message, title = "Подтвердите", okText = "OK", cancelText = "Отмена") {
+export function showTelegramConfirm(message, title="Подтвердите", okText="OK", cancelText="Отмена") {
   const wa = getWebApp();
   if (wa?.showPopup) {
     return new Promise((resolve) => {
