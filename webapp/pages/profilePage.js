@@ -195,7 +195,22 @@ export function renderProfilePage({ navigate }) {
           }
         },
       });
-      emailActions.append(loginButton, registerButton, resetButton);
+            const clearSessionButton = createButton({
+        label: "Сбросить авторизацию",
+        variant: "ghost",
+        onClick: () => {
+          try { clearAuthState(); } catch {}
+          try {
+            localStorage.removeItem("auth:token");
+            localStorage.removeItem("auth:user");
+            localStorage.removeItem("auth:provider");
+          } catch {}
+          showToast("Сессия очищена", "success");
+          render();
+        },
+      });
+
+      emailActions.append(loginButton, registerButton, resetButton, clearSessionButton);
       emailWrap.append(emailInput, passwordInput, emailActions);
       authPanel.appendChild(emailWrap);
 
