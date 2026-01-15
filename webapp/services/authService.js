@@ -112,65 +112,132 @@ export async function confirmPasswordReset({ token, password }) {
   return parseResponse(response);
 }
 
-export function renderTelegramLogin(container, { botUsername, onSuccess, onError }) {
-  if (!botUsername) {
-    throw new Error("Telegram bot username is missing");
-  }
-  const callbackName = `onTelegramAuth_${Math.random().toString(36).slice(2)}`;
-  window[callbackName] = async (user) => {
+export function renderTelegramLogin(container, { botUsername, onSuccess, onError } = {}) {
+  const btn = document.createElement("button");
+  btn.className = "btn btn-primary";
+  btn.textContent = isTelegram() ? "Войти через Telegram" : "Открыть в Telegram";
+
+  const helper = document.createElement("div");
+  helper.className = "helper";
+  helper.style.marginTop = "8px";
+  helper.textContent = isTelegram()
+    ? "Вы войдёте через данные Telegram Mini App."
+    : "Откройте мини-приложение внутри Telegram.";
+
+  btn.onclick = async () => {
     try {
-      const payload = await loginWithTelegram(user);
-      onSuccess?.(payload);
-    } catch (error) {
-      onError?.(error);
+      const cfg = getAuthConfig();
+      const username = botUsername || cfg.telegramBotUsername;
+      if (!username) throw new Error("telegramBotUsername не задан в auth-config.js");
+
+      if (!isTelegram()) {
+        window.open(`https://t.me/${username}`, "_blank");
+        return;
+      }
+
+      const tg = window.Telegram?.WebApp;
+      if (!tg) throw new Error("Telegram WebApp недоступен");
+      try { tg.ready?.(); } catch {}
+
+      const initData = tg.initData || "";
+      if (!initData) throw new Error("initData пустой. Откройте мини-приложение заново.");
+
+      const res = await fetch("/api/auth/telegram", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ initData }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Telegram login failed");
+
+      setAuthState?.(data); // if your service has it
+      saveSession?.(data);  // if your service has it
+      // fallback: minimal store
+      if (!localStorage.getItem("auth:token") && data.token) localStorage.setItem("auth:token", data.token);
+      if (!localStorage.getItem("auth:user") && data.user) localStorage.setItem("auth:user", JSON.stringify(data.user));
+      if (!localStorage.getItem("auth:provider") && data.provider) localStorage.setItem("auth:provider", data.provider);
+
+      onSuccess?.(data);
+    } catch (e) {
+      onError?.(e);
     }
   };
 
-  container.innerHTML = "";
-  const script = document.createElement("script");
-  script.src = "https://telegram.org/js/telegram-widget.js?22";
-  script.async = true;
-  script.dataset.telegramLogin = botUsername;
-  script.dataset.size = "large";
-  script.dataset.userpic = "true";
-  script.dataset.requestAccess = "write";
-  script.dataset.onauth = `${callbackName}(user)`;
-  container.appendChild(script);
+  container.appendChild(btn);
+  container.appendChild(helper);
 
   return () => {
-    delete window[callbackName];
-    container.innerHTML = "";
+    try { btn.remove(); } catch {}
+    try { helper.remove(); } catch {}
   };
 }
 
-export async function renderGoogleLogin(container, { clientId, onSuccess, onError }) {
-  if (!clientId) {
-    throw new Error("Google client ID is missing");
+export async function renderGoogleLogin(container, { clientId, onSuccess, onError } = {}) {
+  await waitFor?.(() => !!window.google?.accounts?.id, 4000);
+
+  const wrap = document.createElement("div");
+  wrap.style.display = "flex";
+  wrap.style.justifyContent = "center";
+  container.appendChild(wrap);
+
+  const cfg = getAuthConfig();
+  const cid = clientId || cfg.googleClientId;
+
+  if (!cid) {
+    const hint = document.createElement("div");
+    hint.className = "helper";
+    hint.textContent = "googleClientId не задан в auth-config.js";
+    wrap.appendChild(hint);
+    return () => { try { wrap.remove(); } catch {} };
   }
-  await loadScriptOnce("https://accounts.google.com/gsi/client");
+
   if (!window.google?.accounts?.id) {
-    throw new Error("Google Identity Services unavailable");
+    const hint = document.createElement("div");
+    hint.className = "helper";
+    hint.textContent = "Google Identity Services не загрузился (проверь index.html).";
+    wrap.appendChild(hint);
+    return () => { try { wrap.remove(); } catch {} };
   }
-  window.google.accounts.id.initialize({
-    client_id: clientId,
-    ux_mode: "popup",
-    callback: async (response) => {
-      try {
-        const payload = await loginWithGoogle(response.credential);
-        onSuccess?.(payload);
-      } catch (error) {
-        onError?.(error);
-      }
-    },
-  });
-  container.innerHTML = "";
-  window.google.accounts.id.renderButton(container, {
-    theme: "outline",
-    size: "large",
-    text: "continue_with",
-    shape: "pill",
-  });
-  return () => {
-    container.innerHTML = "";
-  };
+
+  try {
+    window.google.accounts.id.initialize({
+      client_id: cid,
+      callback: async (resp) => {
+        try {
+          const credential = resp?.credential;
+          if (!credential) throw new Error("Google credential пустой");
+
+          const res = await fetch("/api/auth/google", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ credential }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data?.ok) throw new Error(data?.error || "Google login failed");
+
+          setAuthState?.(data);
+          saveSession?.(data);
+          if (!localStorage.getItem("auth:token") && data.token) localStorage.setItem("auth:token", data.token);
+          if (!localStorage.getItem("auth:user") && data.user) localStorage.setItem("auth:user", JSON.stringify(data.user));
+          if (!localStorage.getItem("auth:provider") && data.provider) localStorage.setItem("auth:provider", data.provider);
+
+          onSuccess?.(data);
+        } catch (e) {
+          onError?.(e);
+        }
+      },
+    });
+
+    window.google.accounts.id.renderButton(wrap, {
+      theme: "outline",
+      size: "large",
+      shape: "pill",
+      text: "signin_with",
+      width: 320,
+    });
+  } catch (e) {
+    onError?.(e);
+  }
+
+  return () => { try { wrap.remove(); } catch {} };
 }
