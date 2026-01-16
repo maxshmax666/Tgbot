@@ -6,11 +6,10 @@ import { createSection } from "../ui/section.js";
 
 export function renderHomePage({ navigate }) {
   const menuState = getMenuState();
-  console.info(
-    `[home] render hasData=${menuState.items.length > 0} loading=${
-      menuState.status === "loading" || menuState.status === "idle"
-    } error=${Boolean(menuState.error)}`
-  );
+  const loading = menuState.status === "loading" || menuState.status === "idle";
+  const hasData = menuState.items.length > 0;
+  const error = Boolean(menuState.error);
+  console.log("[home] render", { loading, hasData, error });
   const root = createElement("section", { className: "list" });
 
   const hero = createSection({ className: "home-hero" });

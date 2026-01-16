@@ -70,6 +70,10 @@ export function getMenuItemById(id) {
   return state.items.find((item) => item.id === id) || null;
 }
 
+export function getMenuItemBySlug(slug) {
+  return state.items.find((item) => item.slug === slug || item.id === slug) || null;
+}
+
 export function getMenuState() {
   return { ...state };
 }

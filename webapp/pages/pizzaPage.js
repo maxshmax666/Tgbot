@@ -5,9 +5,11 @@ import { createIconButton } from "../ui/iconButton.js";
 import { createPriceTag } from "../ui/priceTag.js";
 import { createSection } from "../ui/section.js";
 import { createGallery } from "../ui/gallery.js";
+import { createLoadingState } from "../ui/loadingState.js";
+import { createErrorState } from "../ui/errorState.js";
 import { formatPrice } from "../services/format.js";
 import { add } from "../store/cartStore.js";
-import { getMenuItemById, loadMenu, subscribeMenu, getMenuState } from "../store/menuStore.js";
+import { getMenuItemBySlug, loadMenu, subscribeMenu, getMenuState } from "../store/menuStore.js";
 import { getFavorites, setFavorites, getOrders } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
 import { createBreadcrumbs } from "../ui/breadcrumbs.js";
@@ -17,6 +19,20 @@ const DOUGH_OPTIONS = [
   { id: "poolish", label: "Пулиш", priceModifier: 0 },
   { id: "biga", label: "Бига", priceModifier: 0 },
 ];
+
+function createPizzaSkeleton() {
+  const wrapper = createElement("div", { className: "pizza-skeleton" });
+  const image = createElement("div", { className: "skeleton pizza-skeleton__image" });
+  const title = createElement("div", { className: "skeleton pizza-skeleton__title" });
+  const description = createElement("div", { className: "skeleton pizza-skeleton__text" });
+  const actions = createElement("div", { className: "skeleton pizza-skeleton__actions" });
+  wrapper.append(image, title, description, actions);
+  return wrapper;
+}
+
+function getItemKey(item) {
+  return item?.slug || item?.id || "";
+}
 
 function getDoughImages(item, doughType) {
   const poolish = Array.isArray(item?.photosPoolish) ? item.photosPoolish : [];
@@ -36,9 +52,9 @@ export function renderPizzaPage({ navigate, params }) {
   let touchStartX = 0;
   let touchEndX = 0;
   let selectedDough = "poolish";
+  const param = params.id;
 
-  const getNavigableItems = () => {
-    const menuState = getMenuState();
+  const getNavigableItems = (menuState) => {
     const categoryIds = new Set(menuState.categories.map((category) => String(category.id)));
     const filterId = new URLSearchParams(window.location.search).get("from") || "all";
     const popularIds = getPopularIds(getOrders(), 3);
@@ -48,22 +64,46 @@ export function renderPizzaPage({ navigate, params }) {
       popularIds,
       categoryIds,
     });
-    const currentIndex = filteredItems.findIndex((menuItem) => menuItem.id === params.id);
+    const currentIndex = filteredItems.findIndex((menuItem) => getItemKey(menuItem) === param);
     if (currentIndex === -1 || filteredItems.length === 0) {
-      const fallbackItems = filterMenuItems(menuState.items, {
-        filterId: "all",
-        favorites: getFavorites(),
-        popularIds,
-        categoryIds,
-      });
-      return { items: fallbackItems, filterId: "all" };
+      return { items: menuState.items, filterId: "all" };
     }
     return { items: filteredItems, filterId };
   };
 
   const renderState = () => {
     clearElement(content);
-    const item = getMenuItemById(params.id);
+    const menuState = getMenuState();
+    const loading = menuState.status === "loading" || menuState.status === "idle";
+    const item = getMenuItemBySlug(param);
+    console.log("[pizza-detail] param=", param, "loading=", loading, "items=", menuState.items.length, "found=", !!item);
+
+    if (loading) {
+      content.appendChild(
+        createLoadingState({
+          text: "Загружаем карточку пиццы…",
+          content: createPizzaSkeleton(),
+        })
+      );
+      return;
+    }
+
+    if (menuState.status === "error") {
+      const retry = createButton({
+        label: "Повторить",
+        variant: "secondary",
+        onClick: () => loadMenu().catch(() => null),
+      });
+      content.appendChild(
+        createErrorState({
+          title: "Ошибка загрузки меню",
+          description: menuState.error || "Не удалось загрузить меню. Попробуйте ещё раз.",
+          action: retry,
+        })
+      );
+      return;
+    }
+
     if (!item) {
       const panel = createSection();
       panel.appendChild(createElement("p", { className: "helper", text: "Пицца не найдена." }));
@@ -78,11 +118,17 @@ export function renderPizzaPage({ navigate, params }) {
       return;
     }
 
-    const { items: navigableItems, filterId } = getNavigableItems();
-    const currentIndex = navigableItems.findIndex((menuItem) => menuItem.id === item.id);
+    const { items: navigableItems, filterId } = getNavigableItems(menuState);
+    const currentIndex = navigableItems.findIndex((menuItem) => getItemKey(menuItem) === getItemKey(item));
     const prevItem = currentIndex > 0 ? navigableItems[currentIndex - 1] : null;
     const nextItem =
       currentIndex >= 0 && currentIndex < navigableItems.length - 1 ? navigableItems[currentIndex + 1] : null;
+    console.log("[pizza-nav]", {
+      listSize: navigableItems.length,
+      currentIndex,
+      prev: prevItem ? getItemKey(prevItem) : null,
+      next: nextItem ? getItemKey(nextItem) : null,
+    });
 
     const crumbs = createBreadcrumbs([
       { label: "Меню", onClick: () => navigate("/menu") },
@@ -142,25 +188,29 @@ export function renderPizzaPage({ navigate, params }) {
     });
 
     const navRow = createElement("div", { className: "pizza-nav" });
+    const navLoading = menuState.status !== "loaded" || navigableItems.length === 0;
     const prevButton = createButton({
-      label: "← Предыдущая пицца",
+      label: navLoading ? "Загрузка…" : "← Предыдущая пицца",
       variant: "secondary",
       ariaLabel: "Предыдущая пицца",
       onClick: () => {
-        if (prevItem) navigate(`/pizza/${prevItem.id}?from=${encodeURIComponent(filterId)}`);
+        if (prevItem) navigate(`/pizza/${getItemKey(prevItem)}?from=${encodeURIComponent(filterId)}`);
       },
     });
     const nextButton = createButton({
-      label: "Следующая пицца →",
+      label: navLoading ? "Загрузка…" : "Следующая пицца →",
       variant: "secondary",
       ariaLabel: "Следующая пицца",
       onClick: () => {
-        if (nextItem) navigate(`/pizza/${nextItem.id}?from=${encodeURIComponent(filterId)}`);
+        if (nextItem) navigate(`/pizza/${getItemKey(nextItem)}?from=${encodeURIComponent(filterId)}`);
       },
     });
-    prevButton.disabled = !prevItem;
-    nextButton.disabled = !nextItem;
+    prevButton.disabled = !prevItem || navLoading;
+    nextButton.disabled = !nextItem || navLoading;
     navRow.append(prevButton, nextButton);
+    const navHelper = navLoading
+      ? createElement("div", { className: "helper", text: "Загружаем список пицц…" })
+      : null;
 
     const actions = createCardFooter({ className: "pizza-actions" });
     const back = createButton({
@@ -194,7 +244,11 @@ export function renderPizzaPage({ navigate, params }) {
       });
     });
     actions.append(back, addButton);
-    card.append(favButton, navRow, actions);
+    card.append(favButton, navRow);
+    if (navHelper) {
+      card.appendChild(navHelper);
+    }
+    card.appendChild(actions);
     content.append(crumbs, card);
   };
 
@@ -208,14 +262,15 @@ export function renderPizzaPage({ navigate, params }) {
     touchEndX = event.changedTouches[0]?.screenX || 0;
     const delta = touchEndX - touchStartX;
     if (Math.abs(delta) < 50) return;
-    const { items: navigableItems, filterId } = getNavigableItems();
-    const currentIndex = navigableItems.findIndex((menuItem) => menuItem.id === params.id);
+    const menuState = getMenuState();
+    const { items: navigableItems, filterId } = getNavigableItems(menuState);
+    const currentIndex = navigableItems.findIndex((menuItem) => getItemKey(menuItem) === param);
     if (currentIndex < 0) return;
     if (delta < 0 && currentIndex < navigableItems.length - 1) {
-      navigate(`/pizza/${navigableItems[currentIndex + 1].id}?from=${encodeURIComponent(filterId)}`);
+      navigate(`/pizza/${getItemKey(navigableItems[currentIndex + 1])}?from=${encodeURIComponent(filterId)}`);
     }
     if (delta > 0 && currentIndex > 0) {
-      navigate(`/pizza/${navigableItems[currentIndex - 1].id}?from=${encodeURIComponent(filterId)}`);
+      navigate(`/pizza/${getItemKey(navigableItems[currentIndex - 1])}?from=${encodeURIComponent(filterId)}`);
     }
   };
 

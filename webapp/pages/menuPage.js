@@ -50,6 +50,7 @@ function writeMenuState(next) {
 }
 
 function createMenuCard(item, navigate, favorites, { filterId } = {}) {
+  const itemSlug = item.slug || item.id;
   const card = createCard({ interactive: true });
   const gallery = createGallery(item.images, { large: false });
   const title = createElement("h3", { className: "card-title", text: item.title });
@@ -112,11 +113,11 @@ function createMenuCard(item, navigate, favorites, { filterId } = {}) {
   card.append(footer);
 
   const query = filterId && filterId !== "all" ? `?from=${encodeURIComponent(filterId)}` : "";
-  card.addEventListener("click", () => navigate(`/pizza/${item.id}${query}`));
+  card.addEventListener("click", () => navigate(`/pizza/${itemSlug}${query}`));
   card.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      navigate(`/pizza/${item.id}${query}`);
+      navigate(`/pizza/${itemSlug}${query}`);
     }
   });
 
@@ -179,7 +180,17 @@ export function renderMenuPage({ navigate }) {
       window.setTimeout(() => {
         scrollContainer.scrollTo({ top: target, behavior: "auto" });
         const success = Math.abs(scrollContainer.scrollTop - target) < 2;
-        console.info(`[menu] restoreScroll=${Math.round(target)} success=${success}`);
+        if (!success) {
+          window.setTimeout(() => {
+            scrollContainer.scrollTo({ top: target, behavior: "auto" });
+            const retrySuccess = Math.abs(scrollContainer.scrollTop - target) < 2;
+            console.info(
+              `[menu] restoreScroll=${Math.round(target)} success=${retrySuccess} retry=true`
+            );
+          }, 120);
+        } else {
+          console.info(`[menu] restoreScroll=${Math.round(target)} success=${success}`);
+        }
       }, 0);
     });
   };
