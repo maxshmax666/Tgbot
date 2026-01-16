@@ -144,11 +144,27 @@ export function renderTelegramLogin(container, { botUsername, onSuccess, onError
     ? "Вы войдёте через данные Telegram Mini App."
     : "Откройте мини-приложение внутри Telegram.";
 
+  const updateHelper = (text) => {
+    if (typeof text === "string" && text.trim().length > 0) helper.textContent = text;
+  };
+
+  const getInitDataWithRetry = async (tg) => {
+    const readInitData = () => (typeof tg?.initData === "string" ? tg.initData : "");
+    let initData = readInitData();
+    if (initData) return initData;
+
+    updateHelper("Не удалось получить данные Telegram. Проверьте, что открыли мини‑приложение внутри Telegram.");
+    try { tg?.ready?.(); } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    initData = readInitData();
+    return initData;
+  };
+
   btn.onclick = async () => {
     try {
       const cfg = getAuthConfig();
       const username = botUsername || cfg.telegramBotUsername;
-      if (!username) throw new Error("telegramBotUsername не задан в auth-config.js");
+      if (!username) throw new Error("Логин через Telegram сейчас недоступен. Попробуйте позже.");
 
       if (!isTelegram()) {
         window.open(`https://t.me/${username}`, "_blank");
@@ -156,11 +172,14 @@ export function renderTelegramLogin(container, { botUsername, onSuccess, onError
       }
 
       const tg = window.Telegram?.WebApp;
-      if (!tg) throw new Error("Telegram WebApp недоступен");
+      if (!tg) throw new Error("Не удалось подключиться к Telegram. Откройте мини‑приложение внутри Telegram.");
       try { tg.ready?.(); } catch {}
 
-      const initData = tg.initData || "";
-      if (!initData) throw new Error("initData пустой. Откройте мини-приложение заново.");
+      const initData = await getInitDataWithRetry(tg);
+      if (!initData) {
+        updateHelper("Данные Telegram не пришли. Закройте и снова откройте мини‑приложение.");
+        return;
+      }
 
       const res = await fetch("/api/auth/telegram", {
         method: "POST",
@@ -168,7 +187,9 @@ export function renderTelegramLogin(container, { botUsername, onSuccess, onError
         body: JSON.stringify({ initData }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "Telegram login failed");
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.error || "Не удалось войти через Telegram. Попробуйте позже.");
+      }
 
       setAuthState({ provider: "telegram", ...data });
       // fallback: minimal store

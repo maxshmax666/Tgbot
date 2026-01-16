@@ -3,7 +3,11 @@ function getWebApp() { return window.Telegram?.WebApp || null; }
 
 export function isTelegram() {
   const wa = getWebApp();
-  return Boolean(wa && (wa.initData || wa.initDataUnsafe));
+  const initData = wa?.initData;
+  const user = wa?.initDataUnsafe?.user;
+  const hasInitData = typeof initData === "string" && initData.trim().length > 0;
+  const userValid = !user || (typeof user === "object" && !Array.isArray(user));
+  return Boolean(wa && hasInitData && userValid);
 }
 
 export function initTelegram() {
