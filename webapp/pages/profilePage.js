@@ -62,20 +62,25 @@ export function renderProfilePage({ navigate }) {
     const isMiniApp = isTelegram();
     const user = isMiniApp ? telegramUser : storedAuth?.user;
     const provider = isMiniApp ? "telegram-webapp" : storedAuth?.provider;
+    const isDebugEnabled =
+      Boolean(authConfig?.debug) &&
+      new URLSearchParams(window.location.search).get("debug") === "1";
     // DEBUG_AUTH_PANEL
-    try {
-      const dbg = createElement("pre", {
-        className: "panel",
-        text:
-          "DEBUG AUTH\n" +
-          "isMiniApp: " + String(isMiniApp) + "\n" +
-          "telegramUser: " + JSON.stringify(telegramUser || null) + "\n" +
-          "storedAuth: " + JSON.stringify(storedAuth || null) + "\n" +
-          "computed user: " + JSON.stringify(user || null) + "\n" +
-          "provider: " + String(provider || "") + "\n",
-      });
-      content.appendChild(dbg);
-    } catch (e) {}
+    if (isDebugEnabled) {
+      try {
+        const dbg = createElement("pre", {
+          className: "panel",
+          text:
+            "DEBUG AUTH\n" +
+            "isMiniApp: " + String(isMiniApp) + "\n" +
+            "telegramUser: " + JSON.stringify(telegramUser || null) + "\n" +
+            "storedAuth: " + JSON.stringify(storedAuth || null) + "\n" +
+            "computed user: " + JSON.stringify(user || null) + "\n" +
+            "provider: " + String(provider || "") + "\n",
+        });
+        content.appendChild(dbg);
+      } catch (e) {}
+    }
 
 
     if (!user) {
