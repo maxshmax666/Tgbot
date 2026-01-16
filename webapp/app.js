@@ -20,7 +20,8 @@ import { syncPendingOrders } from "./services/orderSyncService.js";
 import { IntroOverlay, getIntroState, shouldShowIntro } from "./ui/introMatrixPizzaOverlay.js";
 import { checkHealth } from "./services/healthService.js";
 import { hasLocalMenu } from "./services/menuService.js";
-import { loadLocalMenu } from "./store/menuStore.js";
+import { loadLocalMenu, loadMenu } from "./store/menuStore.js";
+import { fetchConfig } from "./services/configService.js";
 
 const app = document.getElementById("app");
 
@@ -62,6 +63,29 @@ const routes = [
 ];
 
 let cleanup = null;
+const bootState = {
+  ready: false,
+  status: "idle",
+};
+let lastTab = null;
+
+function logBoot(route) {
+  console.info(`[boot] route=${route} ready=${bootState.ready} status=${bootState.status}`);
+}
+
+function logTabSwitch(path) {
+  const target = navItems.find((item) => path.startsWith(item.path));
+  if (!target || target.path === lastTab) return;
+  lastTab = target.path;
+  console.info(`[tab] switch to ${target.path.replace("/", "")}`);
+}
+
+function logSafeArea() {
+  const styles = getComputedStyle(document.documentElement);
+  const topInset = parseFloat(styles.getPropertyValue("--safe-area-top")) || 0;
+  const bottomInset = parseFloat(styles.getPropertyValue("--safe-area-bottom")) || 0;
+  console.info(`[layout] safeArea top=${topInset} bottom=${bottomInset} applied`);
+}
 
 function setActiveNav(pathname) {
   [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
@@ -81,6 +105,9 @@ function renderRoute(pathname) {
     navigate("/menu");
     return;
   }
+
+  logBoot(path);
+  logTabSwitch(path);
 
   const isAdmin = path.startsWith("/admin");
   topBar.element.hidden = isAdmin;
@@ -163,8 +190,25 @@ function renderDebug() {
 }
 
 renderDebug();
-renderRoute(window.location.pathname);
+
+function renderInitialRoute() {
+  renderRoute(window.location.pathname);
+}
+
+async function initApp() {
+  bootState.status = "init";
+  logBoot(window.location.pathname);
+  const results = await Promise.allSettled([fetchConfig(), loadMenu()]);
+  const hasErrors = results.some((result) => result.status === "rejected");
+  bootState.status = hasErrors ? "degraded" : "ready";
+  bootState.ready = true;
+  logBoot(window.location.pathname);
+  logSafeArea();
+}
+
+renderInitialRoute();
 syncPendingOrders();
+void initApp();
 
 let overlayController = null;
 

@@ -1,9 +1,16 @@
 import { createElement } from "../ui/dom.js";
+import { getMenuState } from "../store/menuStore.js";
 import { createButton } from "../ui/button.js";
 import { createCard, createCardFooter } from "../ui/card.js";
 import { createSection } from "../ui/section.js";
 
 export function renderHomePage({ navigate }) {
+  const menuState = getMenuState();
+  console.info(
+    `[home] render hasData=${menuState.items.length > 0} loading=${
+      menuState.status === "loading" || menuState.status === "idle"
+    } error=${Boolean(menuState.error)}`
+  );
   const root = createElement("section", { className: "list" });
 
   const hero = createSection({ className: "home-hero" });

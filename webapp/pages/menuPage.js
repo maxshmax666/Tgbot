@@ -16,7 +16,7 @@ import { formatPrice } from "../services/format.js";
 import { loadMenu, subscribeMenu } from "../store/menuStore.js";
 import { add } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
-import { getFavorites, setFavorites, getOrders } from "../services/storageService.js";
+import { getFavorites, setFavorites, getOrders, storage, STORAGE_KEYS } from "../services/storageService.js";
 import { createBreadcrumbs } from "../ui/breadcrumbs.js";
 import { showToast } from "../ui/toast.js";
 import { QUICK_FILTERS, filterMenuItems, getPopularIds } from "../services/menuFilterService.js";
@@ -25,6 +25,29 @@ const DEFAULT_FILTERS = [
   { id: "all", label: "Все" },
   { id: "favorite", label: "Избранное" },
 ];
+const MENU_SCROLL_THROTTLE_MS = 160;
+const MENU_STATE_DEFAULT = {
+  currentFilter: "all",
+  scrollByFilter: {},
+};
+
+function getScrollKey(filterId) {
+  return `menuScroll:${filterId || "all"}`;
+}
+
+function readMenuState() {
+  const raw = storage.read(STORAGE_KEYS.menuState, MENU_STATE_DEFAULT);
+  const scrollByFilter =
+    raw && typeof raw.scrollByFilter === "object" && raw.scrollByFilter !== null ? raw.scrollByFilter : {};
+  return {
+    currentFilter: typeof raw?.currentFilter === "string" ? raw.currentFilter : "all",
+    scrollByFilter,
+  };
+}
+
+function writeMenuState(next) {
+  storage.write(STORAGE_KEYS.menuState, next);
+}
 
 function createMenuCard(item, navigate, favorites, { filterId } = {}) {
   const card = createCard({ interactive: true });
@@ -105,9 +128,73 @@ export function renderMenuPage({ navigate }) {
   const content = createElement("div");
   root.appendChild(content);
 
-  let currentFilter = "all";
+  const scrollContainer = document.scrollingElement || document.documentElement;
+  const initialMenuState = readMenuState();
+  let currentFilter = initialMenuState.currentFilter || "all";
   let searchValue = "";
   let config = null;
+  let shouldRestoreScroll = true;
+  let scrollSaveTimeout = 0;
+  let lastSavedScroll = -1;
+
+  const persistMenuState = (next = {}) => {
+    const updated = {
+      ...readMenuState(),
+      ...next,
+    };
+    writeMenuState(updated);
+    return updated;
+  };
+
+  const saveScrollPosition = () => {
+    if (!scrollContainer) return;
+    const scrollTop = Math.max(0, Math.round(scrollContainer.scrollTop));
+    const state = persistMenuState();
+    const key = getScrollKey(currentFilter);
+    state.scrollByFilter[key] = scrollTop;
+    state.currentFilter = currentFilter;
+    writeMenuState(state);
+    if (scrollTop !== lastSavedScroll) {
+      lastSavedScroll = scrollTop;
+      console.info(`[menu] saveScroll=${scrollTop}`);
+    }
+  };
+
+  const scheduleSaveScroll = () => {
+    if (!scrollContainer) return;
+    if (scrollSaveTimeout) {
+      window.clearTimeout(scrollSaveTimeout);
+    }
+    scrollSaveTimeout = window.setTimeout(() => {
+      saveScrollPosition();
+    }, MENU_SCROLL_THROTTLE_MS);
+  };
+
+  const restoreScrollPosition = () => {
+    if (!scrollContainer) return;
+    const state = readMenuState();
+    const key = getScrollKey(currentFilter);
+    const target = Math.max(0, Number(state.scrollByFilter?.[key] ?? 0));
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        scrollContainer.scrollTo({ top: target, behavior: "auto" });
+        const success = Math.abs(scrollContainer.scrollTop - target) < 2;
+        console.info(`[menu] restoreScroll=${Math.round(target)} success=${success}`);
+      }, 0);
+    });
+  };
+
+  const handleScroll = () => {
+    scheduleSaveScroll();
+  };
+
+  scrollContainer?.addEventListener("scroll", handleScroll, { passive: true });
+
+  const remindRestore = () => {
+    if (!shouldRestoreScroll) return;
+    shouldRestoreScroll = false;
+    restoreScrollPosition();
+  };
 
   const renderState = (state) => {
     clearElement(content);
@@ -167,6 +254,8 @@ export function renderMenuPage({ navigate }) {
         ariaLabel: `Фильтр: ${filter.label}`,
         onClick: () => {
           currentFilter = filter.id;
+          persistMenuState({ currentFilter });
+          shouldRestoreScroll = true;
           renderState(state);
         },
       });
@@ -179,6 +268,8 @@ export function renderMenuPage({ navigate }) {
         ariaLabel: `Быстрый фильтр: ${filter.label}`,
         onClick: () => {
           currentFilter = filter.id;
+          persistMenuState({ currentFilter });
+          shouldRestoreScroll = true;
           renderState(state);
         },
       });
@@ -263,6 +354,8 @@ export function renderMenuPage({ navigate }) {
       grid.appendChild(createMenuCard(item, navigate, favorites, { filterId: currentFilter }))
     );
     content.appendChild(grid);
+
+    remindRestore();
   };
 
   const unsubscribe = subscribeMenu(renderState);
@@ -271,5 +364,15 @@ export function renderMenuPage({ navigate }) {
     loadMenu().catch(() => null);
   });
 
-  return { element: root, cleanup: unsubscribe };
+  return {
+    element: root,
+    cleanup: () => {
+      unsubscribe();
+      if (scrollSaveTimeout) {
+        window.clearTimeout(scrollSaveTimeout);
+      }
+      scrollContainer?.removeEventListener("scroll", handleScroll);
+      saveScrollPosition();
+    },
+  };
 }
