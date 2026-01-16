@@ -705,6 +705,32 @@ a.button[data-state="loading"] {
   height: 240px;
 }
 
+.pizza-skeleton {
+  display: grid;
+  gap: 12px;
+}
+
+.pizza-skeleton__image {
+  height: 260px;
+  border-radius: 16px;
+}
+
+.pizza-skeleton__title {
+  height: 28px;
+  width: 60%;
+  border-radius: 10px;
+}
+
+.pizza-skeleton__text {
+  height: 64px;
+  border-radius: 12px;
+}
+
+.pizza-skeleton__actions {
+  height: 48px;
+  border-radius: 14px;
+}
+
 .list {
   display: grid;
   gap: 12px;
@@ -1124,12 +1150,12 @@ textarea.input {
 
 .toast-container {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  top: calc(var(--safe-area-top) + 8px);
   left: 50%;
   transform: translateX(-50%);
   width: min(540px, calc(100% - 24px));
   display: grid;
-  gap: 8px;
+  gap: 6px;
   z-index: 2000;
   pointer-events: none;
 }
@@ -1137,8 +1163,8 @@ textarea.input {
 .toast {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 8px 12px;
+  border-radius: 10px;
+  padding: 6px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1164,16 +1190,16 @@ textarea.input {
 }
 
 .toast-text {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .toast-action {
   border: 1px solid rgba(255, 153, 51, 0.4);
   background: rgba(255, 153, 51, 0.16);
   color: var(--text);
-  border-radius: 10px;
-  padding: 4px 10px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 3px 8px;
+  font-size: 11px;
   cursor: pointer;
   pointer-events: auto;
   transition: transform 0.2s ease, box-shadow 0.2s ease;

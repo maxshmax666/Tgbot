@@ -30,7 +30,7 @@ if (typeof window.PUBLIC_MEDIA_BASE_URL === "undefined") {
 }
 
 const navItems = [
-  { label: "Главная", path: "/home" },
+  { label: "Главная", path: "/" },
   { label: "Меню", path: "/menu" },
   { label: "Корзина", path: "/cart" },
   { label: "Акции", path: "/promos" },
@@ -47,6 +47,7 @@ const { warning, debugPanel, topBar, bottomBar, content } = appShell;
 app.append(...appShell.elements);
 
 const routes = [
+  { path: /^\/$/, render: renderHomePage },
   { path: /^\/home\/?$/, render: renderHomePage },
   { path: /^\/menu\/?$/, render: renderMenuPage },
   { path: /^\/cart\/?$/, render: renderCartPage },
@@ -69,15 +70,21 @@ const bootState = {
 };
 let lastTab = null;
 
-function logBoot(route) {
-  console.info(`[boot] route=${route} ready=${bootState.ready} status=${bootState.status}`);
+function getActiveTab(pathname) {
+  if (pathname === "/" || pathname.startsWith("/home")) return "/";
+  return navItems.find((item) => item.path !== "/" && pathname.startsWith(item.path))?.path || null;
 }
 
-function logTabSwitch(path) {
-  const target = navItems.find((item) => path.startsWith(item.path));
-  if (!target || target.path === lastTab) return;
-  lastTab = target.path;
-  console.info(`[tab] switch to ${target.path.replace("/", "")}`);
+function logBoot() {
+  const activeTab = getActiveTab(window.location.pathname);
+  console.log("[boot] path=", window.location.pathname, "tab=", activeTab, "ready=", bootState.ready);
+}
+
+function logTabSwitch(pathname) {
+  const activeTab = getActiveTab(pathname);
+  if (!activeTab || activeTab === lastTab) return;
+  lastTab = activeTab;
+  console.info(`[tab] switch to ${activeTab === "/" ? "home" : activeTab.replace("/", "")}`);
 }
 
 function logSafeArea() {
@@ -88,10 +95,11 @@ function logSafeArea() {
 }
 
 function setActiveNav(pathname) {
+  const activeTab = getActiveTab(pathname);
   [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
     buttons.forEach((button) => {
       const target = button.dataset.path;
-      const isActive = pathname.startsWith(target);
+      const isActive = target === activeTab;
       button.classList.toggle("is-active", isActive);
       setButtonCurrent(button, isActive);
     });
@@ -99,14 +107,14 @@ function setActiveNav(pathname) {
 }
 
 function renderRoute(pathname) {
-  const path = pathname === "/" ? "/home" : pathname;
+  const path = pathname;
   const match = routes.find((route) => route.path.test(path));
   if (!match) {
     navigate("/menu");
     return;
   }
 
-  logBoot(path);
+  logBoot();
   logTabSwitch(path);
 
   const isAdmin = path.startsWith("/admin");
@@ -197,12 +205,12 @@ function renderInitialRoute() {
 
 async function initApp() {
   bootState.status = "init";
-  logBoot(window.location.pathname);
+  logBoot();
   const results = await Promise.allSettled([fetchConfig(), loadMenu()]);
   const hasErrors = results.some((result) => result.status === "rejected");
   bootState.status = hasErrors ? "degraded" : "ready";
   bootState.ready = true;
-  logBoot(window.location.pathname);
+  logBoot();
   logSafeArea();
 }
 

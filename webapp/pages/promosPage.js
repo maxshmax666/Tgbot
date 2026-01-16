@@ -71,7 +71,7 @@ export function renderPromosPage({ navigate }) {
     cleanupTimers.clear();
 
     const crumbs = createBreadcrumbs([
-      { label: "Главная", onClick: () => navigate("/home") },
+      { label: "Главная", onClick: () => navigate("/") },
       { label: "Акции" },
     ]);
 
