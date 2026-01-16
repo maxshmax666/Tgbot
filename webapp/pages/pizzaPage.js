@@ -13,12 +13,29 @@ import { showToast } from "../ui/toast.js";
 import { createBreadcrumbs } from "../ui/breadcrumbs.js";
 import { filterMenuItems, getPopularIds } from "../services/menuFilterService.js";
 
+const DOUGH_OPTIONS = [
+  { id: "poolish", label: "Пулиш", priceModifier: 0 },
+  { id: "biga", label: "Бига", priceModifier: 0 },
+];
+
+function getDoughImages(item, doughType) {
+  const poolish = Array.isArray(item?.photosPoolish) ? item.photosPoolish : [];
+  const biga = Array.isArray(item?.photosBiga) ? item.photosBiga : [];
+  const fallback = Array.isArray(item?.images) ? item.images : [];
+  if (doughType === "biga" && biga.length) return biga;
+  if (doughType === "poolish" && poolish.length) return poolish;
+  if (poolish.length) return poolish;
+  if (biga.length) return biga;
+  return fallback;
+}
+
 export function renderPizzaPage({ navigate, params }) {
   const root = createElement("section", { className: "list" });
   const content = createElement("div", { className: "fade-in" });
   root.appendChild(content);
   let touchStartX = 0;
   let touchEndX = 0;
+  let selectedDough = "poolish";
 
   const getNavigableItems = () => {
     const menuState = getMenuState();
@@ -74,10 +91,31 @@ export function renderPizzaPage({ navigate, params }) {
     ]);
 
     const card = createCard({ className: "pizza-card" });
-    card.appendChild(createGallery(item.images, { large: true, enableZoom: true }));
+    const doughImages = getDoughImages(item, selectedDough);
+    card.appendChild(createGallery(doughImages, { large: true, enableZoom: true }));
     card.appendChild(createElement("h2", { className: "title", text: item.title }));
     card.appendChild(createElement("p", { className: "helper", text: item.description }));
-    card.appendChild(createPriceTag({ value: formatPrice(item.price) }));
+    const doughPanel = createElement("div", { className: "panel dough-panel" });
+    doughPanel.appendChild(createElement("div", { className: "helper", text: "Тесто" }));
+    const doughRow = createElement("div", { className: "dough-options" });
+    DOUGH_OPTIONS.forEach((option) => {
+      const button = createButton({
+        label: option.label,
+        variant: "chip",
+        pressed: option.id === selectedDough,
+        onClick: () => {
+          selectedDough = option.id;
+          renderState();
+        },
+      });
+      button.classList.toggle("is-active", option.id === selectedDough);
+      doughRow.appendChild(button);
+    });
+    doughPanel.appendChild(doughRow);
+    const selectedOption = DOUGH_OPTIONS.find((option) => option.id === selectedDough) || DOUGH_OPTIONS[0];
+    const priceValue = item.price + (selectedOption?.priceModifier || 0);
+    card.appendChild(doughPanel);
+    card.appendChild(createPriceTag({ value: formatPrice(priceValue) }));
 
     const favorites = getFavorites();
     const isFav = favorites.has(item.id);
@@ -136,11 +174,25 @@ export function renderPizzaPage({ navigate, params }) {
         add({
           id: item.id,
           title: item.title,
-          price: item.price,
-          image: item.images?.[0] || "",
+          price: priceValue,
+          image: doughImages?.[0] || item.images?.[0] || "",
+          doughType: selectedDough,
         }),
     });
-    addButton.addEventListener("click", () => showToast("Добавлено в корзину", "success"));
+    addButton.addEventListener("click", () => {
+      showToast("Добавлено в корзину", {
+        variant: "success",
+        durationMs: 2000,
+        actionLabel: "Открыть корзину",
+        onAction: () => navigate("/cart"),
+      });
+      console.info("cart:add", {
+        source: "pizza",
+        itemId: item.id,
+        doughType: selectedDough,
+        toast: "Добавлено в корзину",
+      });
+    });
     actions.append(back, addButton);
     card.append(favButton, navRow, actions);
     content.append(crumbs, card);

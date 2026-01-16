@@ -24,6 +24,28 @@ function normalizeMenuItem(item) {
   const resolvedImages = (images.length ? images : buildImagesFromCount(slugBase, item?.photosCount)).map(
     resolveMediaUrl
   );
+  const photosPoolishRaw = Array.isArray(item?.photosPoolish)
+    ? item.photosPoolish
+    : Array.isArray(item?.photos_poolish)
+    ? item.photos_poolish
+    : [];
+  const photosBigaRaw = Array.isArray(item?.photosBiga)
+    ? item.photosBiga
+    : Array.isArray(item?.photos_biga)
+    ? item.photos_biga
+    : [];
+  const photosPoolish = photosPoolishRaw
+    .filter(Boolean)
+    .map((image) => (typeof image === "string" ? image : image?.url))
+    .filter(Boolean)
+    .map(String)
+    .map(resolveMediaUrl);
+  const photosBiga = photosBigaRaw
+    .filter(Boolean)
+    .map((image) => (typeof image === "string" ? image : image?.url))
+    .filter(Boolean)
+    .map(String)
+    .map(resolveMediaUrl);
   const categoryId =
     item?.categoryId ??
     item?.category_id ??
@@ -39,6 +61,8 @@ function normalizeMenuItem(item) {
     tags: Array.isArray(item?.tags) ? item.tags.map(String) : [],
     isAvailable: typeof item?.isAvailable === "boolean" ? item.isAvailable : true,
     images: resolvedImages,
+    photosPoolish,
+    photosBiga,
     categoryId: categoryId === null ? null : String(categoryId),
   };
 }
@@ -117,7 +141,7 @@ function parseMenuPayload(payload) {
   return { items, categories: categoriesPayload };
 }
 
-async function fetchLocalMenu() {
+export async function fetchLocalMenu() {
   const response = await fetch("/data/menu.json", { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const text = await response.text();
@@ -131,6 +155,23 @@ async function fetchLocalMenu() {
     throw new Error("menu.json is not valid JSON");
   }
   return parseMenuPayload(payload);
+}
+
+export async function hasLocalMenu() {
+  try {
+    const response = await fetch("/data/menu.json", { method: "HEAD", cache: "no-store" });
+    if (response.ok) return true;
+  } catch (error) {
+    return false;
+  }
+  try {
+    const response = await fetch("/data/menu.json", { cache: "no-store" });
+    if (!response.ok) return false;
+    const text = await response.text();
+    return Boolean(text && !text.trim().startsWith("<"));
+  } catch (error) {
+    return false;
+  }
 }
 
 function isFallbackEligible(error) {

@@ -1,4 +1,4 @@
-import { fetchMenu } from "../services/menuService.js";
+import { fetchMenu, fetchLocalMenu } from "../services/menuService.js";
 
 const state = {
   items: [],
@@ -32,6 +32,29 @@ export async function loadMenu() {
     state.items = data.items;
     state.categories = data.categories;
     state.source = data.source ?? "api";
+    state.status = "loaded";
+    notify();
+    return data.items;
+  } catch (error) {
+    state.status = "error";
+    state.error = error instanceof Error ? error.message : "Не удалось загрузить меню";
+    notify();
+    throw error;
+  }
+}
+
+export async function loadLocalMenu() {
+  if (state.status === "loading") {
+    return state.items;
+  }
+  state.status = "loading";
+  state.error = null;
+  notify();
+  try {
+    const data = await fetchLocalMenu();
+    state.items = data.items;
+    state.categories = data.categories;
+    state.source = "local";
     state.status = "loaded";
     notify();
     return data.items;

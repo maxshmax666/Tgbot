@@ -68,8 +68,15 @@ function createMenuCard(item, navigate, favorites, { filterId } = {}) {
         title: item.title,
         price: item.price,
         image: item.images?.[0] || "",
+        doughType: "poolish",
       });
-      showToast("Добавлено в корзину", "success");
+      showToast("Добавлено в корзину", {
+        variant: "success",
+        durationMs: 2000,
+        actionLabel: "Открыть корзину",
+        onAction: () => navigate("/cart"),
+      });
+      console.info("cart:add", { source: "menu", itemId: item.id, doughType: "poolish", toast: "Добавлено в корзину" });
     },
   });
 
@@ -190,7 +197,7 @@ export function renderMenuPage({ navigate }) {
     });
 
     const banner = createSection({ className: "banner" });
-    banner.appendChild(createElement("div", { text: config?.bannerText || "Доставка 45 минут" }));
+    banner.appendChild(createElement("div", { text: config?.bannerText || "Горячая пицца и любимые хиты каждый день" }));
     banner.appendChild(
       createElement("div", {
         className: "helper",

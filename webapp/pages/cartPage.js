@@ -19,7 +19,14 @@ function createCartItemRow(item) {
   });
   applyImageFallback(preview);
   const title = createElement("div", { className: "cart-title", text: item.title });
+  const dough = item.doughType
+    ? createElement("div", {
+        className: "helper",
+        text: `Тесто: ${item.doughType === "biga" ? "Бига" : "Пулиш"}`,
+      })
+    : null;
   product.append(productLabel, preview, title);
+  if (dough) product.appendChild(dough);
 
   const price = createElement("div", { className: "cart-cell cart-price" });
   price.append(
@@ -36,7 +43,7 @@ function createCartItemRow(item) {
     variant: "qty",
     size: "sm",
     ariaLabel: "Уменьшить количество",
-    onClick: () => setQty(item.id, item.qty - 1),
+    onClick: () => setQty(item.lineId || item.id, item.qty - 1),
   });
   const qty = createElement("span", { className: "qty-label", text: String(item.qty) });
   const inc = createButton({
@@ -44,7 +51,7 @@ function createCartItemRow(item) {
     variant: "qty",
     size: "sm",
     ariaLabel: "Увеличить количество",
-    onClick: () => setQty(item.id, item.qty + 1),
+    onClick: () => setQty(item.lineId || item.id, item.qty + 1),
   });
 
   controls.append(dec, qty, inc);
@@ -65,7 +72,7 @@ function createCartItemRow(item) {
     className: "cart-remove",
     ariaLabel: `Удалить ${item.title}`,
     onClick: () => {
-      remove(item.id);
+      remove(item.lineId || item.id);
       showToast("Позиция удалена", "info");
     },
   });
