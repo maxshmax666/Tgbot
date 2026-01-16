@@ -70,7 +70,15 @@ function createCartItemRow(item) {
     },
   });
 
-  row.append(removeButton, header);
+  const addons = createElement("div", { className: "cart-addons" });
+  addons.appendChild(createElement("div", { className: "helper", text: "Подсказки допов:" }));
+  const addonsList = createElement("div", { className: "cart-addons-list" });
+  ["Соус", "Доп. сыр", "Напиток"].forEach((addon) =>
+    addonsList.appendChild(createElement("span", { className: "badge", text: addon }))
+  );
+  addons.appendChild(addonsList);
+
+  row.append(removeButton, header, addons);
   return row;
 }
 

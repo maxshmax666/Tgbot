@@ -17,14 +17,16 @@ import { loadMenu, subscribeMenu } from "../store/menuStore.js";
 import { add } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
 import { getFavorites, setFavorites, getOrders } from "../services/storageService.js";
+import { createBreadcrumbs } from "../ui/breadcrumbs.js";
 import { showToast } from "../ui/toast.js";
+import { QUICK_FILTERS, filterMenuItems, getPopularIds } from "../services/menuFilterService.js";
 
 const DEFAULT_FILTERS = [
   { id: "all", label: "Все" },
   { id: "favorite", label: "Избранное" },
 ];
 
-function createMenuCard(item, navigate, favorites) {
+function createMenuCard(item, navigate, favorites, { filterId } = {}) {
   const card = createCard({ interactive: true });
   const gallery = createGallery(item.images, { large: false });
   const title = createElement("h3", { className: "card-title", text: item.title });
@@ -79,11 +81,12 @@ function createMenuCard(item, navigate, favorites) {
   }
   card.append(footer);
 
-  card.addEventListener("click", () => navigate(`/pizza/${item.id}`));
+  const query = filterId && filterId !== "all" ? `?from=${encodeURIComponent(filterId)}` : "";
+  card.addEventListener("click", () => navigate(`/pizza/${item.id}${query}`));
   card.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      navigate(`/pizza/${item.id}`);
+      navigate(`/pizza/${item.id}${query}`);
     }
   });
 
@@ -140,6 +143,11 @@ export function renderMenuPage({ navigate }) {
 
     const favorites = getFavorites();
     const filtersRow = createElement("div", { className: "filter-row" });
+    const quickFiltersRow = createElement("div", { className: "filter-row quick-filters" });
+    const crumbs = createBreadcrumbs([
+      { label: "Меню", onClick: () => navigate("/menu") },
+      { label: "Пиццы" },
+    ]);
     const categoryFilters = state.categories.map((category) => ({
       id: String(category.id),
       label: category.title,
@@ -156,6 +164,18 @@ export function renderMenuPage({ navigate }) {
         },
       });
       filtersRow.appendChild(button);
+    });
+    QUICK_FILTERS.forEach((filter) => {
+      const button = createChip({
+        label: filter.label,
+        active: currentFilter === filter.id,
+        ariaLabel: `Быстрый фильтр: ${filter.label}`,
+        onClick: () => {
+          currentFilter = filter.id;
+          renderState(state);
+        },
+      });
+      quickFiltersRow.appendChild(button);
     });
 
     const searchInput = createInput({
@@ -196,36 +216,29 @@ export function renderMenuPage({ navigate }) {
     banner.appendChild(contacts);
 
     const orders = getOrders();
-    const topMap = new Map();
-    orders.forEach((order) => {
-      order.items?.forEach((item) => {
-        topMap.set(item.id, (topMap.get(item.id) || 0) + item.qty);
-      });
-    });
-    const topIds = Array.from(topMap.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([id]) => id);
+    const topIds = getPopularIds(orders, 3);
     const recommended = state.items.filter((item) => topIds.includes(item.id));
     const recommendedIds = new Set(recommended.map((item) => item.id));
     const showRecommended = recommended.length > 0;
 
     const grid = createElement("div", { className: "menu-grid" });
-    const filtered = state.items
-      .filter((item) => item.isAvailable !== false)
-      .filter((item) => {
-        if (currentFilter === "favorite") return favorites.has(item.id);
-        if (currentFilter === "all") return true;
-        return String(item.categoryId || "") === currentFilter;
-      })
+    const categoryIds = new Set(state.categories.map((category) => String(category.id)));
+    const filtered = filterMenuItems(state.items, {
+      filterId: currentFilter,
+      favorites,
+      popularIds: topIds,
+      categoryIds,
+    })
       .filter((item) => (searchValue ? item.title.toLowerCase().includes(searchValue) : true))
       .filter((item) => !showRecommended || !recommendedIds.has(item.id));
 
-    content.append(banner, searchInput, filtersRow);
+    content.append(crumbs, banner, searchInput, filtersRow, quickFiltersRow);
     if (showRecommended) {
       const recTitle = createElement("h3", { className: "section-title", text: "Топ продаж" });
       const recGrid = createElement("div", { className: "menu-grid" });
-      recommended.forEach((item) => recGrid.appendChild(createMenuCard(item, navigate, favorites)));
+      recommended.forEach((item) =>
+        recGrid.appendChild(createMenuCard(item, navigate, favorites, { filterId: currentFilter }))
+      );
       content.append(recTitle, recGrid);
     }
 
@@ -239,7 +252,9 @@ export function renderMenuPage({ navigate }) {
       return;
     }
 
-    filtered.forEach((item) => grid.appendChild(createMenuCard(item, navigate, favorites)));
+    filtered.forEach((item) =>
+      grid.appendChild(createMenuCard(item, navigate, favorites, { filterId: currentFilter }))
+    );
     content.appendChild(grid);
   };
 

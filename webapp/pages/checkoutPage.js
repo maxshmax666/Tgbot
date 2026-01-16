@@ -5,7 +5,7 @@ import { PAYMENT_METHODS, preparePayment, applyPromo, getPromoList } from "../se
 import { sendData, showTelegramAlert, getUser, isTelegram } from "../services/telegramService.js";
 import { clear, getState, subscribeCart, total } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
-import { addOrder, addPendingOrder, setLastOrderStatus, storage } from "../services/storageService.js";
+import { addOrder, addPendingOrder, setLastOrderStatus, storage, getSelectedPromo } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
 
 const PAYMENT_OPTIONS = [
@@ -36,6 +36,7 @@ export function renderCheckoutPage({ navigate }) {
   let selectedMethod = PAYMENT_METHODS.cash;
   let config = null;
   let promoApplied = null;
+  let autoPromoApplied = false;
   let deliveryType = "delivery";
   let geoData = null;
   let geoConsent = false;
@@ -44,6 +45,14 @@ export function renderCheckoutPage({ navigate }) {
 
   const renderState = (state) => {
     clearElement(content);
+
+    if (!autoPromoApplied) {
+      const storedPromo = getSelectedPromo();
+      if (storedPromo?.active !== false) {
+        promoApplied = storedPromo;
+      }
+      autoPromoApplied = true;
+    }
 
     if (!state.items.length) {
       const empty = createElement("div", { className: "panel" });
@@ -260,6 +269,9 @@ export function renderCheckoutPage({ navigate }) {
       className: "input",
       attrs: { type: "text", placeholder: "Введите промокод" },
     });
+    if (promoApplied?.code) {
+      promoInput.value = promoApplied.code;
+    }
     const promoButton = createButton({
       label: "Применить",
       variant: "secondary",

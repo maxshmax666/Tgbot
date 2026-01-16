@@ -1,0 +1,42 @@
+[
+  {
+    "id": "day-discount",
+    "title": "Скидка дня −15%",
+    "description": "Только сегодня на все пиццы при самовывозе. Используйте промокод DAY15.",
+    "type": "percent",
+    "value": 15,
+    "code": "DAY15",
+    "expiresAt": "2030-12-31T20:59:59.000Z",
+    "active": true
+  },
+  {
+    "id": "combo-family",
+    "title": "Комбо для семьи",
+    "description": "2 большие пиццы + напиток. Скидка 300₽ по коду FAMILY300.",
+    "type": "fixed",
+    "value": 300,
+    "code": "FAMILY300",
+    "expiresAt": "2030-12-31T20:59:59.000Z",
+    "active": true
+  },
+  {
+    "id": "two-plus-one",
+    "title": "2+1 на классику",
+    "description": "Возьмите две классические пиццы — третья в подарок. Код: CLASSIC3.",
+    "type": "percent",
+    "value": 33,
+    "code": "CLASSIC3",
+    "expiresAt": "2030-12-31T20:59:59.000Z",
+    "active": true
+  },
+  {
+    "id": "late-night",
+    "title": "Ночной промокод",
+    "description": "−10% после 21:00. Укажите промокод NIGHT10.",
+    "type": "percent",
+    "value": 10,
+    "code": "NIGHT10",
+    "expiresAt": "2030-12-31T21:59:59.000Z",
+    "active": true
+  }
+]

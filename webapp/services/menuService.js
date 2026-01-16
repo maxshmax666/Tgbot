@@ -24,6 +24,12 @@ function normalizeMenuItem(item) {
   const resolvedImages = (images.length ? images : buildImagesFromCount(slugBase, item?.photosCount)).map(
     resolveMediaUrl
   );
+  const categoryId =
+    item?.categoryId ??
+    item?.category_id ??
+    item?.category?.id ??
+    item?.category?.slug ??
+    null;
   return {
     id,
     title,
@@ -33,6 +39,7 @@ function normalizeMenuItem(item) {
     tags: Array.isArray(item?.tags) ? item.tags.map(String) : [],
     isAvailable: typeof item?.isAvailable === "boolean" ? item.isAvailable : true,
     images: resolvedImages,
+    categoryId: categoryId === null ? null : String(categoryId),
   };
 }
 
