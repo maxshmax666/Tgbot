@@ -6,6 +6,7 @@ const scriptCache = new Map();
 const DEFAULT_CONFIG = {
   telegramBotUsername: "",
   googleClientId: "",
+  emailEnabled: true,
   debug: false,
 };
 
