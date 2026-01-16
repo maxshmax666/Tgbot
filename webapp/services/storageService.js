@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   lastOrderStatus: "pt_last_order_status_v1",
   userAuth: "pt_user_auth_v1",
   promoSelected: "pt_selected_promo_v1",
+  menuState: "pt_menu_state_v1",
 };
 
 export const storage = {
