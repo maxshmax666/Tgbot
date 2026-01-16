@@ -690,10 +690,26 @@ a.button[data-state="loading"] {
 }
 
 @media (max-width: 768px) {
+  .top-bar .nav {
+    display: none;
+  }
+
+  .bottom-bar {
+    position: sticky;
+    bottom: 12px;
+    z-index: 6;
+  }
+
   .cart-summary {
     position: sticky;
     bottom: 12px;
     z-index: 5;
+  }
+}
+
+@media (min-width: 769px) {
+  .bottom-bar {
+    display: none;
   }
 }
 
