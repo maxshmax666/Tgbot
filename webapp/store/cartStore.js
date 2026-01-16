@@ -7,6 +7,16 @@ const state = {
 
 const listeners = new Set();
 
+const DEFAULT_DOUGH = "poolish";
+
+function resolveDoughType(item) {
+  return String(item?.doughType || DEFAULT_DOUGH);
+}
+
+function buildLineId(item) {
+  return `${String(item?.id || "")}::${resolveDoughType(item)}`;
+}
+
 function normalizeItems(items) {
   return (Array.isArray(items) ? items : [])
     .map((item) => ({
@@ -15,6 +25,8 @@ function normalizeItems(items) {
       price: Number(item.price || 0),
       image: item.image || "",
       qty: Number(item.qty || 0),
+      doughType: resolveDoughType(item),
+      lineId: item.lineId || buildLineId(item),
     }))
     .filter((item) => item.id && item.qty > 0);
 }
@@ -53,7 +65,8 @@ export function setState(items) {
 
 export function add(item) {
   const items = [...state.items];
-  const existing = items.find((cartItem) => cartItem.id === item.id);
+  const lineId = item?.lineId || buildLineId(item);
+  const existing = items.find((cartItem) => cartItem.lineId === lineId);
   if (existing) {
     existing.qty += 1;
   } else {
@@ -62,6 +75,8 @@ export function add(item) {
       title: String(item.title || ""),
       price: Number(item.price || 0),
       image: item.image || "",
+      doughType: resolveDoughType(item),
+      lineId,
       qty: 1,
     });
   }
@@ -69,9 +84,9 @@ export function add(item) {
   dispatchChange({ items });
 }
 
-export function setQty(id, qty) {
+export function setQty(lineId, qty) {
   const items = [...state.items];
-  const target = items.find((item) => item.id === id);
+  const target = items.find((item) => item.lineId === lineId);
   if (!target) return;
   target.qty = Math.max(0, qty);
   const next = items.filter((item) => item.qty > 0);
@@ -79,8 +94,8 @@ export function setQty(id, qty) {
   dispatchChange({ items: next });
 }
 
-export function remove(id) {
-  const next = state.items.filter((item) => item.id !== id);
+export function remove(lineId) {
+  const next = state.items.filter((item) => item.lineId !== lineId);
   persist(next);
   dispatchChange({ items: next });
 }

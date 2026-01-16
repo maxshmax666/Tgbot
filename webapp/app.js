@@ -17,7 +17,10 @@ import { createAppShell } from "./ui/appShell.js";
 import { setButtonCurrent } from "./ui/button.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 import { syncPendingOrders } from "./services/orderSyncService.js";
-import { IntroMatrixPizzaOverlay } from "./ui/introMatrixPizzaOverlay.js";
+import { IntroOverlay, getIntroState, shouldShowIntro } from "./ui/introMatrixPizzaOverlay.js";
+import { checkHealth } from "./services/healthService.js";
+import { hasLocalMenu } from "./services/menuService.js";
+import { loadLocalMenu } from "./store/menuStore.js";
 
 const app = document.getElementById("app");
 
@@ -162,4 +165,68 @@ function renderDebug() {
 renderDebug();
 renderRoute(window.location.pathname);
 syncPendingOrders();
-IntroMatrixPizzaOverlay();
+
+let overlayController = null;
+
+function cleanupOverlay() {
+  if (overlayController?.cleanup) {
+    overlayController.cleanup();
+    overlayController = null;
+  }
+}
+
+async function runHealthCheck() {
+  console.info("health-check:start");
+  const result = await checkHealth({ timeoutMs: 2500 });
+  console.info("health-check:result", {
+    ok: result.ok,
+    status: result.status,
+    timedOut: result.timedOut,
+    error: result.error?.message || null,
+  });
+  return result;
+}
+
+async function resolveOverlayMode() {
+  const { forceIntro, seen } = getIntroState();
+  const healthResult = await runHealthCheck();
+  const maintenance = !healthResult.ok;
+  const showIntro = shouldShowIntro();
+  const showMode = maintenance ? "maintenance" : showIntro ? "intro" : "none";
+  console.info("intro:decision", { forceIntro, seen, maintenance, showMode });
+  return { maintenance, showMode };
+}
+
+async function showOverlayFlow() {
+  const { maintenance, showMode } = await resolveOverlayMode();
+  cleanupOverlay();
+  if (showMode === "none") return;
+  if (showMode === "maintenance") {
+    const allowOffline = await hasLocalMenu();
+    overlayController = IntroOverlay({
+      mode: "maintenance",
+      allowOffline,
+      onRetry: () => {
+        showOverlayFlow();
+      },
+      onOpenOffline: async () => {
+        try {
+          await loadLocalMenu();
+          cleanupOverlay();
+          navigate("/menu");
+        } catch (error) {
+          console.warn("Offline menu load failed", error);
+        }
+      },
+    });
+    return;
+  }
+  overlayController = IntroOverlay({
+    mode: "intro",
+    onDismiss: () => {
+      cleanupOverlay();
+    },
+  });
+}
+
+showOverlayFlow();

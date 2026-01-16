@@ -7,6 +7,7 @@ import { clear, getState, subscribeCart, total } from "../store/cartStore.js";
 import { fetchConfig } from "../services/configService.js";
 import { addOrder, addPendingOrder, setLastOrderStatus, storage, getSelectedPromo } from "../services/storageService.js";
 import { showToast } from "../ui/toast.js";
+import { getScheduleStatus, getUpcomingSlots } from "../services/scheduleService.js";
 
 const PAYMENT_OPTIONS = [
   { id: PAYMENT_METHODS.cash, label: "Наличные", enabled: true },
@@ -19,6 +20,14 @@ function renderOrderItems(container, items) {
   items.forEach((item) => {
     const row = createElement("div", { className: "panel" });
     row.appendChild(createElement("div", { text: item.title }));
+    if (item.doughType) {
+      row.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `Тесто: ${item.doughType === "biga" ? "Бига" : "Пулиш"}`,
+        })
+      );
+    }
     row.appendChild(createElement("div", { className: "helper", text: `${item.qty} × ${formatPrice(item.price)}` }));
     row.appendChild(createElement("div", { className: "helper", text: `Сумма: ${formatPrice(item.price * item.qty)}` }));
     list.appendChild(row);
@@ -42,6 +51,7 @@ export function renderCheckoutPage({ navigate }) {
   let geoConsent = false;
   let geoStatus = "idle";
   let geoError = "";
+  let scheduledAt = null;
 
   const renderState = (state) => {
     clearElement(content);
@@ -241,9 +251,26 @@ export function renderCheckoutPage({ navigate }) {
       attrs: { placeholder: "Например: без лука, курьер позвонить" },
     });
 
+    const scheduleStatus = getScheduleStatus(config?.workSchedule, config?.workHours);
+    const preorderMode = !scheduleStatus.isOpen;
+    if (!preorderMode) {
+      scheduledAt = null;
+    }
+    if (preorderMode && selectedMethod === PAYMENT_METHODS.cash) {
+      selectedMethod = PAYMENT_OPTIONS.find((option) => option.id !== PAYMENT_METHODS.cash)?.id || PAYMENT_METHODS.card;
+    }
     const paymentLabel = createElement("div", { className: "helper", text: "Способ оплаты" });
     const paymentOptions = createElement("div", { className: "list" });
-    PAYMENT_OPTIONS.forEach((option) => {
+    const filteredPaymentOptions = preorderMode
+      ? PAYMENT_OPTIONS.filter((option) => option.id !== PAYMENT_METHODS.cash)
+      : PAYMENT_OPTIONS;
+    const paymentList = filteredPaymentOptions.length
+      ? filteredPaymentOptions
+      : [{ id: "cashless_stub", label: "Безналичная оплата (заглушка)", enabled: true }];
+    if (!paymentList.some((option) => option.id === selectedMethod)) {
+      selectedMethod = paymentList[0]?.id || PAYMENT_METHODS.card;
+    }
+    paymentList.forEach((option) => {
       const optionRow = createElement("label", { className: "panel" });
       const input = createElement("input", {
         attrs: {
@@ -260,6 +287,9 @@ export function renderCheckoutPage({ navigate }) {
       optionRow.append(input, createElement("span", { text: option.label }));
       if (!option.enabled) {
         optionRow.appendChild(createElement("span", { className: "helper", text: "Скоро" }));
+      }
+      if (preorderMode && option.id === PAYMENT_METHODS.cash) {
+        optionRow.appendChild(createElement("span", { className: "helper", text: "Недоступно для предзаказа" }));
       }
       paymentOptions.appendChild(optionRow);
     });
@@ -347,14 +377,13 @@ export function renderCheckoutPage({ navigate }) {
           error.hidden = false;
           return;
         }
-        const now = new Date();
-        const [openHour, openMin] = String(config?.workHours?.open || "10:00").split(":").map(Number);
-        const [closeHour, closeMin] = String(config?.workHours?.close || "22:00").split(":").map(Number);
-        const minutes = now.getHours() * 60 + now.getMinutes();
-        const openMinutes = openHour * 60 + openMin;
-        const closeMinutes = closeHour * 60 + closeMin;
-        if (minutes < openMinutes || minutes > closeMinutes) {
-          error.textContent = `Мы работаем с ${config?.workHours?.open} до ${config?.workHours?.close}.`;
+        if (preorderMode && selectedMethod === PAYMENT_METHODS.cash) {
+          error.textContent = "Наличные недоступны для предзаказа.";
+          error.hidden = false;
+          return;
+        }
+        if (preorderMode && !scheduledAt) {
+          error.textContent = "Выберите время доставки для предзаказа.";
           error.hidden = false;
           return;
         }
@@ -370,6 +399,8 @@ export function renderCheckoutPage({ navigate }) {
           request_id: null,
           ts: Math.floor(Date.now() / 1000),
           source: "webapp",
+          isPreorder: preorderMode,
+          scheduledAt: preorderMode ? scheduledAt : null,
           user: {
             tg_id: user?.id,
             username: user?.username,
@@ -389,6 +420,8 @@ export function renderCheckoutPage({ navigate }) {
             title: item.title,
             price: item.price,
             qty: item.qty,
+            doughType: item.doughType,
+            lineId: item.lineId,
           })),
           subtotal: discountedSubtotal,
           delivery_fee: finalDeliveryFee,
@@ -430,6 +463,8 @@ export function renderCheckoutPage({ navigate }) {
               id: Number(item.id),
             })),
             total: order.total,
+            isPreorder: order.isPreorder,
+            scheduledAt: order.scheduledAt,
           };
           let pendingSync = false;
           try {
@@ -565,6 +600,49 @@ export function renderCheckoutPage({ navigate }) {
       error,
       submit
     );
+    if (preorderMode) {
+      const preorderPanel = createElement("div", { className: "panel" });
+      preorderPanel.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: "Сейчас закрыто. Хотите оформить предзаказ?",
+        })
+      );
+      const slots = getUpcomingSlots(config?.workSchedule, config?.workHours);
+      const select = createElement("select", { className: "input" });
+      select.appendChild(createElement("option", { text: "Выберите время доставки", attrs: { value: "" } }));
+      const formatter = new Intl.DateTimeFormat("ru-RU", {
+        weekday: "short",
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      slots.forEach((slot) => {
+        const value = slot.toISOString();
+        const option = createElement("option", {
+          text: formatter.format(slot),
+          attrs: { value },
+        });
+        select.appendChild(option);
+      });
+      const nextOpenValue = scheduleStatus.nextOpen?.toISOString();
+      if (nextOpenValue) {
+        select.value = nextOpenValue;
+        scheduledAt = nextOpenValue;
+      } else if (slots.length) {
+        select.value = slots[0].toISOString();
+        scheduledAt = select.value;
+      }
+      select.addEventListener("change", () => {
+        scheduledAt = select.value || null;
+      });
+      preorderPanel.appendChild(select);
+      preorderPanel.appendChild(
+        createElement("div", { className: "helper", text: "Оплата только безналом." })
+      );
+      summary.prepend(preorderPanel);
+    }
     content.append(itemsBlock, summary);
   };
 

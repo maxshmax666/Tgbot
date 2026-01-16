@@ -2,15 +2,21 @@ import { createElement } from "./dom.js";
 
 const INTRO_STORAGE_KEY = "introSeen";
 
-function getShouldShowIntro() {
+export function getIntroState() {
   const params = new URLSearchParams(window.location.search);
-  const force = params.get("intro") === "1";
-  if (force) return true;
+  const forceIntro = params.get("intro") === "1";
+  let seen = false;
   try {
-    return localStorage.getItem(INTRO_STORAGE_KEY) !== "1";
+    seen = localStorage.getItem(INTRO_STORAGE_KEY) === "1";
   } catch (error) {
-    return true;
+    seen = false;
   }
+  return { forceIntro, seen };
+}
+
+export function shouldShowIntro() {
+  const { forceIntro, seen } = getIntroState();
+  return forceIntro || !seen;
 }
 
 function markIntroSeen() {
@@ -42,21 +48,37 @@ function getParticleCount(width, height) {
   return Math.max(18, Math.round(base * multiplier));
 }
 
-export function IntroMatrixPizzaOverlay() {
-  if (!getShouldShowIntro()) return null;
-
+export function IntroOverlay({ mode = "intro", allowOffline = false, onDismiss, onRetry, onOpenOffline } = {}) {
   const overlay = createElement("div", { className: "intro-overlay", attrs: { role: "dialog", "aria-modal": "true" } });
   const canvas = createElement("canvas", { className: "intro-canvas", attrs: { "aria-hidden": "true" } });
   const content = createElement("div", { className: "intro-content" });
-  const title = createElement("div", { className: "intro-title", text: "Тапни по центру, чтобы войти" });
-  const subtitle = createElement("div", { className: "intro-subtitle", text: "ENTER" });
+  const title = createElement("div", {
+    className: "intro-title",
+    text:
+      mode === "maintenance" ? "Технические работы. Мы уже чиним 🚧" : "Тапни по центру, чтобы войти",
+  });
+  const subtitle = createElement("div", {
+    className: "intro-subtitle",
+    text: mode === "maintenance" ? "MAINTENANCE" : "ENTER",
+  });
+  const actionRow = createElement("div", { className: "intro-actions" });
   const action = createElement("button", {
     className: "intro-enter",
-    text: "Войти",
-    attrs: { type: "button", "aria-label": "Войти в приложение" },
+    text: mode === "maintenance" ? "Обновить" : "Войти",
+    attrs: { type: "button", "aria-label": mode === "maintenance" ? "Повторить проверку" : "Войти в приложение" },
   });
+  actionRow.appendChild(action);
+  if (mode === "maintenance" && allowOffline) {
+    const offline = createElement("button", {
+      className: "intro-enter intro-enter--ghost",
+      text: "Открыть меню офлайн",
+      attrs: { type: "button", "aria-label": "Открыть меню офлайн" },
+    });
+    actionRow.appendChild(offline);
+    offline.addEventListener("click", () => onOpenOffline?.());
+  }
 
-  content.append(title, subtitle, action);
+  content.append(title, subtitle, actionRow);
   overlay.append(canvas, content);
   document.body.appendChild(overlay);
   document.body.classList.add("intro-active");
@@ -123,10 +145,17 @@ export function IntroMatrixPizzaOverlay() {
   };
 
   const dismiss = () => {
+    if (mode === "maintenance") {
+      onRetry?.();
+      return;
+    }
     if (!overlay.classList.contains("is-exiting")) {
       overlay.classList.add("is-exiting");
       markIntroSeen();
-      window.setTimeout(cleanup, 450);
+      window.setTimeout(() => {
+        cleanup();
+        onDismiss?.();
+      }, 450);
     }
   };
 
@@ -138,7 +167,9 @@ export function IntroMatrixPizzaOverlay() {
   };
 
   action.addEventListener("click", dismiss);
-  content.addEventListener("click", dismiss);
+  if (mode !== "maintenance") {
+    content.addEventListener("click", dismiss);
+  }
   document.addEventListener("keydown", onKeydown);
 
   resize();

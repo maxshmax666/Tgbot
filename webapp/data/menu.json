@@ -10,6 +10,16 @@
       "/assets/pizzas/margarita/margarita_02.jpg",
       "/assets/pizzas/margarita/margarita_03.jpg"
     ],
+    "photosPoolish": [
+      "/assets/pizzas/margarita/margarita_01.jpg",
+      "/assets/pizzas/margarita/margarita_02.jpg",
+      "/assets/pizzas/margarita/margarita_03.jpg"
+    ],
+    "photosBiga": [
+      "/assets/pizzas/margarita/margarita_01.jpg",
+      "/assets/pizzas/margarita/margarita_02.jpg",
+      "/assets/pizzas/margarita/margarita_03.jpg"
+    ],
     "photosCount": 3,
     "tags": ["vegetarian", "cheese", "kids"],
     "isAvailable": true
@@ -21,6 +31,16 @@
     "price": 560,
     "desc": "Сливочный соус и микс сыров: моцарелла, пармезан, дорблю, чеддер.",
     "images": [
+      "/assets/pizzas/4chees/4cheese_01.jpg",
+      "/assets/pizzas/4chees/4cheese_02.jpg",
+      "/assets/pizzas/4chees/4cheese_03.jpg"
+    ],
+    "photosPoolish": [
+      "/assets/pizzas/4chees/4cheese_01.jpg",
+      "/assets/pizzas/4chees/4cheese_02.jpg",
+      "/assets/pizzas/4chees/4cheese_03.jpg"
+    ],
+    "photosBiga": [
       "/assets/pizzas/4chees/4cheese_01.jpg",
       "/assets/pizzas/4chees/4cheese_02.jpg",
       "/assets/pizzas/4chees/4cheese_03.jpg"
@@ -39,6 +59,16 @@
       "/assets/pizzas/kolbasa/IMG_20251219_230306432.jpg",
       "/assets/pizzas/kolbasa/IMG_20251219_231650431.jpg",
       "/assets/pizzas/kolbasa/IMG_20251219_233821760.jpg"
+    ],
+    "photosPoolish": [
+      "/assets/pizzas/kolbasa/IMG_20251219_230306432.jpg",
+      "/assets/pizzas/kolbasa/IMG_20251219_231650431.jpg",
+      "/assets/pizzas/kolbasa/IMG_20251219_233821760.jpg"
+    ],
+    "photosBiga": [
+      "/assets/pizzas/kolbasa/IMG_20251219_230306432.jpg",
+      "/assets/pizzas/kolbasa/IMG_20251219_231650431.jpg",
+      "/assets/pizzas/kolbasa/IMG_20251219_231650431.jpg"
     ],
     "photosCount": 3,
     "tags": ["meat", "spicy"],

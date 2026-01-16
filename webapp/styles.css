@@ -208,8 +208,14 @@ body.intro-active {
   color: rgba(255, 255, 255, 0.6);
 }
 
+.intro-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 .intro-enter {
-  margin-top: 12px;
   padding: 10px 18px;
   border-radius: 12px;
   border: 1px solid rgba(255, 153, 51, 0.4);
@@ -223,6 +229,11 @@ body.intro-active {
 .intro-enter:hover {
   transform: translateY(-1px);
   box-shadow: 0 16px 32px rgba(255, 153, 51, 0.25);
+}
+
+.intro-enter--ghost {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .ui-interactive {
@@ -814,13 +825,20 @@ a.button[data-state="loading"] {
 }
 
 @media (max-width: 768px) {
+  #app {
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 96px);
+  }
+
   .top-bar .nav {
     display: none;
   }
 
   .bottom-bar {
-    position: sticky;
-    bottom: 12px;
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(640px, calc(100% - 24px));
     z-index: 6;
   }
 
@@ -1015,6 +1033,17 @@ textarea.input {
   gap: 12px;
 }
 
+.dough-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.dough-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .pizza-nav {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1074,23 +1103,30 @@ textarea.input {
 
 .toast-container {
   position: fixed;
-  bottom: 20px;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
   left: 50%;
   transform: translateX(-50%);
+  width: min(540px, calc(100% - 24px));
   display: grid;
   gap: 8px;
   z-index: 2000;
+  pointer-events: none;
 }
 
 .toast {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 10px 14px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   opacity: 0;
   transform: translateY(6px);
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
+  pointer-events: auto;
 }
 
 .toast.show {
@@ -1104,6 +1140,27 @@ textarea.input {
 
 .toast.error {
   border-color: rgba(242, 109, 109, 0.6);
+}
+
+.toast-text {
+  font-size: 13px;
+}
+
+.toast-action {
+  border: 1px solid rgba(255, 153, 51, 0.4);
+  background: rgba(255, 153, 51, 0.16);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toast-action:hover {
+  box-shadow: 0 10px 24px rgba(255, 153, 51, 0.2);
+  transform: translateY(-1px);
 }
 
 .order-row {

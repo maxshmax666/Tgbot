@@ -71,8 +71,14 @@ function renderProductsGrid(props, items) {
     const addButton = createButton({
       label: "Добавить",
       onClick: () => {
-        add({ id: item.id, title: item.title, price: item.price, image: item.images?.[0] || "" });
-        showToast("Добавлено в корзину", "success");
+        add({ id: item.id, title: item.title, price: item.price, image: item.images?.[0] || "", doughType: "poolish" });
+        showToast("Добавлено в корзину", {
+          variant: "success",
+          durationMs: 2000,
+          actionLabel: "Открыть корзину",
+          onAction: () => window.appNavigate?.("/cart"),
+        });
+        console.info("cart:add", { source: "dynamic", itemId: item.id, doughType: "poolish", toast: "Добавлено в корзину" });
       },
     });
     footer.appendChild(addButton);
