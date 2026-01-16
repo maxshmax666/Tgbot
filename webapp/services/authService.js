@@ -216,8 +216,10 @@ export async function renderGoogleLogin(container, { clientId, onSuccess, onErro
   await waitForGlobal("google.accounts.id", 4000);
 
   const wrap = document.createElement("div");
+  wrap.className = "google-login-wrap";
   wrap.style.display = "flex";
   wrap.style.justifyContent = "center";
+  wrap.style.maxWidth = "360px";
   container.appendChild(wrap);
 
   const cfg = getAuthConfig();
@@ -272,7 +274,7 @@ export async function renderGoogleLogin(container, { clientId, onSuccess, onErro
       size: "large",
       shape: "pill",
       text: "signin_with",
-      width: 320,
+      width: "100%",
     });
   } catch (e) {
     onError?.(e);
