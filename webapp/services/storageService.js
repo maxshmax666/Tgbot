@@ -19,6 +19,7 @@ export const STORAGE_KEYS = {
   adminPromos: "pt_admin_promos_v1",
   lastOrderStatus: "pt_last_order_status_v1",
   userAuth: "pt_user_auth_v1",
+  promoSelected: "pt_selected_promo_v1",
 };
 
 export const storage = {
@@ -121,4 +122,16 @@ export function setLastOrderStatus(status) {
 
 export function getLastOrderStatus() {
   return storage.read(STORAGE_KEYS.lastOrderStatus, null);
+}
+
+export function getSelectedPromo() {
+  return storage.read(STORAGE_KEYS.promoSelected, null);
+}
+
+export function setSelectedPromo(promo) {
+  if (!promo) {
+    storage.remove(STORAGE_KEYS.promoSelected);
+    return;
+  }
+  storage.write(STORAGE_KEYS.promoSelected, promo);
 }

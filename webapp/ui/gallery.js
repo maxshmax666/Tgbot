@@ -26,7 +26,37 @@ function setupLazyLoad(track) {
   track.querySelectorAll("img[data-src]").forEach((img) => observer.observe(img));
 }
 
-export function createGallery(images = [], { large = false } = {}) {
+function createLightbox(src, alt) {
+  const overlay = createElement("div", { className: "gallery-lightbox", attrs: { role: "dialog", "aria-modal": "true" } });
+  const image = createElement("img", { className: "gallery-lightbox-image", attrs: { src, alt } });
+  const close = createElement("button", {
+    className: "gallery-lightbox-close",
+    text: "×",
+    attrs: { type: "button", "aria-label": "Закрыть" },
+  });
+  overlay.append(image, close);
+
+  const closeLightbox = () => {
+    document.removeEventListener("keydown", onKeydown);
+    overlay.remove();
+  };
+
+  const onKeydown = (event) => {
+    if (event.key === "Escape") {
+      closeLightbox();
+    }
+  };
+
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) closeLightbox();
+  });
+  close.addEventListener("click", closeLightbox);
+  document.addEventListener("keydown", onKeydown);
+
+  return overlay;
+}
+
+export function createGallery(images = [], { large = false, enableZoom = false } = {}) {
   const container = createElement("div", { className: "gallery" });
   const track = createElement("div", { className: "gallery-track", attrs: { role: "list" } });
   const dots = createElement("div", { className: "gallery-dots" });
@@ -34,7 +64,7 @@ export function createGallery(images = [], { large = false } = {}) {
   if (!Array.isArray(images) || images.length === 0) {
     const fallback = createElement("div", { className: "gallery-slide" });
     const img = createElement("img", {
-      className: ["gallery-image", large ? "large" : ""].join(" ").trim(),
+      className: ["gallery-image", large ? "large" : "", enableZoom ? "zoomable" : ""].join(" ").trim(),
       attrs: {
         alt: "Фото недоступно",
         loading: "lazy",
@@ -49,7 +79,7 @@ export function createGallery(images = [], { large = false } = {}) {
     images.forEach((src, index) => {
       const slide = createElement("div", { className: "gallery-slide", attrs: { role: "listitem" } });
       const img = createElement("img", {
-        className: ["gallery-image", large ? "large" : ""].join(" ").trim(),
+        className: ["gallery-image", large ? "large" : "", enableZoom ? "zoomable" : ""].join(" ").trim(),
         attrs: {
           alt: `Фото ${index + 1}`,
           loading: "lazy",
@@ -85,7 +115,15 @@ export function createGallery(images = [], { large = false } = {}) {
     });
   });
 
-  track.addEventListener("click", () => {
+  track.addEventListener("click", (event) => {
+    if (enableZoom && event.target?.tagName === "IMG") {
+      const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+      const src = images[index] || event.target?.currentSrc || event.target?.src;
+      if (src) {
+        document.body.appendChild(createLightbox(src, event.target?.alt || "Фото"));
+      }
+      return;
+    }
     if (images.length <= 1) return;
     const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
     const next = (index + 1) % images.length;

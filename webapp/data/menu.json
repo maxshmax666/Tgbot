@@ -11,7 +11,7 @@
       "/assets/pizzas/margarita/margarita_03.jpg"
     ],
     "photosCount": 3,
-    "tags": ["vegetarian", "cheese"],
+    "tags": ["vegetarian", "cheese", "kids"],
     "isAvailable": true
   },
   {
@@ -26,7 +26,7 @@
       "/assets/pizzas/4chees/4cheese_03.jpg"
     ],
     "photosCount": 3,
-    "tags": ["cheese"],
+    "tags": ["cheese", "kids"],
     "isAvailable": true
   },
   {
@@ -41,7 +41,7 @@
       "/assets/pizzas/kolbasa/IMG_20251219_233821760.jpg"
     ],
     "photosCount": 3,
-    "tags": ["meat"],
+    "tags": ["meat", "spicy"],
     "isAvailable": true
   }
 ]

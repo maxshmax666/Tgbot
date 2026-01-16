@@ -5,6 +5,8 @@ import { renderCartPage } from "./pages/cartPage.js";
 import { renderCheckoutPage } from "./pages/checkoutPage.js";
 import { renderPizzaPage } from "./pages/pizzaPage.js";
 import { renderProfilePage } from "./pages/profilePage.js";
+import { renderHomePage } from "./pages/homePage.js";
+import { renderPromosPage } from "./pages/promosPage.js";
 import { renderAdminPage } from "./pages/adminPage.js";
 import { renderOrderStatusPage } from "./pages/orderStatusPage.js";
 import { renderDynamicPage } from "./pages/dynamicPage.js";
@@ -15,6 +17,7 @@ import { createAppShell } from "./ui/appShell.js";
 import { setButtonCurrent } from "./ui/button.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 import { syncPendingOrders } from "./services/orderSyncService.js";
+import { IntroMatrixPizzaOverlay } from "./ui/introMatrixPizzaOverlay.js";
 
 const app = document.getElementById("app");
 
@@ -23,9 +26,10 @@ if (typeof window.PUBLIC_MEDIA_BASE_URL === "undefined") {
 }
 
 const navItems = [
+  { label: "Главная", path: "/home" },
   { label: "Меню", path: "/menu" },
   { label: "Корзина", path: "/cart" },
-  { label: "Оформить", path: "/checkout" },
+  { label: "Акции", path: "/promos" },
   { label: "Профиль", path: "/profile" },
 ];
 const appShell = createAppShell({
@@ -39,9 +43,11 @@ const { warning, debugPanel, topBar, bottomBar, content } = appShell;
 app.append(...appShell.elements);
 
 const routes = [
+  { path: /^\/home\/?$/, render: renderHomePage },
   { path: /^\/menu\/?$/, render: renderMenuPage },
   { path: /^\/cart\/?$/, render: renderCartPage },
   { path: /^\/checkout\/?$/, render: renderCheckoutPage },
+  { path: /^\/promos\/?$/, render: renderPromosPage },
   { path: /^\/profile\/?$/, render: renderProfilePage },
   { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
   { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
@@ -66,7 +72,7 @@ function setActiveNav(pathname) {
 }
 
 function renderRoute(pathname) {
-  const path = pathname === "/" ? "/menu" : pathname;
+  const path = pathname === "/" ? "/home" : pathname;
   const match = routes.find((route) => route.path.test(path));
   if (!match) {
     navigate("/menu");
@@ -110,7 +116,8 @@ warning.hidden = telegramState.available && !telegramState.missingInitData;
 subscribeCart(() => {
   const itemsCount = count();
   [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
-    const cartButton = buttons[1];
+    const cartButton = buttons.find((button) => button.dataset.path === "/cart");
+    if (!cartButton) return;
     cartButton.textContent = itemsCount ? `Корзина (${itemsCount})` : "Корзина";
   });
 });
@@ -155,3 +162,4 @@ function renderDebug() {
 renderDebug();
 renderRoute(window.location.pathname);
 syncPendingOrders();
+IntroMatrixPizzaOverlay();
