@@ -62,6 +62,7 @@ export function renderProfilePage({ navigate }) {
     const isMiniApp = isTelegram();
     const user = isMiniApp ? telegramUser : storedAuth?.user;
     const provider = isMiniApp ? "telegram-webapp" : storedAuth?.provider;
+    const isEmailEnabled = authConfig.emailEnabled !== false;
     const isDebugEnabled =
       Boolean(authConfig?.debug) &&
       new URLSearchParams(window.location.search).get("debug") === "1";
@@ -152,87 +153,89 @@ export function renderProfilePage({ navigate }) {
         );
       }
 
-      authPanel.appendChild(createElement("div", { className: "section-title", text: "Email" }));
-      const emailInput = createElement("input", {
-        className: "input",
-        attrs: { type: "email", placeholder: "Email" },
-      });
-      const passwordInput = createElement("input", {
-        className: "input",
-        attrs: { type: "password", placeholder: "Пароль (мин. 8 символов)" },
-      });
-      const emailActions = createElement("div", { className: "auth-actions" });
-      const loginButton = createButton({
-        label: "Войти",
-        onClick: async () => {
-          try {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            if (!email || !password) {
-              showToast("Укажите email и пароль", "info");
-              return;
+      if (isEmailEnabled) {
+        authPanel.appendChild(createElement("div", { className: "section-title", text: "Email" }));
+        const emailInput = createElement("input", {
+          className: "input",
+          attrs: { type: "email", placeholder: "Email" },
+        });
+        const passwordInput = createElement("input", {
+          className: "input",
+          attrs: { type: "password", placeholder: "Пароль (мин. 8 символов)" },
+        });
+        const emailActions = createElement("div", { className: "auth-actions" });
+        const loginButton = createButton({
+          label: "Войти",
+          onClick: async () => {
+            try {
+              const email = emailInput.value.trim();
+              const password = passwordInput.value;
+              if (!email || !password) {
+                showToast("Укажите email и пароль", "info");
+                return;
+              }
+              await loginWithEmail({ email, password });
+              showToast("Вход по email выполнен", "success");
+              render();
+            } catch (error) {
+              showToast(error?.message || "Ошибка", "error");
             }
-            await loginWithEmail({ email, password });
-            showToast("Вход по email выполнен", "success");
+          },
+        });
+        const registerButton = createButton({
+          label: "Зарегистрироваться",
+          variant: "secondary",
+          onClick: async () => {
+            try {
+              const email = emailInput.value.trim();
+              const password = passwordInput.value;
+              if (!email || !password) {
+                showToast("Укажите email и пароль", "info");
+                return;
+              }
+              await registerWithEmail({ email, password });
+              showToast("Письмо с подтверждением отправлено", "success");
+            } catch (error) {
+              showToast(error?.message || "Ошибка", "error");
+            }
+          },
+        });
+        const resetButton = createButton({
+          label: "Сбросить пароль",
+          variant: "ghost",
+          onClick: async () => {
+            try {
+              const email = emailInput.value.trim();
+              if (!email) {
+                showToast("Укажите email для сброса", "info");
+                return;
+              }
+              await requestPasswordReset(email);
+              showToast("Ссылка для сброса отправлена на почту", "success");
+            } catch (error) {
+              showToast(error?.message || "Ошибка", "error");
+            }
+          },
+        });
+        const clearSessionButton = createButton({
+          label: "Сбросить авторизацию",
+          variant: "ghost",
+          onClick: () => {
+            try { clearAuthState(); } catch {}
+            try {
+              localStorage.removeItem("auth:token");
+              localStorage.removeItem("auth:user");
+              localStorage.removeItem("auth:provider");
+            } catch {}
+            showToast("Сессия очищена", "success");
             render();
-          } catch (error) {
-            showToast(error?.message || "Не удалось войти", "error");
-          }
-        },
-      });
-      const registerButton = createButton({
-        label: "Зарегистрироваться",
-        variant: "secondary",
-        onClick: async () => {
-          try {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            if (!email || !password) {
-              showToast("Укажите email и пароль", "info");
-              return;
-            }
-            await registerWithEmail({ email, password });
-            showToast("Письмо с подтверждением отправлено", "success");
-          } catch (error) {
-            showToast(error?.message || "Не удалось зарегистрироваться", "error");
-          }
-        },
-      });
-      const resetButton = createButton({
-        label: "Сбросить пароль",
-        variant: "ghost",
-        onClick: async () => {
-          try {
-            const email = emailInput.value.trim();
-            if (!email) {
-              showToast("Укажите email для сброса", "info");
-              return;
-            }
-            await requestPasswordReset(email);
-            showToast("Ссылка для сброса отправлена на почту", "success");
-          } catch (error) {
-            showToast(error?.message || "Не удалось отправить ссылку", "error");
-          }
-        },
-      });
-            const clearSessionButton = createButton({
-        label: "Сбросить авторизацию",
-        variant: "ghost",
-        onClick: () => {
-          try { clearAuthState(); } catch {}
-          try {
-            localStorage.removeItem("auth:token");
-            localStorage.removeItem("auth:user");
-            localStorage.removeItem("auth:provider");
-          } catch {}
-          showToast("Сессия очищена", "success");
-          render();
-        },
-      });
+          },
+        });
 
-      emailActions.append(loginButton, registerButton, resetButton, clearSessionButton);
-      emailWrap.append(emailInput, passwordInput, emailActions);
-      authPanel.appendChild(emailWrap);
+        emailActions.append(loginButton, registerButton, resetButton, clearSessionButton);
+        emailWrap.append(emailInput, passwordInput, emailActions);
+        authPanel.appendChild(emailWrap);
+      }
 
       cleanupAuth = () => cleanupFns.forEach((fn) => fn?.());
 
