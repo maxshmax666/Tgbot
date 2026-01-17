@@ -36,7 +36,11 @@
   --state-disabled-opacity: 0.52;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --tabbar-height: 72px;
+  --tabbar-height: 96px;
+  --app-height: 100vh;
+  --content-max: 720px;
+  --layout-gutter: clamp(14px, 4vw, 22px);
+  --stack-gap: clamp(12px, 3vw, 18px);
 }
 
 * {
@@ -45,7 +49,8 @@
 
 body {
   margin: 0;
-  padding: calc(32px + var(--safe-area-top)) 18px calc(48px + var(--safe-area-bottom));
+  padding: calc(clamp(20px, 4vh, 32px) + var(--safe-area-top)) var(--layout-gutter)
+    calc(clamp(24px, 5vh, 48px) + var(--safe-area-bottom));
   background-color: var(--bg);
   background-image:
     radial-gradient(900px 600px at 20% 0%, rgba(255, 138, 42, 0.14), transparent 60%),
@@ -56,6 +61,11 @@ body {
   background-blend-mode: screen, screen, soft-light, soft-light;
   color: var(--text);
   line-height: 1.5;
+  min-height: 100svh;
+  min-height: 100dvh;
+  min-height: var(--app-height);
+  overflow-x: hidden;
+  scroll-padding-bottom: calc(var(--safe-area-bottom) + var(--tabbar-height) + 16px);
 }
 
 a {
@@ -68,16 +78,18 @@ button {
 }
 
 #app {
-  max-width: 640px;
+  max-width: var(--content-max);
+  width: min(var(--content-max), 100%);
   margin: 0 auto;
   display: grid;
-  gap: 18px;
+  gap: var(--stack-gap);
   padding-inline: 12px;
 }
 
 .app-content {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 body.admin-mode {
@@ -111,10 +123,38 @@ body.admin-mode #app {
   gap: 12px;
 }
 
+.bottom-bar {
+  align-items: center;
+  justify-items: stretch;
+}
+
+.bottom-bar-contacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bottom-bar-contacts.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.bottom-bar-contact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.contact-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
 .title {
   margin: 0;
   font-family: "BrandDisplay", "Inter", system-ui, sans-serif;
-  font-size: 28px;
+  font-size: clamp(22px, 3.2vw, 28px);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -137,7 +177,7 @@ body.admin-mode #app {
 .subtitle {
   margin: 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: clamp(12px, 2.2vw, 14px);
 }
 
 .warning {
@@ -734,6 +774,7 @@ a.button[data-state="loading"] {
 .list {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .cart-list {
@@ -887,16 +928,21 @@ a.button[data-state="loading"] {
     transform: translateX(-50%);
     width: min(640px, calc(100% - 24px));
     z-index: 6;
+    padding: 8px;
+    border-radius: var(--radius-lg);
+    background: rgba(11, 15, 20, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
   }
 
   .cart-summary {
     position: sticky;
-    bottom: 12px;
+    bottom: calc(var(--safe-area-bottom) + 12px);
     z-index: 5;
   }
 
   .pizza-actions {
-    bottom: 120px;
+    bottom: calc(var(--safe-area-bottom) + var(--tabbar-height) + 16px);
     z-index: 5;
   }
 }
@@ -955,6 +1001,73 @@ a.button[data-state="loading"] {
 .input:is(:disabled, .is-disabled, [data-disabled="true"]) {
   opacity: var(--state-disabled-opacity);
   cursor: not-allowed;
+}
+
+.input-row {
+  position: relative;
+  display: grid;
+  align-items: center;
+}
+
+.input-row .input {
+  padding-right: 88px;
+}
+
+.input-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+.auth-layout {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.auth-hero {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-title {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 26px);
+  font-weight: 700;
+}
+
+.auth-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-status {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 179, 106, 0.35);
+  background: rgba(255, 179, 106, 0.12);
+  color: var(--accent2);
+  font-size: 12px;
+}
+
+.auth-email {
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .auth-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    align-items: center;
+  }
+
+  .auth-panel {
+    max-width: 420px;
+  }
 }
 
 .section {
@@ -1099,7 +1212,7 @@ textarea.input {
 
 .pizza-actions {
   position: sticky;
-  bottom: 96px;
+  bottom: calc(var(--safe-area-bottom) + var(--tabbar-height) + 12px);
   background: rgba(15, 20, 30, 0.92);
   border-radius: 16px;
   padding: 10px;
