@@ -157,7 +157,7 @@ window.addEventListener("resize", setAppHeightVar);
 window.addEventListener("orientationchange", setAppHeightVar);
 setAppHeightVar();
 
-const telegramState = initTelegram();
+const telegramState = initTelegram() ?? { available: false, missingInitData: false };
 warning.textContent =
   "Откройте через кнопку «🍕 Открыть магазин» в боте, иначе Telegram функции недоступны.";
 warning.hidden = telegramState.available && !telegramState.missingInitData;
@@ -279,7 +279,7 @@ function createContactLink({ label, href, variant = "secondary", icon }) {
 function normalizeTelegramChatLink(raw) {
   if (!raw) return "";
   if (!isTelegram()) return raw;
-  const match = raw.match(/t\\.me\\/(.+)$/i);
+  const match = raw.match(/t\.me\/(.+)$/i);
   if (!match) return raw;
   const username = match[1].split("?")[0].replace("@", "");
   return username ? `https://t.me/${username}` : raw;
@@ -295,7 +295,7 @@ function renderBottomContacts(config) {
     elements.push(
       createContactLink({
         label: "Позвонить",
-        href: `tel:${supportPhone.replace(/[^+\\d]/g, "")}`,
+        href: `tel:${supportPhone.replace(/[^+\d]/g, "")}`,
         icon: "📞",
       })
     );

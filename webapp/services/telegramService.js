@@ -1,22 +1,30 @@
 // Clean Telegram WebApp helpers (no React/JSX)
 function getWebApp() { return window.Telegram?.WebApp || null; }
 
-export function isTelegram() {
+function getAvailabilityState() {
   const wa = getWebApp();
   const initData = wa?.initData;
   const user = wa?.initDataUnsafe?.user;
   const hasInitData = typeof initData === "string" && initData.trim().length > 0;
   const userValid = !user || (typeof user === "object" && !Array.isArray(user));
-  return Boolean(wa && hasInitData && userValid);
+  const available = Boolean(wa && userValid);
+  return { available, missingInitData: available && !hasInitData };
+}
+
+export function isTelegram() {
+  const { available, missingInitData } = getAvailabilityState();
+  return available && !missingInitData;
 }
 
 export function initTelegram() {
   const wa = getWebApp();
-  if (!wa) return;
+  const state = getAvailabilityState();
+  if (!wa) return state;
   try { wa.ready?.(); } catch {}
   try { wa.expand?.(); } catch {}
   try { wa.setHeaderColor?.("#0b0b0b"); } catch {}
   try { wa.setBackgroundColor?.("#0b0b0b"); } catch {}
+  return state;
 }
 
 export function getUser() {
@@ -33,6 +41,7 @@ export function getTelegramState() {
     version: wa?.version || null,
     initData: wa?.initData || "",
     user: getUser(),
+    ...getAvailabilityState(),
   };
 }
 
