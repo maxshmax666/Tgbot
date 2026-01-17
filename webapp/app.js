@@ -15,6 +15,7 @@ import { renderVerifyEmailPage } from "./pages/verifyEmailPage.js";
 import { createElement, clearElement } from "./ui/dom.js";
 import { createAppShell } from "./ui/appShell.js";
 import { setButtonCurrent } from "./ui/button.js";
+import { createErrorState } from "./ui/errorState.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 import { syncPendingOrders } from "./services/orderSyncService.js";
 import { IntroOverlay, getIntroState, shouldShowIntro } from "./ui/introMatrixPizzaOverlay.js";
@@ -131,15 +132,36 @@ function renderRoute(pathname) {
   if (cleanup) cleanup();
   clearElement(content);
 
-  const paramsMatch = path.match(match.path);
-  const params = paramsMatch && paramsMatch.length > 1 ? { id: paramsMatch[1] } : {};
-  const result = match.render({ navigate, params });
-  cleanup = result?.cleanup || null;
-  content.appendChild(result.element);
-  setActiveNav(path);
-  if (typeof result?.restoreScroll === "function") {
-    result.restoreScroll();
+  try {
+    const paramsMatch = path.match(match.path);
+    const params = paramsMatch && paramsMatch.length > 1 ? { id: paramsMatch[1] } : {};
+    const result = match.render({ navigate, params });
+    cleanup = result?.cleanup || null;
+    content.appendChild(result.element);
+    setActiveNav(path);
+    if (typeof result?.restoreScroll === "function") {
+      result.restoreScroll();
+    }
+  } catch (error) {
+    console.error("route:render failed", { path, error });
+    showFatalError("Страница не загрузилась. Попробуйте перезагрузить.");
   }
+}
+
+function showFatalError(message) {
+  clearElement(content);
+  const reloadButton = createElement("button", {
+    className: "button button--primary",
+    text: "Перезагрузить",
+  });
+  reloadButton.addEventListener("click", () => window.location.reload());
+  content.appendChild(
+    createErrorState({
+      title: "Ошибка загрузки",
+      description: message,
+      action: reloadButton,
+    })
+  );
 }
 
 function navigate(path) {
@@ -150,6 +172,14 @@ function navigate(path) {
 window.appNavigate = navigate;
 
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
+window.addEventListener("error", (event) => {
+  console.error("window:error", event.error || event.message);
+  showFatalError("Произошла непредвиденная ошибка. Попробуйте перезагрузить приложение.");
+});
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("window:unhandledrejection", event.reason);
+  showFatalError("Произошла ошибка сети или данных. Попробуйте перезагрузить приложение.");
+});
 window.addEventListener("online", () => {
   syncPendingOrders();
 });
