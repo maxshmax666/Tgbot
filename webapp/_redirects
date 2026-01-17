@@ -6,6 +6,17 @@
 /admin/*  /admin/:splat  200
 /admin    /admin/index.html 200
 
+# --- Static assets (avoid SPA fallback) ---
+/*.js  /:splat  200
+/*.css  /:splat  200
+/*.json  /:splat  200
+/assets/*  /assets/:splat  200
+/data/*  /data/:splat  200
+/services/*  /services/:splat  200
+/pages/*  /pages/:splat  200
+/store/*  /store/:splat  200
+/ui/*  /ui/:splat  200
+
 # --- Mini App routes (SPA) ---
 /menu          /index.html 200
 /cart          /index.html 200
