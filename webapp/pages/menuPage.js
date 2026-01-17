@@ -1,7 +1,6 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton, setButtonPressed } from "../ui/button.js";
-import { createLinkButton } from "../ui/linkButton.js";
-import { createCard, createCardFooter } from "../ui/card.js";
+import { createCard } from "../ui/card.js";
 import { createChip } from "../ui/chip.js";
 import { createEmptyState } from "../ui/emptyState.js";
 import { createErrorState } from "../ui/errorState.js";
@@ -300,29 +299,15 @@ export function renderMenuPage({ navigate }) {
 
     const banner = createSection({ className: "banner" });
     banner.appendChild(createElement("div", { text: config?.bannerText || "Горячая пицца и любимые хиты каждый день" }));
-    banner.appendChild(
-      createElement("div", {
-        className: "helper",
-        text: `Телефон: ${config?.supportPhone || ""}`,
-      })
-    );
-    const contacts = createCardFooter();
-    const callLink = createLinkButton({
-      label: "Позвонить",
-      variant: "secondary",
-      href: `tel:${config?.supportPhone || ""}`,
-      ariaLabel: "Позвонить в поддержку",
-    });
-    const chatLink = createLinkButton({
-      label: "Написать",
-      variant: "secondary",
-      href: config?.supportChat || "#",
-      ariaLabel: "Написать в поддержку",
-      target: "_blank",
-      rel: "noopener noreferrer",
-    });
-    contacts.append(callLink, chatLink);
-    banner.appendChild(contacts);
+    const phoneValue = config?.supportPhone || "";
+    if (phoneValue) {
+      banner.appendChild(
+        createElement("div", {
+          className: "helper",
+          text: `Телефон: ${phoneValue}`,
+        })
+      );
+    }
 
     const orders = getOrders();
     const topIds = getPopularIds(orders, 3);
@@ -384,6 +369,10 @@ export function renderMenuPage({ navigate }) {
       }
       scrollContainer?.removeEventListener("scroll", handleScroll);
       saveScrollPosition();
+    },
+    restoreScroll: () => {
+      shouldRestoreScroll = true;
+      restoreScrollPosition();
     },
   };
 }

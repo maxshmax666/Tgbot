@@ -40,8 +40,9 @@ export function createTopBar({ title, subtitle, navItems, onNavigate }) {
 export function createBottomBar({ navItems, onNavigate }) {
   const nav = createNav({ items: navItems, onNavigate, location: "bottom" });
   const element = createElement("div", { className: "bottom-bar" });
-  element.appendChild(nav.element);
-  return { element, nav };
+  const contacts = createElement("div", { className: "bottom-bar-contacts" });
+  element.append(nav.element, contacts);
+  return { element, nav, contacts };
 }
 
 export function createAppShell({ title, subtitle, navItems, onNavigate }) {

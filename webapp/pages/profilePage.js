@@ -47,6 +47,8 @@ export function renderProfilePage({ navigate }) {
   root.appendChild(content);
   const authConfig = getAuthConfig();
   let cleanupAuth = null;
+  let isSubmitting = false;
+  let statusMessage = "";
 
   const render = () => {
     if (cleanupAuth) {
@@ -85,25 +87,31 @@ export function renderProfilePage({ navigate }) {
 
 
     if (!user) {
-      const authPanel = createElement("div", { className: "panel" });
-      authPanel.appendChild(createElement("h2", { className: "title", text: "Вход" }));
-      authPanel.appendChild(
+      const authLayout = createElement("div", { className: "auth-layout" });
+      const authHero = createElement("div", { className: "auth-hero" });
+      authHero.append(
+        createElement("div", { className: "brand-badge", text: "Пиццерия Тагил" }),
+        createElement("h2", { className: "auth-title", text: "Вход в аккаунт" }),
         createElement("p", {
           className: "helper",
-          text: "Авторизация нужна, чтобы сохранить профиль между устройствами.",
+          text: "Войдите, чтобы сохранить историю заказов и получать бонусы.",
         })
       );
 
+      const authPanel = createElement("div", { className: "panel auth-panel" });
+      const authStatus = createElement("div", { className: "auth-status" });
+      authStatus.textContent = statusMessage;
+      authStatus.hidden = !statusMessage;
+      authPanel.append(authStatus);
+
       const telegramWrap = createElement("div", { className: "auth-actions" });
       const googleWrap = createElement("div", { className: "auth-actions" });
-      const emailWrap = createElement("div", { className: "auth-actions" });
+      const emailWrap = createElement("div", { className: "auth-actions auth-email" });
 
       const cleanupFns = [];
 
       if (authConfig.telegramBotUsername) {
-        authPanel.appendChild(
-          createElement("div", { className: "section-title", text: "Telegram" })
-        );
+        authPanel.appendChild(createElement("div", { className: "section-title", text: "Telegram" }));
         authPanel.appendChild(telegramWrap);
         const telegramCleanup = renderTelegramLogin(telegramWrap, {
           botUsername: authConfig.telegramBotUsername,
@@ -126,9 +134,7 @@ export function renderProfilePage({ navigate }) {
       }
 
       if (authConfig.googleClientId) {
-        authPanel.appendChild(
-          createElement("div", { className: "section-title", text: "Google" })
-        );
+        authPanel.appendChild(createElement("div", { className: "section-title", text: "Google" }));
         authPanel.appendChild(googleWrap);
         renderGoogleLogin(googleWrap, {
           clientId: authConfig.googleClientId,
@@ -157,13 +163,39 @@ export function renderProfilePage({ navigate }) {
         authPanel.appendChild(createElement("div", { className: "section-title", text: "Email" }));
         const emailInput = createElement("input", {
           className: "input",
-          attrs: { type: "email", placeholder: "Email" },
+          attrs: { type: "email", placeholder: "Email", autocomplete: "email" },
         });
+        const passwordWrap = createElement("div", { className: "input-row" });
         const passwordInput = createElement("input", {
           className: "input",
-          attrs: { type: "password", placeholder: "Пароль (мин. 8 символов)" },
+          attrs: { type: "password", placeholder: "Пароль (мин. 8 символов)", autocomplete: "current-password" },
         });
+        const toggleButton = createButton({
+          label: "Показать",
+          variant: "ghost",
+          size: "sm",
+          onClick: () => {
+            const nextType = passwordInput.getAttribute("type") === "password" ? "text" : "password";
+            passwordInput.setAttribute("type", nextType);
+            toggleButton.textContent = nextType === "password" ? "Показать" : "Скрыть";
+          },
+        });
+        toggleButton.classList.add("input-toggle");
+        passwordWrap.append(passwordInput, toggleButton);
+
         const emailActions = createElement("div", { className: "auth-actions" });
+        const setSubmitting = (next, message = "") => {
+          isSubmitting = next;
+          statusMessage = message;
+          authStatus.textContent = statusMessage;
+          authStatus.hidden = !statusMessage;
+          [loginButton, registerButton, resetButton, clearSessionButton].forEach((button) => {
+            button.disabled = isSubmitting;
+          });
+          emailInput.disabled = isSubmitting;
+          passwordInput.disabled = isSubmitting;
+        };
+
         const loginButton = createButton({
           label: "Войти",
           onClick: async () => {
@@ -174,10 +206,13 @@ export function renderProfilePage({ navigate }) {
                 showToast("Укажите email и пароль", "info");
                 return;
               }
+              setSubmitting(true, "Проверяем данные…");
               await loginWithEmail({ email, password });
               showToast("Вход по email выполнен", "success");
+              setSubmitting(false, "");
               render();
             } catch (error) {
+              setSubmitting(false, error?.message || "Не удалось войти. Проверьте данные.");
               showToast(error?.message || "Ошибка", "error");
             }
           },
@@ -193,9 +228,12 @@ export function renderProfilePage({ navigate }) {
                 showToast("Укажите email и пароль", "info");
                 return;
               }
+              setSubmitting(true, "Регистрируем аккаунт…");
               await registerWithEmail({ email, password });
+              setSubmitting(false, "Письмо с подтверждением отправлено.");
               showToast("Письмо с подтверждением отправлено", "success");
             } catch (error) {
+              setSubmitting(false, error?.message || "Не удалось зарегистрироваться.");
               showToast(error?.message || "Ошибка", "error");
             }
           },
@@ -210,9 +248,12 @@ export function renderProfilePage({ navigate }) {
                 showToast("Укажите email для сброса", "info");
                 return;
               }
+              setSubmitting(true, "Отправляем ссылку для сброса…");
               await requestPasswordReset(email);
+              setSubmitting(false, "Ссылка для сброса отправлена на почту.");
               showToast("Ссылка для сброса отправлена на почту", "success");
             } catch (error) {
+              setSubmitting(false, error?.message || "Не удалось отправить ссылку.");
               showToast(error?.message || "Ошибка", "error");
             }
           },
@@ -221,7 +262,9 @@ export function renderProfilePage({ navigate }) {
           label: "Сбросить авторизацию",
           variant: "ghost",
           onClick: () => {
-            try { clearAuthState(); } catch {}
+            try {
+              clearAuthState();
+            } catch {}
             try {
               localStorage.removeItem("auth:token");
               localStorage.removeItem("auth:user");
@@ -232,14 +275,21 @@ export function renderProfilePage({ navigate }) {
           },
         });
 
+        if (isSubmitting) {
+          [loginButton, registerButton, resetButton, clearSessionButton].forEach((button) => {
+            button.disabled = true;
+          });
+        }
+
         emailActions.append(loginButton, registerButton, resetButton, clearSessionButton);
-        emailWrap.append(emailInput, passwordInput, emailActions);
+        emailWrap.append(emailInput, passwordWrap, emailActions);
         authPanel.appendChild(emailWrap);
       }
 
       cleanupAuth = () => cleanupFns.forEach((fn) => fn?.());
 
-      content.appendChild(authPanel);
+      authLayout.append(authHero, authPanel);
+      content.appendChild(authLayout);
     }
 
     if (user) {

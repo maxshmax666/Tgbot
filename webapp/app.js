@@ -70,6 +70,11 @@ const bootState = {
 };
 let lastTab = null;
 
+function setAppHeightVar() {
+  const height = window.innerHeight;
+  document.documentElement.style.setProperty("--app-height", `${height}px`);
+}
+
 function getActiveTab(pathname) {
   if (pathname === "/" || pathname.startsWith("/home")) return "/";
   return navItems.find((item) => item.path !== "/" && pathname.startsWith(item.path))?.path || null;
@@ -132,6 +137,9 @@ function renderRoute(pathname) {
   cleanup = result?.cleanup || null;
   content.appendChild(result.element);
   setActiveNav(path);
+  if (typeof result?.restoreScroll === "function") {
+    result.restoreScroll();
+  }
 }
 
 function navigate(path) {
@@ -145,6 +153,9 @@ window.addEventListener("popstate", () => renderRoute(window.location.pathname))
 window.addEventListener("online", () => {
   syncPendingOrders();
 });
+window.addEventListener("resize", setAppHeightVar);
+window.addEventListener("orientationchange", setAppHeightVar);
+setAppHeightVar();
 
 const telegramState = initTelegram();
 warning.textContent =
@@ -212,6 +223,13 @@ async function initApp() {
   bootState.ready = true;
   logBoot();
   logSafeArea();
+  setAppHeightVar();
+  const configResult = results[0];
+  if (configResult.status === "fulfilled") {
+    renderBottomContacts(configResult.value);
+  } else {
+    renderBottomContacts(null);
+  }
 }
 
 renderInitialRoute();
@@ -237,6 +255,67 @@ async function runHealthCheck() {
     error: result.error?.message || null,
   });
   return result;
+}
+
+function createContactLink({ label, href, variant = "secondary", icon }) {
+  const classes = ["button", "ui-interactive", "button--sm", variant ? `button--${variant}` : "", "bottom-bar-contact"]
+    .filter(Boolean)
+    .join(" ");
+  const attrs = {
+    href,
+    role: "button",
+    "aria-label": label,
+    target: href?.startsWith("http") ? "_blank" : undefined,
+    rel: href?.startsWith("http") ? "noopener noreferrer" : undefined,
+  };
+  const link = createElement("a", { className: classes, attrs });
+  if (icon) {
+    link.appendChild(createElement("span", { className: "contact-icon", text: icon }));
+  }
+  link.appendChild(createElement("span", { text: label }));
+  return link;
+}
+
+function normalizeTelegramChatLink(raw) {
+  if (!raw) return "";
+  if (!isTelegram()) return raw;
+  const match = raw.match(/t\\.me\\/(.+)$/i);
+  if (!match) return raw;
+  const username = match[1].split("?")[0].replace("@", "");
+  return username ? `https://t.me/${username}` : raw;
+}
+
+function renderBottomContacts(config) {
+  if (!bottomBar?.contacts) return;
+  clearElement(bottomBar.contacts);
+  const supportPhone = config?.supportPhone || "";
+  const supportChat = normalizeTelegramChatLink(config?.supportChat || "");
+  const elements = [];
+  if (supportPhone) {
+    elements.push(
+      createContactLink({
+        label: "Позвонить",
+        href: `tel:${supportPhone.replace(/[^+\\d]/g, "")}`,
+        icon: "📞",
+      })
+    );
+  }
+  if (supportChat) {
+    elements.push(
+      createContactLink({
+        label: "Написать",
+        href: supportChat,
+        icon: "💬",
+      })
+    );
+  }
+  if (!elements.length) {
+    bottomBar.contacts.hidden = true;
+    return;
+  }
+  bottomBar.contacts.hidden = false;
+  bottomBar.contacts.classList.toggle("is-single", elements.length === 1);
+  elements.forEach((el) => bottomBar.contacts.appendChild(el));
 }
 
 async function resolveOverlayMode() {
