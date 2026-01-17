@@ -1,22 +1,40 @@
 // Clean Telegram WebApp helpers (no React/JSX)
 function getWebApp() { return window.Telegram?.WebApp || null; }
 
+function hasValidPlatform(webApp) {
+  return Boolean(
+    webApp
+      && typeof webApp.platform === "string"
+      && webApp.platform.trim().length > 0
+      && typeof webApp.version === "string"
+      && webApp.version.trim().length > 0
+  );
+}
+
+function hasInitData(webApp) { return Boolean(webApp?.initData); }
+
 export function isTelegram() {
+  return getTelegramState().available;
+}
+
+export function getTelegramState() {
   const wa = getWebApp();
-  const initData = wa?.initData;
-  const user = wa?.initDataUnsafe?.user;
-  const hasInitData = typeof initData === "string" && initData.trim().length > 0;
-  const userValid = !user || (typeof user === "object" && !Array.isArray(user));
-  return Boolean(wa && hasInitData && userValid);
+  const available = hasValidPlatform(wa);
+  return {
+    available,
+    missingInitData: available && !hasInitData(wa),
+  };
 }
 
 export function initTelegram() {
   const wa = getWebApp();
-  if (!wa) return;
+  const state = getTelegramState();
+  if (!wa || !state.available) return { available: false, missingInitData: false };
   try { wa.ready?.(); } catch {}
   try { wa.expand?.(); } catch {}
   try { wa.setHeaderColor?.("#0b0b0b"); } catch {}
   try { wa.setBackgroundColor?.("#0b0b0b"); } catch {}
+  return state;
 }
 
 export function getUser() {
@@ -25,7 +43,7 @@ export function getUser() {
   return u && typeof u === "object" ? u : null;
 }
 
-export function getTelegramState() {
+export function getTelegramStateDetails() {
   const wa = getWebApp();
   return {
     isTelegram: isTelegram(),
