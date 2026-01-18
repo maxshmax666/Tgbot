@@ -23,8 +23,127 @@ import { checkHealth } from "./services/healthService.js";
 import { hasLocalMenu } from "./services/menuService.js";
 import { loadLocalMenu, loadMenu } from "./store/menuStore.js";
 import { fetchConfig } from "./services/configService.js";
+import { renderDebugPage } from "./pages/debugPage.js";
 
 const app = document.getElementById("app");
+const BUILD_ID = new URL(import.meta.url).searchParams.get("v") || window.BUILD_ID || "dev";
+window.BUILD_ID = BUILD_ID;
+
+const bootErrors = [];
+const BOOT_ERROR_LIMIT = 2;
+let bootFailed = false;
+
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack || "" };
+  }
+  if (typeof error === "string") {
+    return { message: error, stack: "" };
+  }
+  try {
+    return { message: JSON.stringify(error), stack: "" };
+  } catch {
+    return { message: "Unknown error", stack: "" };
+  }
+}
+
+function recordBootError(error, source) {
+  const normalized = normalizeError(error);
+  bootErrors.push({
+    ...normalized,
+    source,
+    timestamp: new Date().toISOString(),
+  });
+  if (bootErrors.length > BOOT_ERROR_LIMIT) {
+    bootErrors.shift();
+  }
+}
+
+function clearAppStorage() {
+  Object.values(STORAGE_KEYS).forEach((key) => storage.remove(key));
+}
+
+function renderBootFallback() {
+  if (!app && !document.body) return;
+  const root = app || document.body;
+  root.innerHTML = "";
+
+  const wrapper = document.createElement("section");
+  wrapper.style.cssText =
+    "min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f172a;color:#e2e8f0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;";
+  const card = document.createElement("div");
+  card.style.cssText =
+    "max-width:560px;width:100%;background:#111827;border-radius:16px;padding:24px;box-shadow:0 24px 48px rgba(15,23,42,0.35);";
+
+  const title = document.createElement("h1");
+  title.textContent = "Ошибка загрузки приложения";
+  title.style.cssText = "font-size:20px;font-weight:600;margin:0 0 12px;";
+
+  const description = document.createElement("p");
+  description.textContent =
+    "Вероятно, кэш браузера или Cloudflare отдал старую версию. Нажмите «Перезагрузить страницу» (жёсткая перезагрузка).";
+  description.style.cssText = "margin:0 0 16px;color:#cbd5f5;font-size:14px;line-height:1.5;";
+
+  const actions = document.createElement("div");
+  actions.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;";
+
+  const reloadButton = document.createElement("button");
+  reloadButton.textContent = "Перезагрузить страницу";
+  reloadButton.style.cssText =
+    "background:#6366f1;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;";
+  reloadButton.addEventListener("click", () => window.location.reload());
+
+  const resetButton = document.createElement("button");
+  resetButton.textContent = "Сбросить локальные данные";
+  resetButton.style.cssText =
+    "background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;";
+  resetButton.addEventListener("click", () => {
+    clearAppStorage();
+    window.location.reload();
+  });
+
+  const diagButton = document.createElement("button");
+  diagButton.textContent = "Открыть диагностику";
+  diagButton.style.cssText =
+    "background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;";
+
+  actions.append(reloadButton, resetButton, diagButton);
+
+  const diagnostics = document.createElement("div");
+  diagnostics.style.cssText =
+    "display:none;background:#0b1120;border-radius:10px;padding:12px;font-size:12px;line-height:1.5;color:#cbd5f5;white-space:pre-wrap;";
+
+  const errorsText = bootErrors
+    .map((entry, index) => {
+      const source = entry.source ? ` (${entry.source})` : "";
+      return `#${index + 1}${source} ${entry.timestamp}\n${entry.message}${entry.stack ? `\n${entry.stack}` : ""}`;
+    })
+    .join("\n\n");
+
+  diagnostics.textContent = [
+    `build: ${BUILD_ID}`,
+    `timestamp: ${new Date().toISOString()}`,
+    `url: ${window.location.href}`,
+    `userAgent: ${window.navigator.userAgent}`,
+    errorsText ? `errors:\n${errorsText}` : "errors: (нет записей)",
+  ].join("\n");
+
+  diagButton.addEventListener("click", () => {
+    const isHidden = diagnostics.style.display === "none";
+    diagnostics.style.display = isHidden ? "block" : "none";
+  });
+
+  card.append(title, description, actions, diagnostics);
+  wrapper.appendChild(card);
+  root.appendChild(wrapper);
+}
+
+function showBootFailure(message, error, source) {
+  recordBootError(error || message, source);
+  if (bootFailed) return;
+  bootFailed = true;
+  renderBootFallback();
+}
 
 if (typeof window.PUBLIC_MEDIA_BASE_URL === "undefined") {
   window.PUBLIC_MEDIA_BASE_URL = "";
@@ -37,32 +156,44 @@ const navItems = [
   { label: "Акции", path: "/promos" },
   { label: "Профиль", path: "/profile" },
 ];
-const appShell = createAppShell({
-  title: "Пиццерия Тагил",
-  subtitle: "Мини‑приложение для заказа пиццы без лишних шагов.",
-  navItems,
-  onNavigate: (path) => navigate(path),
-});
-const { warning, debugPanel, topBar, bottomBar, content } = appShell;
+let appShell = null;
+let warning = null;
+let debugPanel = null;
+let topBar = null;
+let bottomBar = null;
+let content = null;
+let routes = [];
 
-app.append(...appShell.elements);
+function initShell() {
+  appShell = createAppShell({
+    title: "Пиццерия Тагил",
+    subtitle: "Мини‑приложение для заказа пиццы без лишних шагов.",
+    navItems,
+    onNavigate: (path) => navigate(path),
+  });
+  ({ warning, debugPanel, topBar, bottomBar, content } = appShell);
+  app.append(...appShell.elements);
+}
 
-const routes = [
-  { path: /^\/$/, render: renderHomePage },
-  { path: /^\/home\/?$/, render: renderHomePage },
-  { path: /^\/menu\/?$/, render: renderMenuPage },
-  { path: /^\/cart\/?$/, render: renderCartPage },
-  { path: /^\/checkout\/?$/, render: renderCheckoutPage },
-  { path: /^\/promos\/?$/, render: renderPromosPage },
-  { path: /^\/profile\/?$/, render: renderProfilePage },
-  { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
-  { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
-  { path: /^\/admin\/login\/?$/, render: renderAdminPage },
-  { path: /^\/admin\/?$/, render: renderAdminPage },
-  { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
-  { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
-  { path: /^\/page\/([^/]+)\/?$/, render: renderDynamicPage },
-];
+function initRoutes() {
+  routes = [
+    { path: /^\/$/, render: renderHomePage },
+    { path: /^\/home\/?$/, render: renderHomePage },
+    { path: /^\/menu\/?$/, render: renderMenuPage },
+    { path: /^\/cart\/?$/, render: renderCartPage },
+    { path: /^\/checkout\/?$/, render: renderCheckoutPage },
+    { path: /^\/promos\/?$/, render: renderPromosPage },
+    { path: /^\/profile\/?$/, render: renderProfilePage },
+    { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
+    { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
+    { path: /^\/admin\/login\/?$/, render: renderAdminPage },
+    { path: /^\/admin\/?$/, render: renderAdminPage },
+    { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
+    { path: /^\/debug\/?$/, render: renderDebugPage },
+    { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
+    { path: /^\/page\/([^/]+)\/?$/, render: renderDynamicPage },
+  ];
+}
 
 let cleanup = null;
 const bootState = {
@@ -174,11 +305,19 @@ window.appNavigate = navigate;
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
 window.addEventListener("error", (event) => {
   console.error("window:error", event.error || event.message);
-  showFatalError("Произошла непредвиденная ошибка. Попробуйте перезагрузить приложение.");
+  showBootFailure(
+    "Произошла непредвиденная ошибка. Попробуйте перезагрузить приложение.",
+    event.error || event.message,
+    "window:error"
+  );
 });
 window.addEventListener("unhandledrejection", (event) => {
   console.error("window:unhandledrejection", event.reason);
-  showFatalError("Произошла ошибка сети или данных. Попробуйте перезагрузить приложение.");
+  showBootFailure(
+    "Произошла ошибка сети или данных. Попробуйте перезагрузить приложение.",
+    event.reason,
+    "window:unhandledrejection"
+  );
 });
 window.addEventListener("online", () => {
   syncPendingOrders();
@@ -186,20 +325,6 @@ window.addEventListener("online", () => {
 window.addEventListener("resize", setAppHeightVar);
 window.addEventListener("orientationchange", setAppHeightVar);
 setAppHeightVar();
-
-const telegramState = initTelegram() ?? { available: false, missingInitData: false };
-warning.textContent =
-  "Откройте через кнопку «🍕 Открыть магазин» в боте, иначе Telegram функции недоступны.";
-warning.hidden = telegramState.available && !telegramState.missingInitData;
-
-subscribeCart(() => {
-  const itemsCount = count();
-  [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
-    const cartButton = buttons.find((button) => button.dataset.path === "/cart");
-    if (!cartButton) return;
-    cartButton.textContent = itemsCount ? `Корзина (${itemsCount})` : "Корзина";
-  });
-});
 
 function renderDebug() {
   const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
@@ -238,8 +363,6 @@ function renderDebug() {
   );
 }
 
-renderDebug();
-
 function renderInitialRoute() {
   renderRoute(window.location.pathname);
 }
@@ -262,9 +385,38 @@ async function initApp() {
   }
 }
 
-renderInitialRoute();
-syncPendingOrders();
-void initApp();
+async function main() {
+  if (!app) {
+    throw new Error("App root element is missing");
+  }
+  initShell();
+  initRoutes();
+
+  const telegramState = initTelegram() ?? { available: false, missingInitData: false };
+  warning.textContent =
+    "Откройте через кнопку «🍕 Открыть магазин» в боте, иначе Telegram функции недоступны.";
+  warning.hidden = telegramState.available && !telegramState.missingInitData;
+
+  subscribeCart(() => {
+    const itemsCount = count();
+    [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
+      const cartButton = buttons.find((button) => button.dataset.path === "/cart");
+      if (!cartButton) return;
+      cartButton.textContent = itemsCount ? `Корзина (${itemsCount})` : "Корзина";
+    });
+  });
+
+  renderDebug();
+  renderInitialRoute();
+  syncPendingOrders();
+  await initApp();
+  showOverlayFlow();
+}
+
+main().catch((error) => {
+  console.error("boot:failed", error);
+  showBootFailure("Приложение не загрузилось. Попробуйте перезагрузить страницу.", error, "boot");
+});
 
 let overlayController = null;
 
@@ -389,5 +541,3 @@ async function showOverlayFlow() {
     },
   });
 }
-
-showOverlayFlow();

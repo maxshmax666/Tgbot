@@ -1,0 +1,20 @@
+/app.js
+  Cache-Control: no-store
+
+/services/*
+  Cache-Control: no-store
+
+/pages/*
+  Cache-Control: no-store
+
+/store/*
+  Cache-Control: no-store
+
+/ui/*
+  Cache-Control: no-store
+
+/*.css
+  Cache-Control: no-store
+
+/auth-config.js
+  Cache-Control: no-store

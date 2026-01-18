@@ -109,6 +109,10 @@ const RU = {
     adminPasswordInfoSuffix: "(локально). Минимум 8 символов.",
     envCheckFailed: "Не удалось проверить переменные окружения.",
     missingEnv: "Не заданы переменные окружения:",
+    adminNotInitialized: "Админка не инициализирована.",
+    adminBootstrapHint: "Для старта нужны переменные ADMIN_BOOTSTRAP_SECRET и owner-учётка.",
+    adminBootstrapWhere: "Задайте их в Cloudflare Pages → Settings → Environment variables.",
+    adminBootstrapRefresh: "Проверить снова",
     envNotConfiguredPrefix: "ENV не настроены",
     loginFailed: "Не удалось войти.",
     loginErrorFallback: "Не удалось авторизоваться. Проверьте пароль и настройки API.",
@@ -310,43 +314,40 @@ function Login({ onLogin, onNavigate }) {
   const [missingEnv, setMissingEnv] = useState([]);
   const [healthError, setHealthError] = useState("");
 
-  useEffect(() => {
-    let isActive = true;
-    const controller = new AbortController();
-
-    const loadHealth = async () => {
-      try {
-        const response = await fetch("/api/health", {
-          signal: controller.signal,
-          headers: { accept: "application/json" },
-        });
-        if (!response.ok) {
-          throw new Error(RU.messages.healthCheckFailed(response.status));
-        }
-        const payload = await response.json();
-        const missing = Array.isArray(payload?.missing)
-          ? payload.missing.filter((item) => typeof item === "string")
-          : [];
-        if (isActive) {
-          setMissingEnv(missing);
-          setHealthStatus("ready");
-        }
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        if (isActive) {
-          setHealthError(err?.message || RU.messages.envCheckFailed);
-          setHealthStatus("error");
-        }
+  const loadHealth = useCallback(async (signal) => {
+    setHealthStatus("loading");
+    setHealthError("");
+    try {
+      const response = await fetch("/api/health", {
+        signal,
+        headers: { accept: "application/json" },
+      });
+      if (!response.ok) {
+        throw new Error(RU.messages.healthCheckFailed(response.status));
       }
-    };
-
-    loadHealth();
-
-    return () => {
-      isActive = false;
-      controller.abort();
-    };
+      const payload = await response.json();
+      const missing = Array.isArray(payload?.missing)
+        ? payload.missing.filter((item) => typeof item === "string")
+        : [];
+      setMissingEnv(missing);
+      setHealthStatus("ready");
+    } catch (err) {
+      if (signal?.aborted) return;
+      setHealthError(err?.message || RU.messages.envCheckFailed);
+      setHealthStatus("error");
+    }
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadHealth(controller.signal);
+    return () => controller.abort();
+  }, [loadHealth]);
+
+  const handleRetryHealth = () => {
+    setMissingEnv([]);
+    loadHealth();
+  };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -373,6 +374,8 @@ function Login({ onLogin, onNavigate }) {
     return <LoadingScreen label={RU.messages.loadingAdminConfig} />;
   }
 
+  const adminBootstrapMissing = missingEnv.filter((name) => name.includes("ADMIN_"));
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6">
       <form onSubmit={handleSubmit} className="bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4">
@@ -389,6 +392,23 @@ function Login({ onLogin, onNavigate }) {
           <p className="text-amber-400 text-xs whitespace-pre-line">
             {RU.messages.envCheckFailed} {healthError}
           </p>
+        )}
+        {adminBootstrapMissing.length > 0 && (
+          <div className="rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200 space-y-2">
+            <p className="font-medium">{RU.messages.adminNotInitialized}</p>
+            <p className="text-xs text-amber-100">{RU.messages.adminBootstrapHint}</p>
+            <p className="text-xs text-amber-100">{RU.messages.adminBootstrapWhere}</p>
+            <ul className="list-disc list-inside text-xs text-amber-100">
+              {adminBootstrapMissing.map((name) => (
+                <li key={name}>
+                  <code>{name}</code>
+                </li>
+              ))}
+            </ul>
+            <Button type="button" variant="secondary" onClick={handleRetryHealth}>
+              {RU.messages.adminBootstrapRefresh}
+            </Button>
+          </div>
         )}
         {missingEnv.length > 0 && (
           <div className="rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200">

@@ -1,6 +1,6 @@
-// webapp/admin/AdminApp.js
-import React2, { useCallback, useEffect as useEffect2, useMemo, useState as useState2 } from "https://esm.sh/react@18.2.0";
-import { createRoot as createRoot2 } from "https://esm.sh/react-dom@18.2.0/client";
+// webapp/admin/AdminApp.jsx
+import React, { useCallback, useEffect, useMemo, useState } from "https://esm.sh/react@18.2.0";
+import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
 import {
   DndContext,
   PointerSensor,
@@ -191,139 +191,37 @@ function resolveMediaUrl(url) {
 }
 
 // webapp/services/telegramService.js
-import React, { useEffect, useState } from "https://esm.sh/react@18.2.0";
-import { createPortal } from "https://esm.sh/react-dom@18.2.0";
-import { createRoot } from "https://esm.sh/react-dom@18.2.0/client";
-var confirmRoot = null;
-var confirmContainer = null;
-var confirmResolve = null;
-var ensureConfirmRoot = () => {
-  if (!confirmContainer) {
-    confirmContainer = document.createElement("div");
-    confirmContainer.id = "admin-confirm-popup-root";
-    document.body.appendChild(confirmContainer);
-  }
-  if (!confirmRoot) {
-    confirmRoot = createRoot(confirmContainer);
-  }
-};
-var cleanupConfirmRoot = () => {
-  if (confirmRoot) {
-    confirmRoot.unmount();
-    confirmRoot = null;
-  }
-  if (confirmContainer) {
-    confirmContainer.remove();
-    confirmContainer = null;
-  }
-  confirmResolve = null;
-};
-function ConfirmModal({
-  message,
-  title,
-  okText,
-  cancelText,
-  onConfirm,
-  onCancel
-}) {
-  const [isOpen, setIsOpen] = useState(true);
-  const handleClose = (confirmed) => {
-    setIsOpen(false);
-    if (confirmed) {
-      onConfirm();
-    } else {
-      onCancel();
-    }
-  };
-  useEffect(() => {
-    const handleKeydown = (event) => {
-      if (event.key === "Escape") {
-        handleClose(false);
-      }
-      if (event.key === "Enter") {
-        handleClose(true);
-      }
-    };
-    document.addEventListener("keydown", handleKeydown);
-    return () => document.removeEventListener("keydown", handleKeydown);
-  }, []);
-  if (!isOpen) return null;
-  return createPortal(
-    /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 z-[120] flex items-center justify-center bg-black/70 p-4" }, /* @__PURE__ */ React.createElement("div", { className: "w-full max-w-md rounded-xl bg-slate-900 p-6 text-slate-100 shadow-xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold" }, title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-300 whitespace-pre-line" }, message)), /* @__PURE__ */ React.createElement("div", { className: "flex justify-end gap-3" }, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "px-4 py-2 rounded-md text-sm font-medium transition bg-slate-700 hover:bg-slate-600 text-white",
-        onClick: () => handleClose(false)
-      },
-      cancelText
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "px-4 py-2 rounded-md text-sm font-medium transition bg-rose-500 hover:bg-rose-600 text-white",
-        onClick: () => handleClose(true)
-      },
-      okText
-    )))),
-    document.body
-  );
+function getWebApp() {
+  return window.Telegram?.WebApp || null;
 }
-var getWebApp = () => window.Telegram?.WebApp || null;
-function confirmPopup({
-  message,
-  title = "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u0435",
-  okText = "OK",
-  cancelText = "Cancel"
-} = {}) {
-  const webApp = getWebApp();
-  if (webApp?.showPopup) {
+function showTelegramConfirm(message, title = "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435", okText = "OK", cancelText = "\u041E\u0442\u043C\u0435\u043D\u0430") {
+  const wa = getWebApp();
+  if (wa?.showPopup) {
     return new Promise((resolve) => {
-      webApp.showPopup(
-        {
-          title,
-          message: message || "",
-          buttons: [
-            { id: "cancel", type: "cancel", text: cancelText },
-            { id: "ok", type: "ok", text: okText }
-          ]
-        },
-        (buttonId) => resolve(buttonId === "ok")
-      );
+      try {
+        wa.showPopup(
+          {
+            title,
+            message: String(message ?? ""),
+            buttons: [
+              { id: "cancel", type: "cancel", text: cancelText },
+              { id: "ok", type: "ok", text: okText }
+            ]
+          },
+          (buttonId) => resolve(buttonId === "ok")
+        );
+      } catch {
+        resolve(Boolean(confirm(String(message ?? ""))));
+      }
     });
   }
-  return new Promise((resolve) => {
-    if (!document?.body) {
-      resolve(false);
-      return;
-    }
-    if (confirmResolve) {
-      confirmResolve(false);
-      cleanupConfirmRoot();
-    }
-    ensureConfirmRoot();
-    confirmResolve = resolve;
-    const handleResolve = (confirmed) => {
-      resolve(confirmed);
-      cleanupConfirmRoot();
-    };
-    confirmRoot.render(
-      /* @__PURE__ */ React.createElement(
-        ConfirmModal,
-        {
-          title,
-          message: message || "",
-          okText,
-          cancelText,
-          onConfirm: () => handleResolve(true),
-          onCancel: () => handleResolve(false)
-        }
-      )
-    );
-  });
+  return Promise.resolve(Boolean(confirm(String(message ?? ""))));
+}
+function confirmPopup({ message, title = "\u041F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435", okText = "OK", cancelText = "\u041E\u0442\u043C\u0435\u043D\u0430" }) {
+  return showTelegramConfirm(message, title, okText, cancelText);
 }
 
-// webapp/admin/AdminApp.js
+// webapp/admin/AdminApp.jsx
 var RU = {
   nav: {
     dashboard: "\u041E\u0431\u0437\u043E\u0440",
@@ -415,6 +313,10 @@ var RU = {
     adminPasswordInfoSuffix: "(\u043B\u043E\u043A\u0430\u043B\u044C\u043D\u043E). \u041C\u0438\u043D\u0438\u043C\u0443\u043C 8 \u0441\u0438\u043C\u0432\u043E\u043B\u043E\u0432.",
     envCheckFailed: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0435 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F.",
     missingEnv: "\u041D\u0435 \u0437\u0430\u0434\u0430\u043D\u044B \u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0435 \u043E\u043A\u0440\u0443\u0436\u0435\u043D\u0438\u044F:",
+    adminNotInitialized: "\u0410\u0434\u043C\u0438\u043D\u043A\u0430 \u043D\u0435 \u0438\u043D\u0438\u0446\u0438\u0430\u043B\u0438\u0437\u0438\u0440\u043E\u0432\u0430\u043D\u0430.",
+    adminBootstrapHint: "\u0414\u043B\u044F \u0441\u0442\u0430\u0440\u0442\u0430 \u043D\u0443\u0436\u043D\u044B \u043F\u0435\u0440\u0435\u043C\u0435\u043D\u043D\u044B\u0435 ADMIN_BOOTSTRAP_SECRET \u0438 owner-\u0443\u0447\u0451\u0442\u043A\u0430.",
+    adminBootstrapWhere: "\u0417\u0430\u0434\u0430\u0439\u0442\u0435 \u0438\u0445 \u0432 Cloudflare Pages \u2192 Settings \u2192 Environment variables.",
+    adminBootstrapRefresh: "\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0441\u043D\u043E\u0432\u0430",
     envNotConfiguredPrefix: "ENV \u043D\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043D\u044B",
     loginFailed: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0439\u0442\u0438.",
     loginErrorFallback: "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0430\u0432\u0442\u043E\u0440\u0438\u0437\u043E\u0432\u0430\u0442\u044C\u0441\u044F. \u041F\u0440\u043E\u0432\u0435\u0440\u044C\u0442\u0435 \u043F\u0430\u0440\u043E\u043B\u044C \u0438 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 API.",
@@ -483,13 +385,13 @@ function Button({ children, variant = "primary", ...props }) {
     ghost: "bg-transparent hover:bg-slate-800 text-slate-200",
     danger: "bg-rose-500 hover:bg-rose-600 text-white"
   };
-  return /* @__PURE__ */ React2.createElement("button", { className: `${base} ${styles[variant]}`, ...props });
+  return /* @__PURE__ */ React.createElement("button", { className: `${base} ${styles[variant]}`, ...props });
 }
 function Field({ label, children }) {
-  return /* @__PURE__ */ React2.createElement("label", { className: "flex flex-col gap-2 text-sm text-slate-200" }, /* @__PURE__ */ React2.createElement("span", { className: "text-slate-400" }, label), children);
+  return /* @__PURE__ */ React.createElement("label", { className: "flex flex-col gap-2 text-sm text-slate-200" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-400" }, label), children);
 }
 function Input(props) {
-  return /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement(
     "input",
     {
       className: "rounded-md bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500",
@@ -498,7 +400,7 @@ function Input(props) {
   );
 }
 function Textarea(props) {
-  return /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement(
     "textarea",
     {
       className: "rounded-md bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500",
@@ -507,7 +409,7 @@ function Textarea(props) {
   );
 }
 function Select(props) {
-  return /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement(
     "select",
     {
       className: "rounded-md bg-slate-900 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500",
@@ -515,7 +417,7 @@ function Select(props) {
     }
   );
 }
-var ErrorBoundary = class extends React2.Component {
+var ErrorBoundary = class extends React.Component {
   constructor(props) {
     super(props);
     this.state = { error: null };
@@ -525,16 +427,16 @@ var ErrorBoundary = class extends React2.Component {
   }
   render() {
     if (this.state.error) {
-      return /* @__PURE__ */ React2.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 max-w-lg w-full space-y-3" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.messages.errorLoadingAdmin), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, RU.messages.errorLoadingUi), /* @__PURE__ */ React2.createElement("pre", { className: "text-xs text-rose-300 whitespace-pre-wrap break-words" }, this.state.error?.message || RU.messages.unknownError)));
+      return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 max-w-lg w-full space-y-3" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.messages.errorLoadingAdmin), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, RU.messages.errorLoadingUi), /* @__PURE__ */ React.createElement("pre", { className: "text-xs text-rose-300 whitespace-pre-wrap break-words" }, this.state.error?.message || RU.messages.unknownError)));
     }
     return this.props.children;
   }
 };
 function LoadingScreen({ label = RU.messages.loading }) {
-  return /* @__PURE__ */ React2.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-md text-center space-y-3" }, /* @__PURE__ */ React2.createElement("div", { className: "h-10 w-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" }), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, label)));
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-md text-center space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "h-10 w-10 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" }), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, label)));
 }
 function ErrorState({ title, message, details, onRetry }) {
-  return /* @__PURE__ */ React2.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-lg space-y-3" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, title), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, message), details && /* @__PURE__ */ React2.createElement("pre", { className: "text-xs text-rose-300 whitespace-pre-wrap break-words" }, details), onRetry && /* @__PURE__ */ React2.createElement(Button, { onClick: onRetry }, RU.buttons.retry)));
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-lg space-y-3" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, title), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, message), details && /* @__PURE__ */ React.createElement("pre", { className: "text-xs text-rose-300 whitespace-pre-wrap break-words" }, details), onRetry && /* @__PURE__ */ React.createElement(Button, { onClick: onRetry }, RU.buttons.retry)));
 }
 function formatZodIssues(details) {
   if (!Array.isArray(details)) return null;
@@ -553,45 +455,43 @@ function formatZodIssues(details) {
   return lines.length ? lines.join("\n") : null;
 }
 function Login({ onLogin, onNavigate }) {
-  const [email, setEmail] = useState2("");
-  const [password, setPassword] = useState2("");
-  const [error, setError] = useState2("");
-  const [loading, setLoading] = useState2(false);
-  const [healthStatus, setHealthStatus] = useState2("loading");
-  const [missingEnv, setMissingEnv] = useState2([]);
-  const [healthError, setHealthError] = useState2("");
-  useEffect2(() => {
-    let isActive = true;
-    const controller = new AbortController();
-    const loadHealth = async () => {
-      try {
-        const response = await fetch("/api/health", {
-          signal: controller.signal,
-          headers: { accept: "application/json" }
-        });
-        if (!response.ok) {
-          throw new Error(RU.messages.healthCheckFailed(response.status));
-        }
-        const payload = await response.json();
-        const missing = Array.isArray(payload?.missing) ? payload.missing.filter((item) => typeof item === "string") : [];
-        if (isActive) {
-          setMissingEnv(missing);
-          setHealthStatus("ready");
-        }
-      } catch (err) {
-        if (controller.signal.aborted) return;
-        if (isActive) {
-          setHealthError(err?.message || RU.messages.envCheckFailed);
-          setHealthStatus("error");
-        }
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [healthStatus, setHealthStatus] = useState("loading");
+  const [missingEnv, setMissingEnv] = useState([]);
+  const [healthError, setHealthError] = useState("");
+  const loadHealth = useCallback(async (signal) => {
+    setHealthStatus("loading");
+    setHealthError("");
+    try {
+      const response = await fetch("/api/health", {
+        signal,
+        headers: { accept: "application/json" }
+      });
+      if (!response.ok) {
+        throw new Error(RU.messages.healthCheckFailed(response.status));
       }
-    };
-    loadHealth();
-    return () => {
-      isActive = false;
-      controller.abort();
-    };
+      const payload = await response.json();
+      const missing = Array.isArray(payload?.missing) ? payload.missing.filter((item) => typeof item === "string") : [];
+      setMissingEnv(missing);
+      setHealthStatus("ready");
+    } catch (err) {
+      if (signal?.aborted) return;
+      setHealthError(err?.message || RU.messages.envCheckFailed);
+      setHealthStatus("error");
+    }
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    loadHealth(controller.signal);
+    return () => controller.abort();
+  }, [loadHealth]);
+  const handleRetryHealth = () => {
+    setMissingEnv([]);
+    loadHealth();
+  };
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -612,20 +512,21 @@ function Login({ onLogin, onNavigate }) {
     }
   };
   if (healthStatus === "loading") {
-    return /* @__PURE__ */ React2.createElement(LoadingScreen, { label: RU.messages.loadingAdminConfig });
+    return /* @__PURE__ */ React.createElement(LoadingScreen, { label: RU.messages.loadingAdminConfig });
   }
-  return /* @__PURE__ */ React2.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" }, /* @__PURE__ */ React2.createElement("form", { onSubmit: handleSubmit, className: "bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4" }, /* @__PURE__ */ React2.createElement("h1", { className: "text-xl font-semibold" }, RU.headings.adminLogin), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, RU.messages.adminLoginHint), /* @__PURE__ */ React2.createElement("p", { className: "text-xs text-slate-500" }, RU.messages.adminPasswordInfoPrefix, " ", /* @__PURE__ */ React2.createElement("code", { className: "text-slate-300" }, "ADMIN_OWNER_EMAIL"), ",", " ", /* @__PURE__ */ React2.createElement("code", { className: "text-slate-300" }, "ADMIN_OWNER_PASSWORD_HASH"), " \u0438\u043B\u0438", " ", /* @__PURE__ */ React2.createElement("code", { className: "text-slate-300" }, "ADMIN_OWNER_PASSWORD"), " ", RU.messages.adminPasswordInfoSuffix), healthStatus === "error" && /* @__PURE__ */ React2.createElement("p", { className: "text-amber-400 text-xs whitespace-pre-line" }, RU.messages.envCheckFailed, " ", healthError), missingEnv.length > 0 && /* @__PURE__ */ React2.createElement("div", { className: "rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200" }, /* @__PURE__ */ React2.createElement("p", { className: "font-medium" }, RU.messages.missingEnv), /* @__PURE__ */ React2.createElement("ul", { className: "list-disc list-inside text-xs text-amber-100 mt-2" }, missingEnv.map((name) => /* @__PURE__ */ React2.createElement("li", { key: name }, /* @__PURE__ */ React2.createElement("code", null, name))))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.email }, /* @__PURE__ */ React2.createElement(Input, { type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.password }, /* @__PURE__ */ React2.createElement(Input, { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), error && /* @__PURE__ */ React2.createElement("p", { className: "text-rose-400 text-sm whitespace-pre-line" }, error), /* @__PURE__ */ React2.createElement(Button, { type: "submit", disabled: loading }, loading ? RU.buttons.signingIn : RU.buttons.signIn)));
+  const adminBootstrapMissing = missingEnv.filter((name) => name.includes("ADMIN_"));
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen flex items-center justify-center bg-slate-950 text-slate-100 p-6" }, /* @__PURE__ */ React.createElement("form", { onSubmit: handleSubmit, className: "bg-slate-900 p-8 rounded-xl shadow-xl w-full max-w-md flex flex-col gap-4" }, /* @__PURE__ */ React.createElement("h1", { className: "text-xl font-semibold" }, RU.headings.adminLogin), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, RU.messages.adminLoginHint), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, RU.messages.adminPasswordInfoPrefix, " ", /* @__PURE__ */ React.createElement("code", { className: "text-slate-300" }, "ADMIN_OWNER_EMAIL"), ",", " ", /* @__PURE__ */ React.createElement("code", { className: "text-slate-300" }, "ADMIN_OWNER_PASSWORD_HASH"), " \u0438\u043B\u0438", " ", /* @__PURE__ */ React.createElement("code", { className: "text-slate-300" }, "ADMIN_OWNER_PASSWORD"), " ", RU.messages.adminPasswordInfoSuffix), healthStatus === "error" && /* @__PURE__ */ React.createElement("p", { className: "text-amber-400 text-xs whitespace-pre-line" }, RU.messages.envCheckFailed, " ", healthError), adminBootstrapMissing.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200 space-y-2" }, /* @__PURE__ */ React.createElement("p", { className: "font-medium" }, RU.messages.adminNotInitialized), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-amber-100" }, RU.messages.adminBootstrapHint), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-amber-100" }, RU.messages.adminBootstrapWhere), /* @__PURE__ */ React.createElement("ul", { className: "list-disc list-inside text-xs text-amber-100" }, adminBootstrapMissing.map((name) => /* @__PURE__ */ React.createElement("li", { key: name }, /* @__PURE__ */ React.createElement("code", null, name)))), /* @__PURE__ */ React.createElement(Button, { type: "button", variant: "secondary", onClick: handleRetryHealth }, RU.messages.adminBootstrapRefresh)), missingEnv.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "rounded-md border border-amber-700 bg-amber-950/60 p-3 text-sm text-amber-200" }, /* @__PURE__ */ React.createElement("p", { className: "font-medium" }, RU.messages.missingEnv), /* @__PURE__ */ React.createElement("ul", { className: "list-disc list-inside text-xs text-amber-100 mt-2" }, missingEnv.map((name) => /* @__PURE__ */ React.createElement("li", { key: name }, /* @__PURE__ */ React.createElement("code", null, name))))), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.email }, /* @__PURE__ */ React.createElement(Input, { type: "email", value: email, onChange: (e) => setEmail(e.target.value), required: true })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.password }, /* @__PURE__ */ React.createElement(Input, { type: "password", value: password, onChange: (e) => setPassword(e.target.value), required: true })), error && /* @__PURE__ */ React.createElement("p", { className: "text-rose-400 text-sm whitespace-pre-line" }, error), /* @__PURE__ */ React.createElement(Button, { type: "submit", disabled: loading }, loading ? RU.buttons.signingIn : RU.buttons.signIn)));
 }
 function CategoriesView() {
-  const [items, setItems] = useState2([]);
-  const [title, setTitle] = useState2("");
-  const [sort, setSort] = useState2(0);
-  const [isActive, setIsActive] = useState2(true);
+  const [items, setItems] = useState([]);
+  const [title, setTitle] = useState("");
+  const [sort, setSort] = useState(0);
+  const [isActive, setIsActive] = useState(true);
   const load = async () => {
     const data = await adminApi.listCategories();
     setItems(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const handleCreate = async () => {
@@ -649,38 +550,38 @@ function CategoriesView() {
     await adminApi.deleteCategory(id);
     await load();
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.newCategory), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-3 gap-4" }, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.sort }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: sort, onChange: (e) => setSort(e.target.value) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React2.createElement(Select, { value: isActive ? "yes" : "no", onChange: (e) => setIsActive(e.target.value === "yes") }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive)))), /* @__PURE__ */ React2.createElement(Button, { onClick: handleCreate, disabled: !title.trim() }, RU.buttons.create)), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.categories), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, items.map((item) => /* @__PURE__ */ React2.createElement("div", { key: item.id, className: "grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3" }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.newCategory), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-3 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.sort }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: sort, onChange: (e) => setSort(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React.createElement(Select, { value: isActive ? "yes" : "no", onChange: (e) => setIsActive(e.target.value === "yes") }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React.createElement("option", { value: "no" }, RU.labels.statusInactive)))), /* @__PURE__ */ React.createElement(Button, { onClick: handleCreate, disabled: !title.trim() }, RU.buttons.create)), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.categories), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3" }, /* @__PURE__ */ React.createElement(
     Input,
     {
       value: item.title,
       onChange: (e) => setItems((prev) => prev.map((row) => row.id === item.id ? { ...row, title: e.target.value } : row))
     }
-  ), /* @__PURE__ */ React2.createElement(
+  ), /* @__PURE__ */ React.createElement(
     Input,
     {
       type: "number",
       value: item.sort,
       onChange: (e) => setItems((prev) => prev.map((row) => row.id === item.id ? { ...row, sort: e.target.value } : row))
     }
-  ), /* @__PURE__ */ React2.createElement(
+  ), /* @__PURE__ */ React.createElement(
     Select,
     {
       value: item.is_active ? "yes" : "no",
       onChange: (e) => setItems((prev) => prev.map((row) => row.id === item.id ? { ...row, is_active: e.target.value === "yes" ? 1 : 0 } : row))
     },
-    /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive),
-    /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive)
-  ), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => handleUpdate(item) }, RU.buttons.save), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.id) }, RU.buttons.delete)))))));
+    /* @__PURE__ */ React.createElement("option", { value: "yes" }, RU.labels.statusActive),
+    /* @__PURE__ */ React.createElement("option", { value: "no" }, RU.labels.statusInactive)
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleUpdate(item) }, RU.buttons.save), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.id) }, RU.buttons.delete)))))));
 }
 function IngredientsView() {
-  const [items, setItems] = useState2([]);
-  const [title, setTitle] = useState2("");
-  const [isActive, setIsActive] = useState2(true);
+  const [items, setItems] = useState([]);
+  const [title, setTitle] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const load = async () => {
     const data = await adminApi.listIngredients();
     setItems(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const handleCreate = async () => {
@@ -703,36 +604,36 @@ function IngredientsView() {
     await adminApi.deleteIngredient(id);
     await load();
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.ingredients), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-3 gap-4" }, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React2.createElement(Select, { value: isActive ? "yes" : "no", onChange: (e) => setIsActive(e.target.value === "yes") }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.unit }, /* @__PURE__ */ React2.createElement(Input, { value: "g", disabled: true }))), /* @__PURE__ */ React2.createElement(Button, { onClick: handleCreate, disabled: !title.trim() }, RU.buttons.create)), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.ingredients), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, items.map((item) => /* @__PURE__ */ React2.createElement("div", { key: item.id, className: "grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3" }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.ingredients), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-3 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React.createElement(Select, { value: isActive ? "yes" : "no", onChange: (e) => setIsActive(e.target.value === "yes") }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React.createElement("option", { value: "no" }, RU.labels.statusInactive))), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.unit }, /* @__PURE__ */ React.createElement(Input, { value: "g", disabled: true }))), /* @__PURE__ */ React.createElement(Button, { onClick: handleCreate, disabled: !title.trim() }, RU.buttons.create)), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.ingredients), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3" }, /* @__PURE__ */ React.createElement(
     Input,
     {
       value: item.title,
       onChange: (e) => setItems((prev) => prev.map((row) => row.id === item.id ? { ...row, title: e.target.value } : row))
     }
-  ), /* @__PURE__ */ React2.createElement(Input, { value: item.unit || "g", disabled: true }), /* @__PURE__ */ React2.createElement(
+  ), /* @__PURE__ */ React.createElement(Input, { value: item.unit || "g", disabled: true }), /* @__PURE__ */ React.createElement(
     Select,
     {
       value: item.is_active ? "yes" : "no",
       onChange: (e) => setItems((prev) => prev.map((row) => row.id === item.id ? { ...row, is_active: e.target.value === "yes" ? 1 : 0 } : row))
     },
-    /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive),
-    /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive)
-  ), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => handleUpdate(item) }, RU.buttons.save), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.id) }, RU.buttons.delete)))))));
+    /* @__PURE__ */ React.createElement("option", { value: "yes" }, RU.labels.statusActive),
+    /* @__PURE__ */ React.createElement("option", { value: "no" }, RU.labels.statusInactive)
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleUpdate(item) }, RU.buttons.save), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.id) }, RU.buttons.delete)))))));
 }
 function InventoryView() {
-  const [items, setItems] = useState2([]);
+  const [items, setItems] = useState([]);
   const load = async () => {
     const data = await adminApi.listInventory();
     setItems(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const handleUpdate = async (item) => {
     await adminApi.updateInventory(item.id, { qtyAvailable: Number(item.qty_available || 0) });
     await load();
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.inventory), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, items.map((item) => /* @__PURE__ */ React2.createElement("div", { key: item.id, className: "grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3" }, /* @__PURE__ */ React2.createElement("div", { className: "text-sm" }, item.title), /* @__PURE__ */ React2.createElement(Input, { value: item.unit || "g", disabled: true }), /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.inventory), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.id, className: "grid md:grid-cols-4 gap-3 items-center border border-slate-800 rounded-lg p-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm" }, item.title), /* @__PURE__ */ React.createElement(Input, { value: item.unit || "g", disabled: true }), /* @__PURE__ */ React.createElement(
     Input,
     {
       type: "number",
@@ -745,16 +646,16 @@ function InventoryView() {
         )
       )
     }
-  ), /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => handleUpdate(item) }, RU.buttons.save))))));
+  ), /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleUpdate(item) }, RU.buttons.save))))));
 }
 function MediaLibrary({ onSelect, onClose }) {
-  const [items, setItems] = useState2([]);
-  const [file, setFile] = useState2(null);
+  const [items, setItems] = useState([]);
+  const [file, setFile] = useState(null);
   const load = async () => {
     const data = await adminApi.listMedia();
     setItems(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const handleUpload = async () => {
@@ -769,20 +670,20 @@ function MediaLibrary({ onSelect, onClose }) {
     await adminApi.deleteMedia(key);
     await load();
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-4xl space-y-4" }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React2.createElement("h3", { className: "text-lg font-semibold" }, RU.headings.mediaLibrary), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", onClick: onClose }, RU.buttons.close)), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-3 items-center" }, /* @__PURE__ */ React2.createElement("input", { type: "file", onChange: (e) => setFile(e.target.files?.[0] || null) }), /* @__PURE__ */ React2.createElement(Button, { onClick: handleUpload, disabled: !file }, RU.buttons.upload)), /* @__PURE__ */ React2.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[400px] overflow-auto" }, items.map((item) => /* @__PURE__ */ React2.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "fixed inset-0 bg-black/70 flex items-center justify-center z-50" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 w-full max-w-4xl space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold" }, RU.headings.mediaLibrary), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onClose }, RU.buttons.close)), /* @__PURE__ */ React.createElement("div", { className: "flex gap-3 items-center" }, /* @__PURE__ */ React.createElement("input", { type: "file", onChange: (e) => setFile(e.target.files?.[0] || null) }), /* @__PURE__ */ React.createElement(Button, { onClick: handleUpload, disabled: !file }, RU.buttons.upload)), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[400px] overflow-auto" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       src: resolveMediaUrl(item.url),
       alt: item.meta?.name || item.key,
       className: "w-full h-28 object-cover rounded-md"
     }
-  ), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => onSelect(item.url) }, RU.buttons.use), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.key) }, RU.buttons.delete)))))));
+  ), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => onSelect(item.url) }, RU.buttons.use), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(item.key) }, RU.buttons.delete)))))));
 }
 function ProductsView() {
-  const [products, setProducts] = useState2([]);
-  const [categories, setCategories] = useState2([]);
-  const [ingredients, setIngredients] = useState2([]);
-  const [form, setForm] = useState2({
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [ingredients, setIngredients] = useState([]);
+  const [form, setForm] = useState({
     id: null,
     title: "",
     description: "",
@@ -794,10 +695,10 @@ function ProductsView() {
     images: [],
     ingredients: []
   });
-  const [mediaOpen, setMediaOpen] = useState2(false);
-  const [nameSuggestions, setNameSuggestions] = useState2([]);
-  const [nameSuggesting, setNameSuggesting] = useState2(false);
-  const [nameError, setNameError] = useState2("");
+  const [mediaOpen, setMediaOpen] = useState(false);
+  const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [nameSuggesting, setNameSuggesting] = useState(false);
+  const [nameError, setNameError] = useState("");
   const load = async () => {
     const [productsData, categoriesData, ingredientsData] = await Promise.all([
       adminApi.listProducts(),
@@ -808,7 +709,7 @@ function ProductsView() {
     setCategories(categoriesData);
     setIngredients(ingredientsData);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const resetForm = () => {
@@ -933,7 +834,7 @@ function ProductsView() {
       ingredients: prev.ingredients.filter((_, i) => i !== index)
     }));
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.productEditor), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Input, { value: form.title, onChange: (e) => setForm((prev) => ({ ...prev, title: e.target.value })) }), /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.productEditor), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Input, { value: form.title, onChange: (e) => setForm((prev) => ({ ...prev, title: e.target.value })) }), /* @__PURE__ */ React.createElement(
     Button,
     {
       variant: "secondary",
@@ -942,7 +843,7 @@ function ProductsView() {
       disabled: nameSuggesting
     },
     nameSuggesting ? RU.messages.nameSuggesting : RU.buttons.generateName
-  )), nameError && /* @__PURE__ */ React2.createElement("span", { className: "text-xs text-rose-400" }, nameError), nameSuggestions.length > 0 && /* @__PURE__ */ React2.createElement("div", { className: "flex flex-wrap gap-2" }, nameSuggestions.map((suggestion) => /* @__PURE__ */ React2.createElement(
+  )), nameError && /* @__PURE__ */ React.createElement("span", { className: "text-xs text-rose-400" }, nameError), nameSuggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "flex flex-wrap gap-2" }, nameSuggestions.map((suggestion) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: suggestion,
@@ -951,15 +852,15 @@ function ProductsView() {
       onClick: () => setForm((prev) => ({ ...prev, title: suggestion }))
     },
     suggestion
-  )))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.price }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: form.price, onChange: (e) => setForm((prev) => ({ ...prev, price: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.category }, /* @__PURE__ */ React2.createElement(Select, { value: form.categoryId, onChange: (e) => setForm((prev) => ({ ...prev, categoryId: e.target.value })) }, /* @__PURE__ */ React2.createElement("option", { value: "" }, RU.messages.noCategory), categories.map((cat) => /* @__PURE__ */ React2.createElement("option", { key: cat.id, value: cat.id }, cat.title)))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.sort }, /* @__PURE__ */ React2.createElement(Input, { type: "number", value: form.sort, onChange: (e) => setForm((prev) => ({ ...prev, sort: e.target.value })) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React2.createElement(Select, { value: form.isActive ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" })) }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.statusInactive))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.featured }, /* @__PURE__ */ React2.createElement(Select, { value: form.isFeatured ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" })) }, /* @__PURE__ */ React2.createElement("option", { value: "yes" }, RU.labels.yes), /* @__PURE__ */ React2.createElement("option", { value: "no" }, RU.labels.no)))), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.description }, /* @__PURE__ */ React2.createElement(Textarea, { rows: 4, value: form.description, onChange: (e) => setForm((prev) => ({ ...prev, description: e.target.value })) })), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React2.createElement("span", { className: "text-slate-400 text-sm" }, RU.labels.ingredients), /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: addIngredient }, RU.buttons.addIngredient)), ingredients.length === 0 && /* @__PURE__ */ React2.createElement("p", { className: "text-xs text-slate-500" }, RU.messages.noIngredients), /* @__PURE__ */ React2.createElement("div", { className: "space-y-2" }, form.ingredients.map((item, index) => /* @__PURE__ */ React2.createElement("div", { key: `ingredient-${index}`, className: "grid md:grid-cols-3 gap-3 items-center" }, /* @__PURE__ */ React2.createElement(
+  )))), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.price }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: form.price, onChange: (e) => setForm((prev) => ({ ...prev, price: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.category }, /* @__PURE__ */ React.createElement(Select, { value: form.categoryId, onChange: (e) => setForm((prev) => ({ ...prev, categoryId: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, RU.messages.noCategory), categories.map((cat) => /* @__PURE__ */ React.createElement("option", { key: cat.id, value: cat.id }, cat.title)))), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.sort }, /* @__PURE__ */ React.createElement(Input, { type: "number", value: form.sort, onChange: (e) => setForm((prev) => ({ ...prev, sort: e.target.value })) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.active }, /* @__PURE__ */ React.createElement(Select, { value: form.isActive ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isActive: e.target.value === "yes" })) }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, RU.labels.statusActive), /* @__PURE__ */ React.createElement("option", { value: "no" }, RU.labels.statusInactive))), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.featured }, /* @__PURE__ */ React.createElement(Select, { value: form.isFeatured ? "yes" : "no", onChange: (e) => setForm((prev) => ({ ...prev, isFeatured: e.target.value === "yes" })) }, /* @__PURE__ */ React.createElement("option", { value: "yes" }, RU.labels.yes), /* @__PURE__ */ React.createElement("option", { value: "no" }, RU.labels.no)))), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.description }, /* @__PURE__ */ React.createElement(Textarea, { rows: 4, value: form.description, onChange: (e) => setForm((prev) => ({ ...prev, description: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 text-sm" }, RU.labels.ingredients), /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: addIngredient }, RU.buttons.addIngredient)), ingredients.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-500" }, RU.messages.noIngredients), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, form.ingredients.map((item, index) => /* @__PURE__ */ React.createElement("div", { key: `ingredient-${index}`, className: "grid md:grid-cols-3 gap-3 items-center" }, /* @__PURE__ */ React.createElement(
     Select,
     {
       value: item.ingredientId,
       onChange: (e) => updateIngredient(index, "ingredientId", e.target.value)
     },
-    /* @__PURE__ */ React2.createElement("option", { value: "" }, RU.labels.ingredient),
-    ingredients.map((ingredient) => /* @__PURE__ */ React2.createElement("option", { key: ingredient.id, value: ingredient.id }, ingredient.title))
-  ), /* @__PURE__ */ React2.createElement(
+    /* @__PURE__ */ React.createElement("option", { value: "" }, RU.labels.ingredient),
+    ingredients.map((ingredient) => /* @__PURE__ */ React.createElement("option", { key: ingredient.id, value: ingredient.id }, ingredient.title))
+  ), /* @__PURE__ */ React.createElement(
     Input,
     {
       type: "number",
@@ -969,7 +870,7 @@ function ProductsView() {
       onChange: (e) => updateIngredient(index, "qtyGrams", e.target.value),
       placeholder: RU.labels.qtyGrams
     }
-  ), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => removeIngredient(index) }, RU.buttons.remove))))), /* @__PURE__ */ React2.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React2.createElement("span", { className: "text-slate-400 text-sm" }, RU.labels.images), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => setMediaOpen(true) }, RU.headings.mediaLibrary), /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => addImage(window.prompt(RU.messages.imageUrlPrompt) || "") }, RU.buttons.addUrl))), /* @__PURE__ */ React2.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3" }, form.images.map((url, index) => /* @__PURE__ */ React2.createElement("div", { key: `${url}-${index}`, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React2.createElement("img", { src: resolveMediaUrl(url), alt: "", className: "w-full h-24 object-cover rounded-md" }), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => removeImage(index) }, RU.buttons.remove))))), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { onClick: handleSubmit, disabled: !form.title.trim() }, RU.buttons.save), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", onClick: resetForm }, RU.buttons.reset))), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.products), /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, products.map((product) => /* @__PURE__ */ React2.createElement("div", { key: product.id, className: "border border-slate-800 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("div", { className: "font-medium" }, product.title), /* @__PURE__ */ React2.createElement("div", { className: "text-sm text-slate-400" }, product.price, " \u20BD")), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => handleEdit(product) }, RU.buttons.edit), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => handleDelete(product.id) }, RU.buttons.delete)))))), mediaOpen && /* @__PURE__ */ React2.createElement(
+  ), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => removeIngredient(index) }, RU.buttons.remove))))), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("span", { className: "text-slate-400 text-sm" }, RU.labels.images), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => setMediaOpen(true) }, RU.headings.mediaLibrary), /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => addImage(window.prompt(RU.messages.imageUrlPrompt) || "") }, RU.buttons.addUrl))), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-3" }, form.images.map((url, index) => /* @__PURE__ */ React.createElement("div", { key: `${url}-${index}`, className: "border border-slate-800 rounded-lg p-2 space-y-2" }, /* @__PURE__ */ React.createElement("img", { src: resolveMediaUrl(url), alt: "", className: "w-full h-24 object-cover rounded-md" }), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => removeImage(index) }, RU.buttons.remove))))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { onClick: handleSubmit, disabled: !form.title.trim() }, RU.buttons.save), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: resetForm }, RU.buttons.reset))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold mb-4" }, RU.headings.products), /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, products.map((product) => /* @__PURE__ */ React.createElement("div", { key: product.id, className: "border border-slate-800 rounded-lg p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "font-medium" }, product.title), /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-400" }, product.price, " \u20BD")), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleEdit(product) }, RU.buttons.edit), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(product.id) }, RU.buttons.delete)))))), mediaOpen && /* @__PURE__ */ React.createElement(
     MediaLibrary,
     {
       onSelect: (url) => {
@@ -981,14 +882,14 @@ function ProductsView() {
   ));
 }
 function OrdersView() {
-  const [orders, setOrders] = useState2([]);
-  const [selected, setSelected] = useState2(null);
+  const [orders, setOrders] = useState([]);
+  const [selected, setSelected] = useState(null);
   const getStatusLabel = (status) => RU.orderStatus[status] || status;
   const load = async () => {
     const data = await adminApi.listOrders();
     setOrders(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const handleSelect = async (order) => {
@@ -1002,16 +903,16 @@ function OrdersView() {
     const refreshed = await adminApi.getOrder(selected.id);
     setSelected(refreshed);
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "grid lg:grid-cols-3 gap-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-3" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.orders), orders.map((order) => /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "grid lg:grid-cols-3 gap-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-3" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.orders), orders.map((order) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: order.id,
       className: `w-full text-left border border-slate-800 rounded-lg p-3 ${selected?.id === order.id ? "bg-slate-800" : ""}`,
       onClick: () => handleSelect(order)
     },
-    /* @__PURE__ */ React2.createElement("div", { className: "font-medium" }, "#", order.id, " \u2022 ", order.customer_name),
-    /* @__PURE__ */ React2.createElement("div", { className: "text-sm text-slate-400" }, getStatusLabel(order.status), " \u2022 ", order.total, " \u20BD")
-  ))), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 lg:col-span-2" }, !selected ? /* @__PURE__ */ React2.createElement("p", { className: "text-slate-400" }, RU.messages.selectOrder) : /* @__PURE__ */ React2.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("h3", { className: "text-lg font-semibold" }, RU.headings.orderDetails, " #", selected.id), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, selected.customer_name, " \u2022 ", selected.phone), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, selected.address)), /* @__PURE__ */ React2.createElement("div", { className: "space-y-2" }, selected.items?.map((item, index) => /* @__PURE__ */ React2.createElement("div", { key: `${item.id}-${index}`, className: "flex justify-between text-sm" }, /* @__PURE__ */ React2.createElement("span", null, item.title, " \xD7 ", item.qty), /* @__PURE__ */ React2.createElement("span", null, item.price, " \u20BD")))), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2 flex-wrap" }, ["new", "preparing", "delivering", "done"].map((status) => /* @__PURE__ */ React2.createElement(Button, { key: status, variant: selected.status === status ? "secondary" : "ghost", onClick: () => updateStatus(status) }, getStatusLabel(status)))))));
+    /* @__PURE__ */ React.createElement("div", { className: "font-medium" }, "#", order.id, " \u2022 ", order.customer_name),
+    /* @__PURE__ */ React.createElement("div", { className: "text-sm text-slate-400" }, getStatusLabel(order.status), " \u2022 ", order.total, " \u20BD")
+  ))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 lg:col-span-2" }, !selected ? /* @__PURE__ */ React.createElement("p", { className: "text-slate-400" }, RU.messages.selectOrder) : /* @__PURE__ */ React.createElement("div", { className: "space-y-4" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold" }, RU.headings.orderDetails, " #", selected.id), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, selected.customer_name, " \u2022 ", selected.phone), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, selected.address)), /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, selected.items?.map((item, index) => /* @__PURE__ */ React.createElement("div", { key: `${item.id}-${index}`, className: "flex justify-between text-sm" }, /* @__PURE__ */ React.createElement("span", null, item.title, " \xD7 ", item.qty), /* @__PURE__ */ React.createElement("span", null, item.price, " \u20BD")))), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2 flex-wrap" }, ["new", "preparing", "delivering", "done"].map((status) => /* @__PURE__ */ React.createElement(Button, { key: status, variant: selected.status === status ? "secondary" : "ghost", onClick: () => updateStatus(status) }, getStatusLabel(status)))))));
 }
 function SortableItem({ id, children }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -1019,7 +920,7 @@ function SortableItem({ id, children }) {
     transform: CSS.Transform.toString(transform),
     transition
   };
-  return /* @__PURE__ */ React2.createElement("div", { ref: setNodeRef, style, ...attributes, ...listeners }, children);
+  return /* @__PURE__ */ React.createElement("div", { ref: setNodeRef, style, ...attributes, ...listeners }, children);
 }
 function ProductsGridEditor({ block, products, onChange }) {
   const items = Array.isArray(block.props.items) ? block.props.items : products.map((product) => ({ id: product.id, visible: true }));
@@ -1037,10 +938,10 @@ function ProductsGridEditor({ block, products, onChange }) {
     onChange({ ...block.props, items: updated });
   };
   const productMap = new Map(products.map((product) => [product.id, product]));
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React2.createElement(DndContext, { sensors, collisionDetection: closestCenter, onDragEnd: handleDragEnd }, /* @__PURE__ */ React2.createElement(SortableContext, { items: items.map((item) => item.id), strategy: verticalListSortingStrategy }, /* @__PURE__ */ React2.createElement("div", { className: "space-y-2" }, items.map((item) => {
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement(DndContext, { sensors, collisionDetection: closestCenter, onDragEnd: handleDragEnd }, /* @__PURE__ */ React.createElement(SortableContext, { items: items.map((item) => item.id), strategy: verticalListSortingStrategy }, /* @__PURE__ */ React.createElement("div", { className: "space-y-2" }, items.map((item) => {
     const product = productMap.get(item.id);
     if (!product) return null;
-    return /* @__PURE__ */ React2.createElement(SortableItem, { key: item.id, id: item.id }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between border border-slate-800 rounded-lg p-2" }, /* @__PURE__ */ React2.createElement("span", { className: "text-sm" }, product.title), /* @__PURE__ */ React2.createElement("label", { className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React2.createElement(
+    return /* @__PURE__ */ React.createElement(SortableItem, { key: item.id, id: item.id }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between border border-slate-800 rounded-lg p-2" }, /* @__PURE__ */ React.createElement("span", { className: "text-sm" }, product.title), /* @__PURE__ */ React.createElement("label", { className: "flex items-center gap-2 text-sm" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         type: "checkbox",
@@ -1051,12 +952,12 @@ function ProductsGridEditor({ block, products, onChange }) {
   })))));
 }
 function PageBuilder({ page, onRefresh }) {
-  const [blocks, setBlocks] = useState2([]);
-  const [selected, setSelected] = useState2(null);
-  const [products, setProducts] = useState2([]);
+  const [blocks, setBlocks] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [products, setProducts] = useState([]);
   const getBlockLabel = (type) => BLOCK_TYPES.find((item) => item.type === type)?.label || type;
   const sensors = useSensors(useSensor(PointerSensor));
-  useEffect2(() => {
+  useEffect(() => {
     adminApi.listPageBlocks(page.id).then((items) => {
       setBlocks(items);
       setSelected(items[0] || null);
@@ -1110,39 +1011,39 @@ function PageBuilder({ page, onRefresh }) {
     setSelected(updated[0] || null);
     await onRefresh();
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "grid lg:grid-cols-[240px_1fr_320px] gap-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-4 space-y-3" }, /* @__PURE__ */ React2.createElement("h3", { className: "text-sm text-slate-400" }, RU.headings.blocks), BLOCK_TYPES.map((block) => /* @__PURE__ */ React2.createElement(Button, { key: block.type, variant: "secondary", onClick: () => handleAddBlock(block.type) }, "+ ", block.label))), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-4" }, /* @__PURE__ */ React2.createElement("h3", { className: "text-sm text-slate-400 mb-3" }, RU.headings.canvas), /* @__PURE__ */ React2.createElement(DndContext, { sensors, collisionDetection: closestCenter, onDragEnd: handleDragEnd }, /* @__PURE__ */ React2.createElement(SortableContext, { items: blocks.map((block) => block.id), strategy: verticalListSortingStrategy }, /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, blocks.map((block) => /* @__PURE__ */ React2.createElement(SortableItem, { key: block.id, id: block.id }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "grid lg:grid-cols-[240px_1fr_320px] gap-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-4 space-y-3" }, /* @__PURE__ */ React.createElement("h3", { className: "text-sm text-slate-400" }, RU.headings.blocks), BLOCK_TYPES.map((block) => /* @__PURE__ */ React.createElement(Button, { key: block.type, variant: "secondary", onClick: () => handleAddBlock(block.type) }, "+ ", block.label))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-4" }, /* @__PURE__ */ React.createElement("h3", { className: "text-sm text-slate-400 mb-3" }, RU.headings.canvas), /* @__PURE__ */ React.createElement(DndContext, { sensors, collisionDetection: closestCenter, onDragEnd: handleDragEnd }, /* @__PURE__ */ React.createElement(SortableContext, { items: blocks.map((block) => block.id), strategy: verticalListSortingStrategy }, /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, blocks.map((block) => /* @__PURE__ */ React.createElement(SortableItem, { key: block.id, id: block.id }, /* @__PURE__ */ React.createElement(
     "button",
     {
       className: `w-full text-left border border-slate-800 rounded-lg p-3 ${selected?.id === block.id ? "bg-slate-800" : ""}`,
       onClick: () => setSelected(block)
     },
-    /* @__PURE__ */ React2.createElement("div", { className: "text-sm font-medium" }, getBlockLabel(block.type)),
-    /* @__PURE__ */ React2.createElement("div", { className: "text-xs text-slate-400" }, RU.labels.sort, ": ", block.sort)
-  ))))))), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-4 space-y-4" }, /* @__PURE__ */ React2.createElement("h3", { className: "text-sm text-slate-400" }, RU.headings.properties), !selected ? /* @__PURE__ */ React2.createElement("p", { className: "text-slate-500 text-sm" }, RU.messages.selectBlock) : /* @__PURE__ */ React2.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React2.createElement("div", { className: "text-sm font-medium" }, getBlockLabel(selected.type)), selected.type === "hero" && /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: selected.props.title || "", onChange: (e) => updateSelectedProps({ ...selected.props, title: e.target.value }) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.subtitle }, /* @__PURE__ */ React2.createElement(Textarea, { value: selected.props.subtitle || "", onChange: (e) => updateSelectedProps({ ...selected.props, subtitle: e.target.value }) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.buttonLabel }, /* @__PURE__ */ React2.createElement(Input, { value: selected.props.buttonLabel || "", onChange: (e) => updateSelectedProps({ ...selected.props, buttonLabel: e.target.value }) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.buttonLink }, /* @__PURE__ */ React2.createElement(Input, { value: selected.props.buttonLink || "", onChange: (e) => updateSelectedProps({ ...selected.props, buttonLink: e.target.value }) }))), selected.type === "banner" && /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.text }, /* @__PURE__ */ React2.createElement(Textarea, { value: selected.props.text || "", onChange: (e) => updateSelectedProps({ ...selected.props, text: e.target.value }) })), selected.type === "text" && /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.content }, /* @__PURE__ */ React2.createElement(Textarea, { value: selected.props.text || "", onChange: (e) => updateSelectedProps({ ...selected.props, text: e.target.value }) })), selected.type === "gallery" && /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: selected.props.title || "", onChange: (e) => updateSelectedProps({ ...selected.props, title: e.target.value }) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.imagesComma }, /* @__PURE__ */ React2.createElement(
+    /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium" }, getBlockLabel(block.type)),
+    /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400" }, RU.labels.sort, ": ", block.sort)
+  ))))))), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-4 space-y-4" }, /* @__PURE__ */ React.createElement("h3", { className: "text-sm text-slate-400" }, RU.headings.properties), !selected ? /* @__PURE__ */ React.createElement("p", { className: "text-slate-500 text-sm" }, RU.messages.selectBlock) : /* @__PURE__ */ React.createElement("div", { className: "space-y-3" }, /* @__PURE__ */ React.createElement("div", { className: "text-sm font-medium" }, getBlockLabel(selected.type)), selected.type === "hero" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement(Input, { value: selected.props.title || "", onChange: (e) => updateSelectedProps({ ...selected.props, title: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.subtitle }, /* @__PURE__ */ React.createElement(Textarea, { value: selected.props.subtitle || "", onChange: (e) => updateSelectedProps({ ...selected.props, subtitle: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.buttonLabel }, /* @__PURE__ */ React.createElement(Input, { value: selected.props.buttonLabel || "", onChange: (e) => updateSelectedProps({ ...selected.props, buttonLabel: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.buttonLink }, /* @__PURE__ */ React.createElement(Input, { value: selected.props.buttonLink || "", onChange: (e) => updateSelectedProps({ ...selected.props, buttonLink: e.target.value }) }))), selected.type === "banner" && /* @__PURE__ */ React.createElement(Field, { label: RU.labels.text }, /* @__PURE__ */ React.createElement(Textarea, { value: selected.props.text || "", onChange: (e) => updateSelectedProps({ ...selected.props, text: e.target.value }) })), selected.type === "text" && /* @__PURE__ */ React.createElement(Field, { label: RU.labels.content }, /* @__PURE__ */ React.createElement(Textarea, { value: selected.props.text || "", onChange: (e) => updateSelectedProps({ ...selected.props, text: e.target.value }) })), selected.type === "gallery" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement(Input, { value: selected.props.title || "", onChange: (e) => updateSelectedProps({ ...selected.props, title: e.target.value }) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.imagesComma }, /* @__PURE__ */ React.createElement(
     Textarea,
     {
       value: (selected.props.images || []).join(", "),
       onChange: (e) => updateSelectedProps({ ...selected.props, images: e.target.value.split(",").map((url) => url.trim()).filter(Boolean) })
     }
-  ))), selected.type === "products-grid" && /* @__PURE__ */ React2.createElement(React2.Fragment, null, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: selected.props.title || "", onChange: (e) => updateSelectedProps({ ...selected.props, title: e.target.value }) })), /* @__PURE__ */ React2.createElement(
+  ))), selected.type === "products-grid" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement(Input, { value: selected.props.title || "", onChange: (e) => updateSelectedProps({ ...selected.props, title: e.target.value }) })), /* @__PURE__ */ React.createElement(
     ProductsGridEditor,
     {
       block: selected,
       products,
       onChange: (props) => updateSelectedProps(props)
     }
-  )), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { onClick: saveSelected }, RU.buttons.save), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: deleteSelected }, RU.buttons.delete)))));
+  )), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { onClick: saveSelected }, RU.buttons.save), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: deleteSelected }, RU.buttons.delete)))));
 }
 function PagesView() {
-  const [pages, setPages] = useState2([]);
-  const [slug, setSlug] = useState2("");
-  const [title, setTitle] = useState2("");
-  const [selectedPage, setSelectedPage] = useState2(null);
+  const [pages, setPages] = useState([]);
+  const [slug, setSlug] = useState("");
+  const [title, setTitle] = useState("");
+  const [selectedPage, setSelectedPage] = useState(null);
   const load = async () => {
     const data = await adminApi.listPages();
     setPages(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
   const handleCreate = async () => {
@@ -1161,7 +1062,7 @@ function PagesView() {
     setSelectedPage(null);
     await load();
   };
-  return /* @__PURE__ */ React2.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.newPage), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.slug }, /* @__PURE__ */ React2.createElement(Input, { value: slug, onChange: (e) => setSlug(e.target.value) })), /* @__PURE__ */ React2.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React2.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) }))), /* @__PURE__ */ React2.createElement(Button, { onClick: handleCreate, disabled: !slug || !title }, RU.buttons.create)), /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.pages), /* @__PURE__ */ React2.createElement("div", { className: "grid md:grid-cols-3 gap-3" }, pages.map((page) => /* @__PURE__ */ React2.createElement("div", { key: page.id, className: `border border-slate-800 rounded-lg p-3 space-y-2 ${selectedPage?.id === page.id ? "bg-slate-800" : ""}` }, /* @__PURE__ */ React2.createElement("div", { className: "font-medium" }, page.title), /* @__PURE__ */ React2.createElement("div", { className: "text-xs text-slate-400" }, "/", page.slug), /* @__PURE__ */ React2.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React2.createElement(Button, { variant: "secondary", onClick: () => handleSelect(page) }, RU.buttons.edit), /* @__PURE__ */ React2.createElement(Button, { variant: "danger", onClick: () => handleDelete(page) }, RU.buttons.delete)))))), selectedPage && /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("h3", { className: "text-lg font-semibold" }, RU.headings.pageBuilder), /* @__PURE__ */ React2.createElement("p", { className: "text-sm text-slate-400" }, "/", selectedPage.slug)), /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "space-y-6" }, /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.newPage), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-2 gap-4" }, /* @__PURE__ */ React.createElement(Field, { label: RU.labels.slug }, /* @__PURE__ */ React.createElement(Input, { value: slug, onChange: (e) => setSlug(e.target.value) })), /* @__PURE__ */ React.createElement(Field, { label: RU.labels.title }, /* @__PURE__ */ React.createElement(Input, { value: title, onChange: (e) => setTitle(e.target.value) }))), /* @__PURE__ */ React.createElement(Button, { onClick: handleCreate, disabled: !slug || !title }, RU.buttons.create)), /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.pages), /* @__PURE__ */ React.createElement("div", { className: "grid md:grid-cols-3 gap-3" }, pages.map((page) => /* @__PURE__ */ React.createElement("div", { key: page.id, className: `border border-slate-800 rounded-lg p-3 space-y-2 ${selectedPage?.id === page.id ? "bg-slate-800" : ""}` }, /* @__PURE__ */ React.createElement("div", { className: "font-medium" }, page.title), /* @__PURE__ */ React.createElement("div", { className: "text-xs text-slate-400" }, "/", page.slug), /* @__PURE__ */ React.createElement("div", { className: "flex gap-2" }, /* @__PURE__ */ React.createElement(Button, { variant: "secondary", onClick: () => handleSelect(page) }, RU.buttons.edit), /* @__PURE__ */ React.createElement(Button, { variant: "danger", onClick: () => handleDelete(page) }, RU.buttons.delete)))))), selectedPage && /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("div", { className: "flex items-center justify-between" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", { className: "text-lg font-semibold" }, RU.headings.pageBuilder), /* @__PURE__ */ React.createElement("p", { className: "text-sm text-slate-400" }, "/", selectedPage.slug)), /* @__PURE__ */ React.createElement(
     "a",
     {
       href: `/page/${selectedPage.slug}`,
@@ -1170,52 +1071,52 @@ function PagesView() {
       rel: "noreferrer"
     },
     RU.buttons.viewPublicPage
-  )), /* @__PURE__ */ React2.createElement(PageBuilder, { page: selectedPage, onRefresh: load })));
+  )), /* @__PURE__ */ React.createElement(PageBuilder, { page: selectedPage, onRefresh: load })));
 }
 function MediaView() {
-  const [items, setItems] = useState2([]);
+  const [items, setItems] = useState([]);
   const load = async () => {
     const data = await adminApi.listMedia();
     setItems(data);
   };
-  useEffect2(() => {
+  useEffect(() => {
     load();
   }, []);
-  return /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.mediaLibrary), /* @__PURE__ */ React2.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4" }, items.map((item) => /* @__PURE__ */ React2.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2" }, /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6 space-y-4" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.mediaLibrary), /* @__PURE__ */ React.createElement("div", { className: "grid grid-cols-2 md:grid-cols-4 gap-4" }, items.map((item) => /* @__PURE__ */ React.createElement("div", { key: item.key, className: "border border-slate-800 rounded-lg p-2" }, /* @__PURE__ */ React.createElement(
     "img",
     {
       src: resolveMediaUrl(item.url),
       alt: item.meta?.name || item.key,
       className: "w-full h-24 object-cover rounded-md"
     }
-  ), /* @__PURE__ */ React2.createElement("p", { className: "text-xs text-slate-400 mt-2 truncate" }, item.meta?.name || item.key)))));
+  ), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400 mt-2 truncate" }, item.meta?.name || item.key)))));
 }
 function Dashboard() {
-  return /* @__PURE__ */ React2.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React2.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.dashboard), /* @__PURE__ */ React2.createElement("p", { className: "text-slate-400" }, RU.messages.useSidebar));
+  return /* @__PURE__ */ React.createElement("div", { className: "bg-slate-900 rounded-xl p-6" }, /* @__PURE__ */ React.createElement("h2", { className: "text-lg font-semibold" }, RU.headings.dashboard), /* @__PURE__ */ React.createElement("p", { className: "text-slate-400" }, RU.messages.useSidebar));
 }
 function AdminLayout({ user, onLogout }) {
-  const [view, setView] = useState2("dashboard");
+  const [view, setView] = useState("dashboard");
   const content = useMemo(() => {
     switch (view) {
       case "products":
-        return /* @__PURE__ */ React2.createElement(ProductsView, null);
+        return /* @__PURE__ */ React.createElement(ProductsView, null);
       case "categories":
-        return /* @__PURE__ */ React2.createElement(CategoriesView, null);
+        return /* @__PURE__ */ React.createElement(CategoriesView, null);
       case "ingredients":
-        return /* @__PURE__ */ React2.createElement(IngredientsView, null);
+        return /* @__PURE__ */ React.createElement(IngredientsView, null);
       case "inventory":
-        return /* @__PURE__ */ React2.createElement(InventoryView, null);
+        return /* @__PURE__ */ React.createElement(InventoryView, null);
       case "orders":
-        return /* @__PURE__ */ React2.createElement(OrdersView, null);
+        return /* @__PURE__ */ React.createElement(OrdersView, null);
       case "media":
-        return /* @__PURE__ */ React2.createElement(MediaView, null);
+        return /* @__PURE__ */ React.createElement(MediaView, null);
       case "pages":
-        return /* @__PURE__ */ React2.createElement(PagesView, null);
+        return /* @__PURE__ */ React.createElement(PagesView, null);
       default:
-        return /* @__PURE__ */ React2.createElement(Dashboard, null);
+        return /* @__PURE__ */ React.createElement(Dashboard, null);
     }
   }, [view]);
-  return /* @__PURE__ */ React2.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex" }, /* @__PURE__ */ React2.createElement("aside", { className: "w-64 bg-slate-900 p-6 flex flex-col gap-6" }, /* @__PURE__ */ React2.createElement("div", null, /* @__PURE__ */ React2.createElement("h1", { className: "text-xl font-semibold" }, RU.headings.adminPanel), /* @__PURE__ */ React2.createElement("p", { className: "text-xs text-slate-400" }, user.email)), /* @__PURE__ */ React2.createElement("nav", { className: "space-y-2" }, navItems.map((item) => /* @__PURE__ */ React2.createElement(
+  return /* @__PURE__ */ React.createElement("div", { className: "min-h-screen bg-slate-950 text-slate-100 flex" }, /* @__PURE__ */ React.createElement("aside", { className: "w-64 bg-slate-900 p-6 flex flex-col gap-6" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h1", { className: "text-xl font-semibold" }, RU.headings.adminPanel), /* @__PURE__ */ React.createElement("p", { className: "text-xs text-slate-400" }, user.email)), /* @__PURE__ */ React.createElement("nav", { className: "space-y-2" }, navItems.map((item) => /* @__PURE__ */ React.createElement(
     "button",
     {
       key: item.id,
@@ -1223,12 +1124,12 @@ function AdminLayout({ user, onLogout }) {
       onClick: () => setView(item.id)
     },
     item.label
-  ))), /* @__PURE__ */ React2.createElement(Button, { variant: "ghost", onClick: onLogout }, RU.buttons.logout)), /* @__PURE__ */ React2.createElement("main", { className: "flex-1 p-8 overflow-auto" }, content));
+  ))), /* @__PURE__ */ React.createElement(Button, { variant: "ghost", onClick: onLogout }, RU.buttons.logout)), /* @__PURE__ */ React.createElement("main", { className: "flex-1 p-8 overflow-auto" }, content));
 }
 function AdminApp({ navigate, initialPath }) {
-  const [user, setUser] = useState2(null);
-  const [status, setStatus] = useState2("loading");
-  const [error, setError] = useState2(null);
+  const [user, setUser] = useState(null);
+  const [status, setStatus] = useState("loading");
+  const [error, setError] = useState(null);
   const goTo = (path) => {
     if (navigate) {
       navigate(path);
@@ -1258,7 +1159,7 @@ function AdminApp({ navigate, initialPath }) {
       }
     }
   }, []);
-  useEffect2(() => {
+  useEffect(() => {
     fetchSession();
   }, [fetchSession]);
   const handleLogin = async ({ email, password }) => {
@@ -1281,11 +1182,11 @@ function AdminApp({ navigate, initialPath }) {
   };
   const isLoginRoute = (initialPath || window.location.pathname).startsWith("/admin/login");
   if (status === "loading") {
-    return /* @__PURE__ */ React2.createElement(LoadingScreen, { label: RU.messages.loadingAdminAccess });
+    return /* @__PURE__ */ React.createElement(LoadingScreen, { label: RU.messages.loadingAdminAccess });
   }
   if (status === "error") {
     const errorMessage = error?.message || RU.messages.adminApiUnavailable;
-    return /* @__PURE__ */ React2.createElement(
+    return /* @__PURE__ */ React.createElement(
       ErrorState,
       {
         title: RU.messages.errorLoadingAdmin,
@@ -1299,17 +1200,17 @@ function AdminApp({ navigate, initialPath }) {
     if (!isLoginRoute) {
       goTo("/admin/login");
     }
-    return /* @__PURE__ */ React2.createElement(Login, { onLogin: handleLogin, onNavigate: isLoginRoute ? goTo : null });
+    return /* @__PURE__ */ React.createElement(Login, { onLogin: handleLogin, onNavigate: isLoginRoute ? goTo : null });
   }
   if (isLoginRoute) {
     goTo("/admin");
   }
-  return /* @__PURE__ */ React2.createElement(AdminLayout, { user, onLogout: handleLogout });
+  return /* @__PURE__ */ React.createElement(AdminLayout, { user, onLogout: handleLogout });
 }
 function mountAdminApp(container, options = {}) {
-  const root = createRoot2(container);
+  const root = createRoot(container);
   root.render(
-    /* @__PURE__ */ React2.createElement(ErrorBoundary, null, /* @__PURE__ */ React2.createElement(AdminApp, { navigate: options.navigate, initialPath: options.initialPath }))
+    /* @__PURE__ */ React.createElement(ErrorBoundary, null, /* @__PURE__ */ React.createElement(AdminApp, { navigate: options.navigate, initialPath: options.initialPath }))
   );
   return () => root.unmount();
 }

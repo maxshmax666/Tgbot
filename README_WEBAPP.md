@@ -19,6 +19,15 @@ python -m http.server 8080 --directory webapp
 
 Telegram requires HTTPS for Mini Apps. Use any HTTPS tunnel (cloudflared/ngrok).
 
+## Troubleshooting blank screen
+
+Проверка, что фронт и API отвечают и что app.js не закэшировался:
+
+```bash
+curl -I https://tgbot-3cm.pages.dev/app.js
+curl -i https://tgbot-3cm.pages.dev/api/health
+```
+
 ## Локальный запуск бота
 
 Минимальные требования:
