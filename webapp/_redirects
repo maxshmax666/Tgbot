@@ -17,12 +17,5 @@
 /store/*  /store/:splat  200
 /ui/*  /ui/:splat  200
 
-# --- Mini App routes (SPA) ---
-/menu          /index.html 200
-/cart          /index.html 200
-/checkout      /index.html 200
-/profile       /index.html 200
-/order-status  /index.html 200
-
-# --- Fallback (SPA) ---
-/*  /index.html 200
+# --- Public SPA (catch-all, exclude admin) ---
+/((?!admin).*)  /index.html 200
