@@ -206,7 +206,7 @@ s = p.read_text(encoding="utf-8")
 if "https://accounts.google.com/gsi/client" in s:
     print("GIS already present")
 else:
-    marker = '<script type="module" src="app.bundle.js"></script>'
+    marker = '<script type="module" src="app.bundle.js?v=__BUILD_ID__"></script>'
     if marker not in s:
         raise SystemExit("Cannot find app.bundle.js script tag in webapp/index.html")
     s = s.replace(marker, '<script src="https://accounts.google.com/gsi/client" async defer></script>\n    ' + marker, 1)

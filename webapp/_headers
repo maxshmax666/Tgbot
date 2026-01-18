@@ -1,6 +1,12 @@
 /app.js
   Cache-Control: no-store
 
+/app.bundle.js
+  Cache-Control: no-store
+
+/index.html
+  Cache-Control: no-store
+
 /services/*
   Cache-Control: no-store
 
