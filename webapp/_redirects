@@ -7,6 +7,7 @@
 /admin    /admin/index.html 200
 
 # --- Static assets (avoid SPA fallback) ---
+/app.bundle.js  /app.bundle.js 200
 /*.js  /:splat  200
 /*.css  /:splat  200
 /*.json  /:splat  200
