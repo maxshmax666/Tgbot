@@ -62,7 +62,7 @@ def load_config() -> Config:
     elif example_env_path.exists():
         load_dotenv(example_env_path)
 
-    bot_token = os.getenv("BOT_TOKEN")
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
     miniapp_url = os.getenv("MINIAPP_URL")
     db_path = os.getenv("DB_PATH") or str(repo_root / "bot.db")
     webapp_url = os.getenv("WEBAPP_URL") or miniapp_url
@@ -78,7 +78,7 @@ def load_config() -> Config:
     smtp_tls = _parse_bool(os.getenv("SMTP_TLS"), "SMTP_TLS", default=True)
 
     if not bot_token:
-        raise RuntimeError("BOT_TOKEN must be set")
+        raise RuntimeError("TELEGRAM_BOT_TOKEN must be set")
     if not miniapp_url:
         raise RuntimeError("MINIAPP_URL must be set")
     if not webapp_url:

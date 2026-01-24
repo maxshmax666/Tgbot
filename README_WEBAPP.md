@@ -82,7 +82,7 @@ WebApp внутри Telegram получает пользователя авто�
    };
    ```
 2. Добавьте переменные окружения для Pages Functions:
-   - `BOT_TOKEN` — токен Telegram бота (для проверки подписи Login Widget).
+   - `TELEGRAM_BOT_TOKEN` — токен Telegram бота (для проверки подписи Login Widget).
    - `GOOGLE_CLIENT_ID` — OAuth Client ID (Google Identity Services).
    - `JWT_SECRET` — секрет для подписи сессионного JWT.
 
