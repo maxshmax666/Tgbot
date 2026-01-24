@@ -28,6 +28,14 @@ curl -I https://tgbot-3cm.pages.dev/app.js
 curl -i https://tgbot-3cm.pages.dev/api/health
 ```
 
+Smoke‑проверка ассетов (HTML не должен подменять JS/CSS):
+
+```bash
+scripts/smoke-pages-assets.sh https://tgbot-3cm.pages.dev
+```
+
+Требования: `curl` и `rg` (ripgrep).
+
 ## Локальный запуск бота
 
 Минимальные требования:
