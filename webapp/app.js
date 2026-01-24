@@ -18,10 +18,7 @@ import { setButtonCurrent } from "./ui/button.js";
 import { createErrorState } from "./ui/errorState.js";
 import { getLastOrderStatus, storage, STORAGE_KEYS } from "./services/storageService.js";
 import { syncPendingOrders } from "./services/orderSyncService.js";
-import { IntroOverlay, getIntroState, shouldShowIntro } from "./ui/introMatrixPizzaOverlay.js";
-import { checkHealth } from "./services/healthService.js";
-import { hasLocalMenu } from "./services/menuService.js";
-import { loadLocalMenu, loadMenu } from "./store/menuStore.js";
+import { loadMenu } from "./store/menuStore.js";
 import { fetchConfig } from "./services/configService.js";
 import { renderDebugPage } from "./pages/debugPage.js";
 
@@ -410,34 +407,12 @@ async function main() {
   renderInitialRoute();
   syncPendingOrders();
   await initApp();
-  showOverlayFlow();
 }
 
 main().catch((error) => {
   console.error("boot:failed", error);
   showBootFailure("Приложение не загрузилось. Попробуйте перезагрузить страницу.", error, "boot");
 });
-
-let overlayController = null;
-
-function cleanupOverlay() {
-  if (overlayController?.cleanup) {
-    overlayController.cleanup();
-    overlayController = null;
-  }
-}
-
-async function runHealthCheck() {
-  console.info("health-check:start");
-  const result = await checkHealth({ timeoutMs: 2500 });
-  console.info("health-check:result", {
-    ok: result.ok,
-    status: result.status,
-    timedOut: result.timedOut,
-    error: result.error?.message || null,
-  });
-  return result;
-}
 
 function createContactLink({ label, href, variant = "secondary", icon }) {
   const classes = ["button", "ui-interactive", "button--sm", variant ? `button--${variant}` : "", "bottom-bar-contact"]
@@ -498,46 +473,4 @@ function renderBottomContacts(config) {
   bottomBar.contacts.hidden = false;
   bottomBar.contacts.classList.toggle("is-single", elements.length === 1);
   elements.forEach((el) => bottomBar.contacts.appendChild(el));
-}
-
-async function resolveOverlayMode() {
-  const { forceIntro, seen } = getIntroState();
-  const healthResult = await runHealthCheck();
-  const maintenance = !healthResult.ok;
-  const showIntro = shouldShowIntro();
-  const showMode = maintenance ? "maintenance" : showIntro ? "intro" : "none";
-  console.info("intro:decision", { forceIntro, seen, maintenance, showMode });
-  return { maintenance, showMode };
-}
-
-async function showOverlayFlow() {
-  const { maintenance, showMode } = await resolveOverlayMode();
-  cleanupOverlay();
-  if (showMode === "none") return;
-  if (showMode === "maintenance") {
-    const allowOffline = await hasLocalMenu();
-    overlayController = IntroOverlay({
-      mode: "maintenance",
-      allowOffline,
-      onRetry: () => {
-        showOverlayFlow();
-      },
-      onOpenOffline: async () => {
-        try {
-          await loadLocalMenu();
-          cleanupOverlay();
-          navigate("/menu");
-        } catch (error) {
-          console.warn("Offline menu load failed", error);
-        }
-      },
-    });
-    return;
-  }
-  overlayController = IntroOverlay({
-    mode: "intro",
-    onDismiss: () => {
-      cleanupOverlay();
-    },
-  });
 }

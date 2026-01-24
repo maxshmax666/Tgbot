@@ -862,22 +862,6 @@ async function fetchLocalMenu() {
   }
   return parseMenuPayload(payload);
 }
-async function hasLocalMenu() {
-  try {
-    const response = await fetch("/data/menu.json", { method: "HEAD", cache: "no-store" });
-    if (response.ok) return true;
-  } catch (error) {
-    return false;
-  }
-  try {
-    const response = await fetch("/data/menu.json", { cache: "no-store" });
-    if (!response.ok) return false;
-    const text = await response.text();
-    return Boolean(text && !text.trim().startsWith("<"));
-  } catch (error) {
-    return false;
-  }
-}
 function isFallbackEligible(error) {
   return error?.isFallback === true;
 }
@@ -967,28 +951,6 @@ async function loadMenu() {
     state2.items = data.items;
     state2.categories = data.categories;
     state2.source = data.source ?? "api";
-    state2.status = "loaded";
-    notify();
-    return data.items;
-  } catch (error) {
-    state2.status = "error";
-    state2.error = error instanceof Error ? error.message : "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043C\u0435\u043D\u044E";
-    notify();
-    throw error;
-  }
-}
-async function loadLocalMenu() {
-  if (state2.status === "loading") {
-    return state2.items;
-  }
-  state2.status = "loading";
-  state2.error = null;
-  notify();
-  try {
-    const data = await fetchLocalMenu();
-    state2.items = data.items;
-    state2.categories = data.categories;
-    state2.source = "local";
     state2.status = "loaded";
     notify();
     return data.items;
@@ -4253,196 +4215,159 @@ async function syncPendingOrders() {
   }
 }
 
-// webapp/ui/introMatrixPizzaOverlay.js
-var INTRO_STORAGE_KEY = "introSeen";
-function getIntroState() {
-  const params = new URLSearchParams(window.location.search);
-  const forceIntro = params.get("intro") === "1";
-  let seen = false;
+// webapp/pages/debugPage.js
+function getLocalStorageInfo() {
+  const entries = [];
   try {
-    seen = localStorage.getItem(INTRO_STORAGE_KEY) === "1";
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      const value = localStorage.getItem(key) || "";
+      entries.push({ key, size: value.length });
+    }
   } catch (error) {
-    seen = false;
+    return [{ key: "localStorage_error", size: String(error?.message || error) }];
   }
-  return { forceIntro, seen };
+  return entries.sort((a, b) => a.key.localeCompare(b.key));
 }
-function shouldShowIntro() {
-  const { forceIntro, seen } = getIntroState();
-  return forceIntro || !seen;
-}
-function markIntroSeen() {
+async function loadHealth(target) {
   try {
-    localStorage.setItem(INTRO_STORAGE_KEY, "1");
-  } catch (error) {
-    console.warn("Intro storage write failed", error);
-  }
-}
-function createParticles(count2, width, height) {
-  return Array.from({ length: count2 }, () => ({
-    x: Math.random() * width,
-    y: Math.random() * height,
-    size: 12 + Math.random() * 18,
-    speed: 0.6 + Math.random() * 1.9,
-    rotation: Math.random() * Math.PI * 2,
-    rotationSpeed: (Math.random() - 0.5) * 0.02,
-    opacity: 0.45 + Math.random() * 0.5
-  }));
-}
-function getParticleCount(width, height) {
-  const area = width * height;
-  const base = Math.min(140, Math.max(28, Math.round(area / 18e3)));
-  const deviceMemory = navigator.deviceMemory || 4;
-  const prefersReduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
-  const multiplier = prefersReduced ? 0.45 : deviceMemory <= 2 ? 0.55 : deviceMemory <= 4 ? 0.8 : 1;
-  return Math.max(18, Math.round(base * multiplier));
-}
-function IntroOverlay({ mode = "intro", allowOffline = false, onDismiss, onRetry, onOpenOffline } = {}) {
-  const overlay = createElement("div", { className: "intro-overlay", attrs: { role: "dialog", "aria-modal": "true" } });
-  const canvas = createElement("canvas", { className: "intro-canvas", attrs: { "aria-hidden": "true" } });
-  const content2 = createElement("div", { className: "intro-content" });
-  const title = createElement("div", {
-    className: "intro-title",
-    text: mode === "maintenance" ? "\u0422\u0435\u0445\u043D\u0438\u0447\u0435\u0441\u043A\u0438\u0435 \u0440\u0430\u0431\u043E\u0442\u044B. \u041C\u044B \u0443\u0436\u0435 \u0447\u0438\u043D\u0438\u043C \u{1F6A7}" : "\u0422\u0430\u043F\u043D\u0438 \u043F\u043E \u0446\u0435\u043D\u0442\u0440\u0443, \u0447\u0442\u043E\u0431\u044B \u0432\u043E\u0439\u0442\u0438"
-  });
-  const subtitle = createElement("div", {
-    className: "intro-subtitle",
-    text: mode === "maintenance" ? "MAINTENANCE" : "ENTER"
-  });
-  const actionRow = createElement("div", { className: "intro-actions" });
-  const action = createElement("button", {
-    className: "intro-enter",
-    text: mode === "maintenance" ? "\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C" : "\u0412\u043E\u0439\u0442\u0438",
-    attrs: { type: "button", "aria-label": mode === "maintenance" ? "\u041F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u044C \u043F\u0440\u043E\u0432\u0435\u0440\u043A\u0443" : "\u0412\u043E\u0439\u0442\u0438 \u0432 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435" }
-  });
-  actionRow.appendChild(action);
-  if (mode === "maintenance" && allowOffline) {
-    const offline = createElement("button", {
-      className: "intro-enter intro-enter--ghost",
-      text: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043C\u0435\u043D\u044E \u043E\u0444\u043B\u0430\u0439\u043D",
-      attrs: { type: "button", "aria-label": "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043C\u0435\u043D\u044E \u043E\u0444\u043B\u0430\u0439\u043D" }
-    });
-    actionRow.appendChild(offline);
-    offline.addEventListener("click", () => onOpenOffline?.());
-  }
-  content2.append(title, subtitle, actionRow);
-  overlay.append(canvas, content2);
-  document.body.appendChild(overlay);
-  document.body.classList.add("intro-active");
-  const ctx = canvas.getContext("2d");
-  let rafId = 0;
-  let width = 0;
-  let height = 0;
-  let particles = [];
-  let running = true;
-  const resize = () => {
-    const ratio = window.devicePixelRatio || 1;
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = Math.floor(width * ratio);
-    canvas.height = Math.floor(height * ratio);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx?.setTransform(ratio, 0, 0, ratio, 0, 0);
-    particles = createParticles(getParticleCount(width, height), width, height);
-  };
-  const draw = () => {
-    if (!running) return;
-    rafId = window.requestAnimationFrame(draw);
-    if (!ctx) return;
-    ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "rgba(7, 9, 14, 0.25)";
-    ctx.fillRect(0, 0, width, height);
-    ctx.save();
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(255, 153, 51, 0.4)";
-    ctx.shadowBlur = 12;
-    particles.forEach((particle) => {
-      particle.y += particle.speed;
-      particle.rotation += particle.rotationSpeed;
-      if (particle.y - particle.size > height) {
-        particle.y = -particle.size * 2;
-        particle.x = Math.random() * width;
-        particle.speed = 0.6 + Math.random() * 1.9;
-        particle.size = 12 + Math.random() * 18;
-        particle.opacity = 0.45 + Math.random() * 0.5;
-      }
-      ctx.save();
-      ctx.globalAlpha = particle.opacity;
-      ctx.translate(particle.x, particle.y);
-      ctx.rotate(particle.rotation);
-      ctx.font = `${particle.size}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
-      ctx.fillText("\u{1F355}", 0, 0);
-      ctx.restore();
-    });
-    ctx.restore();
-  };
-  const cleanup2 = () => {
-    running = false;
-    if (rafId) window.cancelAnimationFrame(rafId);
-    window.removeEventListener("resize", resize);
-    document.removeEventListener("keydown", onKeydown);
-    overlay.remove();
-    document.body.classList.remove("intro-active");
-  };
-  const dismiss = () => {
-    if (mode === "maintenance") {
-      onRetry?.();
+    const response = await fetch("/api/health", { cache: "no-store", headers: { accept: "application/json" } });
+    if (!response.ok) {
+      target.textContent = `health: error (${response.status})`;
       return;
     }
-    if (!overlay.classList.contains("is-exiting")) {
-      overlay.classList.add("is-exiting");
-      markIntroSeen();
-      window.setTimeout(() => {
-        cleanup2();
-        onDismiss?.();
-      }, 450);
-    }
-  };
-  const onKeydown = (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      dismiss();
-    }
-  };
-  action.addEventListener("click", dismiss);
-  if (mode !== "maintenance") {
-    content2.addEventListener("click", dismiss);
-  }
-  document.addEventListener("keydown", onKeydown);
-  resize();
-  draw();
-  return { cleanup: cleanup2 };
-}
-
-// webapp/services/healthService.js
-async function checkHealth({ timeoutMs = 2500 } = {}) {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-  const result = {
-    ok: false,
-    status: null,
-    error: null,
-    timedOut: false
-  };
-  try {
-    const response = await fetch("/api/health", { cache: "no-store", signal: controller.signal });
-    result.status = response.status;
-    result.ok = response.ok;
-    if (!response.ok) {
-      result.error = new Error(`Health check status ${response.status}`);
-    }
+    const payload = await response.json();
+    const readiness = payload?.readiness || {};
+    const missing = Array.isArray(payload?.missing) ? payload.missing.join(", ") : "\u2014";
+    target.textContent = `health: ok (db=${Boolean(readiness.db)}, jwt=${Boolean(
+      readiness.jwtSecret
+    )}, adminBootstrap=${Boolean(readiness.adminBootstrap)}), missing: ${missing}`;
   } catch (error) {
-    result.error = error;
-    result.timedOut = error?.name === "AbortError";
-  } finally {
-    window.clearTimeout(timeoutId);
+    target.textContent = `health: error (${error?.message || "unknown"})`;
   }
-  return result;
+}
+function renderDebugPage() {
+  const root = createElement("section", { className: "list" });
+  const header = createElement("div", { className: "section-title", text: "Debug" });
+  const buildId = createElement("div", {
+    className: "helper",
+    text: `build: ${window.BUILD_ID || "unknown"}`
+  });
+  const telegramState = createElement("div", { className: "helper", text: `isTelegram: ${isTelegram()}` });
+  const health = createElement("div", { className: "helper", text: "health: loading..." });
+  const storageTitle = createElement("h3", { className: "section-title", text: "Local storage" });
+  const storageList = createElement("ul", { className: "helper" });
+  const storageEntries = getLocalStorageInfo();
+  clearElement(storageList);
+  if (!storageEntries.length) {
+    storageList.appendChild(createElement("li", { text: "no entries" }));
+  } else {
+    storageEntries.forEach((entry) => {
+      const label = typeof entry.size === "number" ? `${entry.key}: ${entry.size}b` : `${entry.key}: ${entry.size}`;
+      storageList.appendChild(createElement("li", { text: label }));
+    });
+  }
+  root.append(header, buildId, telegramState, health, storageTitle, storageList);
+  loadHealth(health);
+  return { element: root };
 }
 
 // webapp/app.js
 var app = document.getElementById("app");
+var BUILD_ID = new URL(import.meta.url).searchParams.get("v") || window.BUILD_ID || "dev";
+window.BUILD_ID = BUILD_ID;
+var bootErrors = [];
+var BOOT_ERROR_LIMIT = 2;
+var bootFailed = false;
+function normalizeError(error) {
+  if (error instanceof Error) {
+    return { message: error.message, stack: error.stack || "" };
+  }
+  if (typeof error === "string") {
+    return { message: error, stack: "" };
+  }
+  try {
+    return { message: JSON.stringify(error), stack: "" };
+  } catch {
+    return { message: "Unknown error", stack: "" };
+  }
+}
+function recordBootError(error, source) {
+  const normalized = normalizeError(error);
+  bootErrors.push({
+    ...normalized,
+    source,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  });
+  if (bootErrors.length > BOOT_ERROR_LIMIT) {
+    bootErrors.shift();
+  }
+}
+function clearAppStorage() {
+  Object.values(STORAGE_KEYS).forEach((key) => storage.remove(key));
+}
+function renderBootFallback() {
+  if (!app && !document.body) return;
+  const root = app || document.body;
+  root.innerHTML = "";
+  const wrapper = document.createElement("section");
+  wrapper.style.cssText = "min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f172a;color:#e2e8f0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;";
+  const card = document.createElement("div");
+  card.style.cssText = "max-width:560px;width:100%;background:#111827;border-radius:16px;padding:24px;box-shadow:0 24px 48px rgba(15,23,42,0.35);";
+  const title = document.createElement("h1");
+  title.textContent = "\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F";
+  title.style.cssText = "font-size:20px;font-weight:600;margin:0 0 12px;";
+  const description = document.createElement("p");
+  description.textContent = "\u0412\u0435\u0440\u043E\u044F\u0442\u043D\u043E, \u043A\u044D\u0448 \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u0430 \u0438\u043B\u0438 Cloudflare \u043E\u0442\u0434\u0430\u043B \u0441\u0442\u0430\u0440\u0443\u044E \u0432\u0435\u0440\u0441\u0438\u044E. \u041D\u0430\u0436\u043C\u0438\u0442\u0435 \xAB\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443\xBB (\u0436\u0451\u0441\u0442\u043A\u0430\u044F \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0430).";
+  description.style.cssText = "margin:0 0 16px;color:#cbd5f5;font-size:14px;line-height:1.5;";
+  const actions = document.createElement("div");
+  actions.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;";
+  const reloadButton = document.createElement("button");
+  reloadButton.textContent = "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443";
+  reloadButton.style.cssText = "background:#6366f1;color:#fff;border:0;border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;";
+  reloadButton.addEventListener("click", () => window.location.reload());
+  const resetButton = document.createElement("button");
+  resetButton.textContent = "\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043B\u043E\u043A\u0430\u043B\u044C\u043D\u044B\u0435 \u0434\u0430\u043D\u043D\u044B\u0435";
+  resetButton.style.cssText = "background:#1f2937;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;";
+  resetButton.addEventListener("click", () => {
+    clearAppStorage();
+    window.location.reload();
+  });
+  const diagButton = document.createElement("button");
+  diagButton.textContent = "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0434\u0438\u0430\u0433\u043D\u043E\u0441\u0442\u0438\u043A\u0443";
+  diagButton.style.cssText = "background:transparent;color:#94a3b8;border:1px solid #334155;border-radius:10px;padding:10px 14px;font-size:14px;cursor:pointer;";
+  actions.append(reloadButton, resetButton, diagButton);
+  const diagnostics = document.createElement("div");
+  diagnostics.style.cssText = "display:none;background:#0b1120;border-radius:10px;padding:12px;font-size:12px;line-height:1.5;color:#cbd5f5;white-space:pre-wrap;";
+  const errorsText = bootErrors.map((entry, index) => {
+    const source = entry.source ? ` (${entry.source})` : "";
+    return `#${index + 1}${source} ${entry.timestamp}
+${entry.message}${entry.stack ? `
+${entry.stack}` : ""}`;
+  }).join("\n\n");
+  diagnostics.textContent = [
+    `build: ${BUILD_ID}`,
+    `timestamp: ${(/* @__PURE__ */ new Date()).toISOString()}`,
+    `url: ${window.location.href}`,
+    `userAgent: ${window.navigator.userAgent}`,
+    errorsText ? `errors:
+${errorsText}` : "errors: (\u043D\u0435\u0442 \u0437\u0430\u043F\u0438\u0441\u0435\u0439)"
+  ].join("\n");
+  diagButton.addEventListener("click", () => {
+    const isHidden = diagnostics.style.display === "none";
+    diagnostics.style.display = isHidden ? "block" : "none";
+  });
+  card.append(title, description, actions, diagnostics);
+  wrapper.appendChild(card);
+  root.appendChild(wrapper);
+}
+function showBootFailure(message, error, source) {
+  recordBootError(error || message, source);
+  if (bootFailed) return;
+  bootFailed = true;
+  renderBootFallback();
+}
 if (typeof window.PUBLIC_MEDIA_BASE_URL === "undefined") {
   window.PUBLIC_MEDIA_BASE_URL = "";
 }
@@ -4453,30 +4378,42 @@ var navItems = [
   { label: "\u0410\u043A\u0446\u0438\u0438", path: "/promos" },
   { label: "\u041F\u0440\u043E\u0444\u0438\u043B\u044C", path: "/profile" }
 ];
-var appShell = createAppShell({
-  title: "\u041F\u0438\u0446\u0446\u0435\u0440\u0438\u044F \u0422\u0430\u0433\u0438\u043B",
-  subtitle: "\u041C\u0438\u043D\u0438\u2011\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F \u0437\u0430\u043A\u0430\u0437\u0430 \u043F\u0438\u0446\u0446\u044B \u0431\u0435\u0437 \u043B\u0438\u0448\u043D\u0438\u0445 \u0448\u0430\u0433\u043E\u0432.",
-  navItems,
-  onNavigate: (path) => navigate(path)
-});
-var { warning, debugPanel, topBar, bottomBar, content } = appShell;
-app.append(...appShell.elements);
-var routes = [
-  { path: /^\/$/, render: renderHomePage },
-  { path: /^\/home\/?$/, render: renderHomePage },
-  { path: /^\/menu\/?$/, render: renderMenuPage },
-  { path: /^\/cart\/?$/, render: renderCartPage },
-  { path: /^\/checkout\/?$/, render: renderCheckoutPage },
-  { path: /^\/promos\/?$/, render: renderPromosPage },
-  { path: /^\/profile\/?$/, render: renderProfilePage },
-  { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
-  { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
-  { path: /^\/admin\/login\/?$/, render: renderAdminPage },
-  { path: /^\/admin\/?$/, render: renderAdminPage },
-  { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
-  { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
-  { path: /^\/page\/([^/]+)\/?$/, render: renderDynamicPage }
-];
+var appShell = null;
+var warning = null;
+var debugPanel = null;
+var topBar = null;
+var bottomBar = null;
+var content = null;
+var routes = [];
+function initShell() {
+  appShell = createAppShell({
+    title: "\u041F\u0438\u0446\u0446\u0435\u0440\u0438\u044F \u0422\u0430\u0433\u0438\u043B",
+    subtitle: "\u041C\u0438\u043D\u0438\u2011\u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u0434\u043B\u044F \u0437\u0430\u043A\u0430\u0437\u0430 \u043F\u0438\u0446\u0446\u044B \u0431\u0435\u0437 \u043B\u0438\u0448\u043D\u0438\u0445 \u0448\u0430\u0433\u043E\u0432.",
+    navItems,
+    onNavigate: (path) => navigate(path)
+  });
+  ({ warning, debugPanel, topBar, bottomBar, content } = appShell);
+  app.append(...appShell.elements);
+}
+function initRoutes() {
+  routes = [
+    { path: /^\/$/, render: renderHomePage },
+    { path: /^\/home\/?$/, render: renderHomePage },
+    { path: /^\/menu\/?$/, render: renderMenuPage },
+    { path: /^\/cart\/?$/, render: renderCartPage },
+    { path: /^\/checkout\/?$/, render: renderCheckoutPage },
+    { path: /^\/promos\/?$/, render: renderPromosPage },
+    { path: /^\/profile\/?$/, render: renderProfilePage },
+    { path: /^\/reset-password\/?$/, render: renderResetPasswordPage },
+    { path: /^\/verify-email\/?$/, render: renderVerifyEmailPage },
+    { path: /^\/admin\/login\/?$/, render: renderAdminPage },
+    { path: /^\/admin\/?$/, render: renderAdminPage },
+    { path: /^\/order-status\/?$/, render: renderOrderStatusPage },
+    { path: /^\/debug\/?$/, render: renderDebugPage },
+    { path: /^\/pizza\/([^/]+)\/?$/, render: renderPizzaPage },
+    { path: /^\/page\/([^/]+)\/?$/, render: renderDynamicPage }
+  ];
+}
 var cleanup = null;
 var bootState = {
   ready: false,
@@ -4534,15 +4471,35 @@ function renderRoute(pathname) {
   renderDebug();
   if (cleanup) cleanup();
   clearElement(content);
-  const paramsMatch = path.match(match.path);
-  const params = paramsMatch && paramsMatch.length > 1 ? { id: paramsMatch[1] } : {};
-  const result = match.render({ navigate, params });
-  cleanup = result?.cleanup || null;
-  content.appendChild(result.element);
-  setActiveNav(path);
-  if (typeof result?.restoreScroll === "function") {
-    result.restoreScroll();
+  try {
+    const paramsMatch = path.match(match.path);
+    const params = paramsMatch && paramsMatch.length > 1 ? { id: paramsMatch[1] } : {};
+    const result = match.render({ navigate, params });
+    cleanup = result?.cleanup || null;
+    content.appendChild(result.element);
+    setActiveNav(path);
+    if (typeof result?.restoreScroll === "function") {
+      result.restoreScroll();
+    }
+  } catch (error) {
+    console.error("route:render failed", { path, error });
+    showFatalError("\u0421\u0442\u0440\u0430\u043D\u0438\u0446\u0430 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0430\u0441\u044C. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C.");
   }
+}
+function showFatalError(message) {
+  clearElement(content);
+  const reloadButton = createElement("button", {
+    className: "button button--primary",
+    text: "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C"
+  });
+  reloadButton.addEventListener("click", () => window.location.reload());
+  content.appendChild(
+    createErrorState({
+      title: "\u041E\u0448\u0438\u0431\u043A\u0430 \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438",
+      description: message,
+      action: reloadButton
+    })
+  );
 }
 function navigate(path) {
   window.history.pushState({}, "", path);
@@ -4550,23 +4507,28 @@ function navigate(path) {
 }
 window.appNavigate = navigate;
 window.addEventListener("popstate", () => renderRoute(window.location.pathname));
+window.addEventListener("error", (event) => {
+  console.error("window:error", event.error || event.message);
+  showBootFailure(
+    "\u041F\u0440\u043E\u0438\u0437\u043E\u0448\u043B\u0430 \u043D\u0435\u043F\u0440\u0435\u0434\u0432\u0438\u0434\u0435\u043D\u043D\u0430\u044F \u043E\u0448\u0438\u0431\u043A\u0430. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435.",
+    event.error || event.message,
+    "window:error"
+  );
+});
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("window:unhandledrejection", event.reason);
+  showBootFailure(
+    "\u041F\u0440\u043E\u0438\u0437\u043E\u0448\u043B\u0430 \u043E\u0448\u0438\u0431\u043A\u0430 \u0441\u0435\u0442\u0438 \u0438\u043B\u0438 \u0434\u0430\u043D\u043D\u044B\u0445. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435.",
+    event.reason,
+    "window:unhandledrejection"
+  );
+});
 window.addEventListener("online", () => {
   syncPendingOrders();
 });
 window.addEventListener("resize", setAppHeightVar);
 window.addEventListener("orientationchange", setAppHeightVar);
 setAppHeightVar();
-var telegramState = initTelegram() ?? { available: false, missingInitData: false };
-warning.textContent = "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 \u043A\u043D\u043E\u043F\u043A\u0443 \xAB\u{1F355} \u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043C\u0430\u0433\u0430\u0437\u0438\u043D\xBB \u0432 \u0431\u043E\u0442\u0435, \u0438\u043D\u0430\u0447\u0435 Telegram \u0444\u0443\u043D\u043A\u0446\u0438\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B.";
-warning.hidden = telegramState.available && !telegramState.missingInitData;
-subscribeCart(() => {
-  const itemsCount = count();
-  [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
-    const cartButton = buttons.find((button) => button.dataset.path === "/cart");
-    if (!cartButton) return;
-    cartButton.textContent = itemsCount ? `\u041A\u043E\u0440\u0437\u0438\u043D\u0430 (${itemsCount})` : "\u041A\u043E\u0440\u0437\u0438\u043D\u0430";
-  });
-});
 function renderDebug() {
   const isDebug = new URLSearchParams(window.location.search).get("debug") === "1";
   debugPanel.hidden = !isDebug;
@@ -4603,7 +4565,6 @@ function renderDebug() {
     })
   );
 }
-renderDebug();
 function renderInitialRoute() {
   renderRoute(window.location.pathname);
 }
@@ -4624,27 +4585,32 @@ async function initApp() {
     renderBottomContacts(null);
   }
 }
-renderInitialRoute();
-syncPendingOrders();
-void initApp();
-var overlayController = null;
-function cleanupOverlay() {
-  if (overlayController?.cleanup) {
-    overlayController.cleanup();
-    overlayController = null;
+async function main() {
+  if (!app) {
+    throw new Error("App root element is missing");
   }
-}
-async function runHealthCheck() {
-  console.info("health-check:start");
-  const result = await checkHealth({ timeoutMs: 2500 });
-  console.info("health-check:result", {
-    ok: result.ok,
-    status: result.status,
-    timedOut: result.timedOut,
-    error: result.error?.message || null
+  initShell();
+  initRoutes();
+  const telegramState = initTelegram() ?? { available: false, missingInitData: false };
+  warning.textContent = "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 \u043A\u043D\u043E\u043F\u043A\u0443 \xAB\u{1F355} \u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043C\u0430\u0433\u0430\u0437\u0438\u043D\xBB \u0432 \u0431\u043E\u0442\u0435, \u0438\u043D\u0430\u0447\u0435 Telegram \u0444\u0443\u043D\u043A\u0446\u0438\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B.";
+  warning.hidden = telegramState.available && !telegramState.missingInitData;
+  subscribeCart(() => {
+    const itemsCount = count();
+    [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
+      const cartButton = buttons.find((button) => button.dataset.path === "/cart");
+      if (!cartButton) return;
+      cartButton.textContent = itemsCount ? `\u041A\u043E\u0440\u0437\u0438\u043D\u0430 (${itemsCount})` : "\u041A\u043E\u0440\u0437\u0438\u043D\u0430";
+    });
   });
-  return result;
+  renderDebug();
+  renderInitialRoute();
+  syncPendingOrders();
+  await initApp();
 }
+main().catch((error) => {
+  console.error("boot:failed", error);
+  showBootFailure("\u041F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u043E\u0441\u044C. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443.", error, "boot");
+});
 function createContactLink({ label, href, variant = "secondary", icon }) {
   const classes = ["button", "ui-interactive", "button--sm", variant ? `button--${variant}` : "", "bottom-bar-contact"].filter(Boolean).join(" ");
   const attrs = {
@@ -4701,44 +4667,3 @@ function renderBottomContacts(config) {
   bottomBar.contacts.classList.toggle("is-single", elements.length === 1);
   elements.forEach((el) => bottomBar.contacts.appendChild(el));
 }
-async function resolveOverlayMode() {
-  const { forceIntro, seen } = getIntroState();
-  const healthResult = await runHealthCheck();
-  const maintenance = !healthResult.ok;
-  const showIntro = shouldShowIntro();
-  const showMode = maintenance ? "maintenance" : showIntro ? "intro" : "none";
-  console.info("intro:decision", { forceIntro, seen, maintenance, showMode });
-  return { maintenance, showMode };
-}
-async function showOverlayFlow() {
-  const { maintenance, showMode } = await resolveOverlayMode();
-  cleanupOverlay();
-  if (showMode === "none") return;
-  if (showMode === "maintenance") {
-    const allowOffline = await hasLocalMenu();
-    overlayController = IntroOverlay({
-      mode: "maintenance",
-      allowOffline,
-      onRetry: () => {
-        showOverlayFlow();
-      },
-      onOpenOffline: async () => {
-        try {
-          await loadLocalMenu();
-          cleanupOverlay();
-          navigate("/menu");
-        } catch (error) {
-          console.warn("Offline menu load failed", error);
-        }
-      }
-    });
-    return;
-  }
-  overlayController = IntroOverlay({
-    mode: "intro",
-    onDismiss: () => {
-      cleanupOverlay();
-    }
-  });
-}
-showOverlayFlow();
