@@ -39,7 +39,7 @@ const computeHash = async (checkString, botToken) => {
 export async function onRequestPost({ env, request }) {
   const requestId = getRequestId(request);
   try {
-    const botToken = requireEnv(env.BOT_TOKEN, "BOT_TOKEN");
+    const botToken = requireEnv(env.TELEGRAM_BOT_TOKEN, "TELEGRAM_BOT_TOKEN");
     const payload = await request.json();
     const authData = authSchema.parse(payload);
     const nowSec = Math.floor(Date.now() / 1000);

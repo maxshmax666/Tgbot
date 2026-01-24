@@ -23,14 +23,14 @@ pip install -r requirements.txt
 Создайте файл `.env` в корне проекта:
 
 ```env
-BOT_TOKEN=123456:ABCDEF
+TELEGRAM_BOT_TOKEN=123456:ABCDEF
 MINIAPP_URL=https://tgbot-3cm.pages.dev/
 WEBAPP_URL=https://tgbot-3cm.pages.dev/
 ADMIN_CHAT_ID=123456789
 DB_PATH=./bot.db
 ```
 
-Обязательные: `BOT_TOKEN`, `MINIAPP_URL`, `WEBAPP_URL`, `ADMIN_CHAT_ID`.
+Обязательные: `TELEGRAM_BOT_TOKEN`, `MINIAPP_URL`, `WEBAPP_URL`, `ADMIN_CHAT_ID`.
 `DB_PATH` можно не задавать — по умолчанию `./bot.db`.
 
 Опционально (оплата и уведомления):
