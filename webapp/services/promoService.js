@@ -1,5 +1,8 @@
+import { resolveMediaUrl } from "./mediaBase.js";
+
 export async function fetchPromos() {
-  const response = await fetch("/data/promos.json", { cache: "no-store" });
+  const url = resolveMediaUrl("/data/promos.json");
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const text = await response.text();
   if (text.trim().startsWith("<")) {
