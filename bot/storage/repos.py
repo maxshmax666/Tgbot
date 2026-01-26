@@ -435,41 +435,55 @@ async def order_create_with_items(
     user_id = await ensure_user(db_path, tg_id)
     created_at = _utc_now()
     async with aiosqlite.connect(db_path) as conn:
-        cur = await conn.execute(
-            """
-            INSERT INTO orders (
-                order_id, tg_id, user_id, username, phone, name,
-                delivery_type, address, status, total, payment_method, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                order_id,
-                tg_id,
-                user_id,
-                username,
-                phone,
-                name,
-                delivery_type,
-                address,
-                status,
-                total,
-                payment_method,
-                created_at,
-            ),
-        )
-        order_id = int(cur.lastrowid)
-        await conn.executemany(
-            """
-            INSERT INTO order_items (order_id, item_id, title, qty, price, subtotal, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            [
-                (order_id, item.item_id, item.title, item.qty, item.price, item.subtotal, created_at)
-                for item in items
-            ],
-        )
-        await conn.commit()
-        return order_id
+        await conn.execute("BEGIN")
+        try:
+            cur = await conn.execute(
+                """
+                INSERT INTO orders (
+                    order_id, tg_id, user_id, username, phone, name,
+                    delivery_type, address, status, total, payment_method, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    order_id,
+                    tg_id,
+                    user_id,
+                    username,
+                    phone,
+                    name,
+                    delivery_type,
+                    address,
+                    status,
+                    total,
+                    payment_method,
+                    created_at,
+                ),
+            )
+            new_order_id = int(cur.lastrowid)
+            await conn.executemany(
+                """
+                INSERT INTO order_items (order_id, item_id, title, qty, price, subtotal, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        new_order_id,
+                        item.item_id,
+                        item.title,
+                        item.qty,
+                        item.price,
+                        item.subtotal,
+                        created_at,
+                    )
+                    for item in items
+                ],
+            )
+        except Exception:
+            await conn.rollback()
+            raise
+        else:
+            await conn.commit()
+        return new_order_id
 
 
 async def order_set_payment(db_path: str, order_id: int, payment_id: str) -> None:
