@@ -1,32 +1,5 @@
-# --- API (Cloudflare Pages Functions) ---
-/api/*  /api/:splat  200
-
-# --- Admin (static files in /webapp/admin) ---
-/admin  /admin/index.html 200
-/admin/*  /admin/:splat  200
-
-# --- Static assets (avoid SPA fallback) ---
-/*.js  /:splat  200
-/*.css  /:splat  200
-/*.map  /:splat  200
-/*.json  /:splat  200
-/*.png  /:splat  200
-/*.jpg  /:splat  200
-/*.jpeg  /:splat  200
-/*.svg  /:splat  200
-/*.ico  /:splat  200
-/*.woff  /:splat  200
-/*.woff2  /:splat  200
-/*.ttf  /:splat  200
-/*.eot  /:splat  200
-/*.webp  /:splat  200
-/*.gif  /:splat  200
 /assets/*  /assets/:splat  200
-/data/*  /data/:splat  200
-/services/*  /services/:splat  200
-/pages/*  /pages/:splat  200
-/store/*  /store/:splat  200
-/ui/*  /ui/:splat  200
-
-# --- Public SPA (catch-all) ---
-/*  /index.html 200
+/data/*    /data/:splat    200
+/admin/*   /admin/:splat   200
+/admin     /admin/index.html 200
+/*         /index.html      200
