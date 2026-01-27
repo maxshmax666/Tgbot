@@ -1,6 +1,6 @@
 import { createElement, clearElement } from "../ui/dom.js";
 import { createButton, setButtonPressed } from "../ui/button.js";
-import { createCard } from "../ui/card.js";
+import { createCard, createCardFooter } from "../ui/card.js";
 import { createChip } from "../ui/chip.js";
 import { createEmptyState } from "../ui/emptyState.js";
 import { createErrorState } from "../ui/errorState.js";
