@@ -454,7 +454,7 @@ function createCard({ className = "", interactive = false, attrs = {} } = {}) {
   }
   return card;
 }
-function createCardFooter2({ className = "", attrs = {} } = {}) {
+function createCardFooter({ className = "", attrs = {} } = {}) {
   return createElement("div", { className: ["card-footer", className].filter(Boolean).join(" "), attrs });
 }
 
@@ -2515,7 +2515,7 @@ function renderPizzaPage({ navigate: navigate2, params }) {
     nextButton.disabled = !nextItem || navLoading;
     navRow.append(prevButton, nextButton);
     const navHelper = navLoading ? createElement("div", { className: "helper", text: "\u0417\u0430\u0433\u0440\u0443\u0436\u0430\u0435\u043C \u0441\u043F\u0438\u0441\u043E\u043A \u043F\u0438\u0446\u0446\u2026" }) : null;
-    const actions = createCardFooter2({ className: "pizza-actions" });
+    const actions = createCardFooter({ className: "pizza-actions" });
     const back = createButton({
       label: "\u041D\u0430\u0437\u0430\u0434 \u0432 \u043C\u0435\u043D\u044E",
       variant: "secondary",
@@ -3184,7 +3184,7 @@ function createMenuPreviewCard(item, navigate2) {
   const gallery = createGallery(item.images, { large: false });
   const title = createElement("h3", { className: "card-title", text: item.title });
   const description = createElement("p", { className: "card-description", text: item.description });
-  const footer = createCardFooter2();
+  const footer = createCardFooter();
   const price = createPriceTag({ value: formatPrice(item.price) });
   const openButton = createButton({
     label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C",
@@ -3222,7 +3222,7 @@ function renderHomePage({ navigate: navigate2 }) {
       text: "\u0411\u044B\u0441\u0442\u0440\u043E\u0435 \u043E\u0444\u043E\u0440\u043C\u043B\u0435\u043D\u0438\u0435 \u0437\u0430\u043A\u0430\u0437\u0430, \u043F\u0435\u0440\u0441\u043E\u043D\u0430\u043B\u044C\u043D\u044B\u0435 \u0430\u043A\u0446\u0438\u0438 \u0438 \u0433\u043E\u0440\u044F\u0447\u0438\u0435 \u043F\u0438\u0446\u0446\u044B \u043F\u0440\u044F\u043C\u043E \u0438\u0437 \u043F\u0435\u0447\u0438."
     })
   );
-  const heroActions = createCardFooter2({ className: "home-actions" });
+  const heroActions = createCardFooter({ className: "home-actions" });
   heroActions.append(
     createButton({ label: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u0432 \u043C\u0435\u043D\u044E", onClick: () => navigate2("/menu") }),
     createButton({ label: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0430\u043A\u0446\u0438\u0438", variant: "secondary", onClick: () => navigate2("/promos") })
@@ -3234,7 +3234,7 @@ function renderHomePage({ navigate: navigate2 }) {
   promoCard.appendChild(
     createElement("p", { className: "card-description", text: "\u0421\u043A\u0438\u0434\u043A\u0438, \u043A\u043E\u043C\u0431\u043E \u0438 \u043F\u0440\u043E\u043C\u043E\u043A\u043E\u0434\u044B \u043D\u0430 \u043A\u0430\u0436\u0434\u044B\u0439 \u0434\u0435\u043D\u044C." })
   );
-  const promoFooter = createCardFooter2();
+  const promoFooter = createCardFooter();
   promoFooter.appendChild(createButton({ label: "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0430\u043A\u0446\u0438\u0438", onClick: () => navigate2("/promos") }));
   promoCard.appendChild(promoFooter);
   const menuCard = createCard({ className: "home-card" });
@@ -3242,7 +3242,7 @@ function renderHomePage({ navigate: navigate2 }) {
   menuCard.appendChild(
     createElement("p", { className: "card-description", text: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439 \u0432\u044B\u0431\u043E\u0440 \u043F\u043E \u0444\u0438\u043B\u044C\u0442\u0440\u0430\u043C \u0438 \u043A\u0430\u0442\u0435\u0433\u043E\u0440\u0438\u044F\u043C." })
   );
-  const menuFooter = createCardFooter2();
+  const menuFooter = createCardFooter();
   menuFooter.appendChild(createButton({ label: "\u041F\u0435\u0440\u0435\u0439\u0442\u0438 \u0432 \u043C\u0435\u043D\u044E", onClick: () => navigate2("/menu") }));
   menuCard.appendChild(menuFooter);
   cards.append(promoCard, menuCard);
@@ -3302,7 +3302,7 @@ function renderHomePage({ navigate: navigate2 }) {
     const previewItems = state4.items.slice(0, HOME_MENU_PREVIEW_LIMIT);
     previewItems.forEach((item) => previewGrid.appendChild(createMenuPreviewCard(item, navigate2)));
     menuContent.appendChild(previewGrid);
-    const menuAction = createCardFooter2();
+    const menuAction = createCardFooter();
     menuAction.appendChild(createButton({ label: "\u0421\u043C\u043E\u0442\u0440\u0435\u0442\u044C \u0432\u0441\u0435 \u043C\u0435\u043D\u044E", onClick: () => navigate2("/menu") }));
     menuContent.appendChild(menuAction);
   };
@@ -3313,7 +3313,8 @@ function renderHomePage({ navigate: navigate2 }) {
 
 // webapp/services/promoService.js
 async function fetchPromos() {
-  const response = await fetch("/data/promos.json", { cache: "no-store" });
+  const url = resolveMediaUrl("/data/promos.json");
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const text = await response.text();
   if (text.trim().startsWith("<")) {
@@ -3406,7 +3407,7 @@ function createPromoCard(promo) {
   let intervalId = window.setInterval(() => {
     timer.textContent = formatCountdown(promo.expiresAt);
   }, 1e3);
-  const footer = createCardFooter2({ className: "promo-actions" });
+  const footer = createCardFooter({ className: "promo-actions" });
   const isInactive = promo.active === false || isPromoExpired(promo.expiresAt);
   const applyButton = createButton({
     label: "\u041F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u044C \u043A \u043A\u043E\u0440\u0437\u0438\u043D\u0435",
@@ -3989,7 +3990,7 @@ function renderProductsGrid(props, items) {
     }
     card.appendChild(createElement("h3", { className: "card-title", text: item.title }));
     card.appendChild(createElement("p", { className: "card-description", text: item.description }));
-    const footer = createCardFooter2();
+    const footer = createCardFooter();
     footer.appendChild(createPriceTag({ value: formatPrice(item.price) }));
     const addButton = createButton({
       label: "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C",
