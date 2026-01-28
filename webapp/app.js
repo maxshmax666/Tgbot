@@ -390,9 +390,7 @@ async function main() {
   initRoutes();
 
   const telegramState = initTelegram() ?? { available: false, missingInitData: false };
-  warning.textContent =
-    "Откройте через кнопку «🍕 Открыть магазин» в боте, иначе Telegram функции недоступны.";
-  warning.hidden = telegramState.available && !telegramState.missingInitData;
+  warning.hidden = true;
 
   subscribeCart(() => {
     const itemsCount = count();

@@ -3313,7 +3313,8 @@ function renderHomePage({ navigate: navigate2 }) {
 
 // webapp/services/promoService.js
 async function fetchPromos() {
-  const response = await fetch("/data/promos.json", { cache: "no-store" });
+  const url = resolveMediaUrl("/data/promos.json");
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const text = await response.text();
   if (text.trim().startsWith("<")) {
@@ -4592,8 +4593,7 @@ async function main() {
   initShell();
   initRoutes();
   const telegramState = initTelegram() ?? { available: false, missingInitData: false };
-  warning.textContent = "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 \u043A\u043D\u043E\u043F\u043A\u0443 \xAB\u{1F355} \u041E\u0442\u043A\u0440\u044B\u0442\u044C \u043C\u0430\u0433\u0430\u0437\u0438\u043D\xBB \u0432 \u0431\u043E\u0442\u0435, \u0438\u043D\u0430\u0447\u0435 Telegram \u0444\u0443\u043D\u043A\u0446\u0438\u0438 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u043D\u044B.";
-  warning.hidden = telegramState.available && !telegramState.missingInitData;
+  warning.hidden = true;
   subscribeCart(() => {
     const itemsCount = count();
     [topBar.nav.buttons, bottomBar.nav.buttons].forEach((buttons) => {
