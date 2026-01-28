@@ -36,6 +36,7 @@ export async function onRequestPost({ request, env }) {
     }
 
     let role = "user";
+    let adminId = null;
     if (env.DB) {
       const admin = await env.DB
         .prepare("SELECT id, role, email_verified_at FROM users WHERE email = ? LIMIT 1")
@@ -43,12 +44,13 @@ export async function onRequestPost({ request, env }) {
         .first();
       if (admin && ADMIN_ROLES.has(admin.role) && admin.email_verified_at) {
         role = admin.role;
+        adminId = admin.id;
       }
     }
 
     const token = await createToken(
       {
-        sub: `google:${String(user.sub)}`,
+        sub: adminId ? `user:${String(adminId)}` : `google:${String(user.sub)}`,
         provider: "google",
         role,
         email: user.email,
