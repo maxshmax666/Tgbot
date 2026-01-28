@@ -1,24 +1,25 @@
+import { createSessionCookie, createToken, handleError, json, RequestError, requireEnv } from "../_utils.js";
+
+const ADMIN_ROLES = new Set(["owner", "admin"]);
+
 export async function onRequestPost({ request, env }) {
   try {
     const body = await request.json();
     const credential = body?.credential;
 
     if (!credential || typeof credential !== "string") {
-      return json({ ok: false, error: "credential is required" }, 400);
+      throw new RequestError(400, "credential is required");
     }
-    if (!env.GOOGLE_CLIENT_ID) {
-      return json({ ok: false, error: "Server misconfigured: GOOGLE_CLIENT_ID missing" }, 500);
-    }
-    if (!env.JWT_SECRET) {
-      return json({ ok: false, error: "Server misconfigured: JWT_SECRET missing" }, 500);
-    }
+
+    const clientId = requireEnv(env.GOOGLE_CLIENT_ID, "GOOGLE_CLIENT_ID");
+    requireEnv(env.JWT_SECRET, "JWT_SECRET");
 
     const url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential);
     const res = await fetch(url);
     const info = await res.json();
 
-    if (!res.ok) return json({ ok: false, error: info?.error_description || "Invalid Google token" }, 401);
-    if (info.aud !== env.GOOGLE_CLIENT_ID) return json({ ok: false, error: "Google token audience mismatch" }, 401);
+    if (!res.ok) throw new RequestError(401, info?.error_description || "Invalid Google token");
+    if (info.aud !== clientId) throw new RequestError(401, "Google token audience mismatch");
 
     const user = {
       sub: info.sub,
@@ -30,37 +31,35 @@ export async function onRequestPost({ request, env }) {
       family_name: info.family_name,
     };
 
-    const token = await signJwtHS256(
-      { sub: String(user.sub), provider: "google", user, iat: now(), exp: now() + 60 * 60 * 24 * 30 },
-      env.JWT_SECRET
+    if (!user.email || !user.email_verified) {
+      throw new RequestError(401, "Google email not verified");
+    }
+
+    let role = "user";
+    if (env.DB) {
+      const admin = await env.DB
+        .prepare("SELECT id, role, email_verified_at FROM users WHERE email = ? LIMIT 1")
+        .bind(user.email)
+        .first();
+      if (admin && ADMIN_ROLES.has(admin.role) && admin.email_verified_at) {
+        role = admin.role;
+      }
+    }
+
+    const token = await createToken(
+      {
+        sub: `google:${String(user.sub)}`,
+        provider: "google",
+        role,
+        email: user.email,
+        name: user.name,
+      },
+      env
     );
 
-    return json({ ok: true, token, user, provider: "google" });
-  } catch (e) {
-    return json({ ok: false, error: e?.message || "Unknown error" }, 500);
+    const headers = role !== "user" ? { "set-cookie": createSessionCookie(token, request) } : {};
+    return json({ ok: true, token, user, provider: "google", role }, 200, headers);
+  } catch (err) {
+    return handleError(err);
   }
-}
-
-function now() { return Math.floor(Date.now() / 1000); }
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), { status, headers: { "content-type": "application/json; charset=utf-8" } });
-}
-
-async function signJwtHS256(payload, secret) {
-  const header = { alg: "HS256", typ: "JWT" };
-  const enc = new TextEncoder();
-  const base64url = (obj) =>
-    btoa(String.fromCharCode(...enc.encode(JSON.stringify(obj))))
-      .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-
-  const h = base64url(header);
-  const p = base64url(payload);
-  const data = `${h}.${p}`;
-
-  const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data));
-  const s = btoa(String.fromCharCode(...new Uint8Array(sig)))
-    .replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-
-  return `${data}.${s}`;
 }
