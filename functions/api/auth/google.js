@@ -1,6 +1,9 @@
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { createSessionCookie, createToken, handleError, json, RequestError, requireEnv } from "../_utils.js";
 
 const ADMIN_ROLES = new Set(["owner", "admin"]);
+const GOOGLE_ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
+const googleJwks = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
 
 export async function onRequestPost({ request, env }) {
   try {
@@ -14,21 +17,24 @@ export async function onRequestPost({ request, env }) {
     const clientId = requireEnv(env.GOOGLE_CLIENT_ID, "GOOGLE_CLIENT_ID");
     requireEnv(env.JWT_SECRET, "JWT_SECRET");
 
-    const url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(credential);
-    const res = await fetch(url);
-    const info = await res.json();
-
-    if (!res.ok) throw new RequestError(401, info?.error_description || "Invalid Google token");
-    if (info.aud !== clientId) throw new RequestError(401, "Google token audience mismatch");
+    const { payload } = await jwtVerify(credential, googleJwks, {
+      audience: clientId,
+    });
+    if (!payload.iss || !GOOGLE_ISSUERS.has(String(payload.iss))) {
+      throw new RequestError(401, "Invalid Google issuer");
+    }
+    if (!payload.email || payload.email_verified !== true) {
+      throw new RequestError(401, "Google email not verified");
+    }
 
     const user = {
-      sub: info.sub,
-      email: info.email,
-      email_verified: info.email_verified === "true" || info.email_verified === true,
-      name: info.name,
-      picture: info.picture,
-      given_name: info.given_name,
-      family_name: info.family_name,
+      sub: payload.sub,
+      email: payload.email,
+      email_verified: payload.email_verified,
+      name: payload.name,
+      picture: payload.picture,
+      given_name: payload.given_name,
+      family_name: payload.family_name,
     };
 
     if (!user.email || !user.email_verified) {
