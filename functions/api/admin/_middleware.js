@@ -1,6 +1,10 @@
 import { handleError, requireAuth, RequestError } from "../_utils.js";
 
-const PUBLIC_PATHS = new Set(["/api/admin/auth/login", "/api/admin/auth/logout"]);
+const PUBLIC_PATHS = new Set([
+  "/api/admin/auth/login",
+  "/api/admin/auth/logout",
+  "/api/admin/users/bootstrap",
+]);
 
 export async function onRequest({ env, request, next }) {
   const { pathname } = new URL(request.url);
