@@ -1,6 +1,13 @@
 import bcrypt from "bcryptjs";
 import { json, handleError, requireDb, RequestError, requireEnv } from "../../_utils.js";
 
+export async function onRequest(context) {
+  if (context.request.method !== "POST") {
+    return json({ error: { message: "Method Not Allowed" } }, 405, { Allow: "POST" });
+  }
+  return onRequestPost(context);
+}
+
 export async function onRequestPost({ env, request }) {
   try {
     const db = requireDb(env);
